@@ -179,6 +179,24 @@ export default function Create({ serviceCategories = [] }) {
         ['admin', 'Admin Checklist'],
     ];
 
+    const currentTabIndex = tabs.findIndex(([key]) => key === activeTab);
+    const isFirstTab = currentTabIndex === 0;
+    const isLastTab = currentTabIndex === tabs.length - 1;
+
+    const goNext = () => {
+        if (!isLastTab) {
+            setActiveTab(tabs[currentTabIndex + 1][0]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const goPrevious = () => {
+        if (!isFirstTab) {
+            setActiveTab(tabs[currentTabIndex - 1][0]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     const Input = ({ label, name, type = 'text' }) => (
         <div>
             <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -749,18 +767,47 @@ export default function Create({ serviceCategories = [] }) {
                         </Section>
                     )}
 
-                    <div className="flex justify-end gap-3 mt-8">
-                        <Link href="/drivers" className="bg-gray-500 text-white px-6 py-2 rounded">
-                            Cancel
-                        </Link>
+                    <div className="flex justify-between items-center gap-3 mt-8 border-t pt-6">
+                        <div>
+                            <Link
+                                href="/drivers"
+                                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
+                            >
+                                Cancel
+                            </Link>
+                        </div>
 
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800 disabled:opacity-50"
-                        >
-                            {processing ? 'Saving...' : 'Save Driver'}
-                        </button>
+                        <div className="flex gap-3">
+                            {!isFirstTab && (
+                                <button
+                                    type="button"
+                                    onClick={goPrevious}
+                                    className="bg-slate-600 text-white px-6 py-2 rounded hover:bg-slate-700"
+                                >
+                                    Previous
+                                </button>
+                            )}
+
+                            {!isLastTab && (
+                                <button
+                                    type="button"
+                                    onClick={goNext}
+                                    className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800"
+                                >
+                                    Next
+                                </button>
+                            )}
+
+                            {isLastTab && (
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800 disabled:opacity-50"
+                                >
+                                    {processing ? 'Saving...' : 'Save Driver'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </form>
             </div>
