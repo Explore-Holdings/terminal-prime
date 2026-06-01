@@ -63,4 +63,16 @@ class Driver extends Model
     {
         return $this->hasOne(AdminVerification::class);
     }
+
+    public function languages()
+    {
+        return $this->hasMany(DriverLanguage::class);
+    }
+
+    public function serviceCategories()
+    {
+        return $this->belongsToMany(ServiceCategory::class,
+            'driver_service_categories'
+        );
+    }
 }

@@ -2,7 +2,7 @@ import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
-export default function Create() {
+export default function Create({ serviceCategories = [] }) {
     const [activeTab, setActiveTab] = useState('personal');
 
     const { data, setData, post, processing, errors } = useForm({
@@ -113,6 +113,17 @@ export default function Create() {
         approved_by: '',
         approval_date: '',
         driver_status: 'Inactive',
+
+        driver_languages: [
+            {
+                language_name: '',
+                speaking_level: '',
+                reading_level: '',
+                writing_level: '',
+            }
+        ],
+
+        service_category_ids: [],
     });
 
     const submit = (e) => {
@@ -125,7 +136,9 @@ export default function Create() {
     const tabs = [
         ['personal', 'Personal'],
         ['emergency', 'Emergency'],
+        ['languages', 'Languages'],
         ['license', 'License'],
+        ['services', 'Services'],
         ['vehicle', 'Vehicle'],
         ['features', 'Features'],
         ['vehicleDocs', 'Vehicle Docs'],
@@ -159,6 +172,19 @@ export default function Create() {
         </div>
     );
 
+    const toggleServiceCategory = (id) => {
+        const current = data.service_category_ids;
+
+        if (current.includes(id)) {
+            setData(
+                'service_category_ids',
+                current.filter((item) => item !== id)
+            );
+        } else {
+            setData('service_category_ids', [...current, id]);
+        }
+    };
+
     const Select = ({ label, name, children }) => (
         <div>
             <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -183,6 +209,30 @@ export default function Create() {
             />
         </div>
     );
+
+    const addLanguage = () => {
+        setData('driver_languages', [
+            ...data.driver_languages,
+            {
+                language_name: '',
+                speaking_level: '',
+                reading_level: '',
+                writing_level: '',
+            }
+        ]);
+    };
+
+    const updateLanguage = (index, field, value) => {
+        const languages = [...data.driver_languages];
+        languages[index][field] = value;
+        setData('driver_languages', languages);
+    };
+
+    const removeLanguage = (index) => {
+        const languages = [...data.driver_languages];
+        languages.splice(index, 1);
+        setData('driver_languages', languages);
+    };
 
     const Checkbox = ({ label, name }) => (
         <label className="flex items-center gap-2">
@@ -265,10 +315,159 @@ export default function Create() {
                         </Section>
                     )}
 
+                    {activeTab === 'services' && (
+                        <Section title="Service Categories">
+                            {serviceCategories.map((category) => (
+                                <label key={category.id} className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.service_category_ids.includes(category.id)}
+                                        onChange={() => toggleServiceCategory(category.id)}
+                                        className="rounded border-gray-300"
+                                    />
+                                    <span>{category.name}</span>
+                                </label>
+                            ))}
+                        </Section>
+                    )}
+
+                    {activeTab === 'languages' && (
+                        <Section title="Language Proficiency">
+
+                            <div className="col-span-3 mb-4">
+                                <button
+                                    type="button"
+                                    onClick={addLanguage}
+                                    className="bg-green-600 text-white px-4 py-2 rounded"
+                                >
+                                    + Add Language
+                                </button>
+                            </div>
+
+                            {data.driver_languages.map((language, index) => (
+                                <div
+                                    key={index}
+                                    className="col-span-3 border rounded-lg p-4 bg-gray-50 mb-4"
+                                >
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+                                        <div>
+                                            <label className="block text-sm font-medium">
+                                                Language
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                value={language.language_name}
+                                                onChange={(e) =>
+                                                    updateLanguage(
+                                                        index,
+                                                        'language_name',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="mt-1 w-full border-gray-300 rounded-md"
+                                                placeholder="English"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium">
+                                                Speaking
+                                            </label>
+
+                                            <select
+                                                value={language.speaking_level}
+                                                onChange={(e) =>
+                                                    updateLanguage(
+                                                        index,
+                                                        'speaking_level',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="mt-1 w-full border-gray-300 rounded-md"
+                                            >
+                                                <option value="">Select</option>
+                                                <option>Basic</option>
+                                                <option>Intermediate</option>
+                                                <option>Fluent</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium">
+                                                Reading
+                                            </label>
+
+                                            <select
+                                                value={language.reading_level}
+                                                onChange={(e) =>
+                                                    updateLanguage(
+                                                        index,
+                                                        'reading_level',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="mt-1 w-full border-gray-300 rounded-md"
+                                            >
+                                                <option value="">Select</option>
+                                                <option>Basic</option>
+                                                <option>Intermediate</option>
+                                                <option>Fluent</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium">
+                                                Writing
+                                            </label>
+
+                                            <select
+                                                value={language.writing_level}
+                                                onChange={(e) =>
+                                                    updateLanguage(
+                                                        index,
+                                                        'writing_level',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="mt-1 w-full border-gray-300 rounded-md"
+                                            >
+                                                <option value="">Select</option>
+                                                <option>Basic</option>
+                                                <option>Intermediate</option>
+                                                <option>Fluent</option>
+                                            </select>
+                                        </div>
+
+                                    </div>
+
+                                    <div className="mt-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => removeLanguage(index)}
+                                            className="bg-red-600 text-white px-3 py-2 rounded"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                        </Section>
+                    )}
+
                     {activeTab === 'license' && (
                         <Section title="Driving License Information">
+                            <Select label="License Type" name="license_type">
+                                <option value="">Select License Type</option>
+                                <option value="Light Vehicle">Light Vehicle</option>
+                                <option value="Heavy Vehicle">Heavy Vehicle</option>
+                                <option value="Bus">Bus</option>
+                                <option value="Tourist Driver">Tourist Driver</option>
+                                <option value="Chauffeur">Chauffeur</option>
+                            </Select>
                             <Input label="License Number" name="license_number" />
-                            <Input label="License Type" name="license_type" />
                             <Input label="Issue Date" name="issue_date" type="date" />
                             <Input label="Expiry Date" name="expiry_date" type="date" />
                             <Input label="Years of Experience" name="years_of_experience" type="number" />

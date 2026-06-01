@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Driver;
+use App\Models\ServiceCategory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -17,7 +18,9 @@ class DriverController extends Controller
 
     public function create()
     {
-        return Inertia::render('Drivers/Create');
+        return Inertia::render('Drivers/Create', [
+            'serviceCategories' => ServiceCategory::orderBy('name')->get(),
+        ]);
     }
 
     public function store(Request $request)
