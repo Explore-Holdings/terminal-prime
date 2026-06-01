@@ -1,5 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Create({ serviceCategories = [] }) {
@@ -12,9 +12,9 @@ export default function Create({ serviceCategories = [] }) {
         nic_number: '',
         passport_number: '',
         date_of_birth: '',
-        gender: '',
-        nationality: '',
-        marital_status: '',
+        gender: 'Male',
+        nationality: 'Sri Lankan',
+        marital_status: 'Single',
         mobile_number: '',
         whatsapp_number: '',
         alternative_contact_number: '',
@@ -295,6 +295,139 @@ export default function Create({ serviceCategories = [] }) {
         </label>
     );
 
+    function DriverPhotoInput({ data, setData }) {
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [preview, setPreview] = useState(null);
+    const [stream, setStream] = useState(null);
+
+    const openCamera = async () => {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
+
+        setStream(mediaStream);
+        setCameraOpen(true);
+
+        setTimeout(() => {
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+            }
+        }, 100);
+    };
+
+    const closeCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+        }
+
+        setCameraOpen(false);
+        setStream(null);
+    };
+
+    const capturePhoto = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            const file = new File([blob], 'driver-photo.jpg', {
+                type: 'image/jpeg',
+            });
+
+            setData('driver_photo', file);
+            setPreview(URL.createObjectURL(file));
+            closeCamera();
+        }, 'image/jpeg');
+    };
+
+    const uploadFile = (e) => {
+        const file = e.target.files[0];
+
+        if (file) {
+            setData('driver_photo', file);
+            setPreview(URL.createObjectURL(file));
+        }
+    };
+
+    return (
+        <div className="md:col-span-2 lg:col-span-3">
+            <label className="block text-sm font-medium text-gray-700">
+                Driver Photo
+            </label>
+
+            <div className="mt-2 flex flex-wrap gap-3">
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadFile}
+                    className="border border-gray-300 rounded-md p-2"
+                />
+
+                <button
+                    type="button"
+                    onClick={openCamera}
+                    className="bg-blue-700 text-white px-4 py-2 rounded"
+                >
+                    Use Webcam
+                </button>
+            </div>
+
+            {cameraOpen && (
+                <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full max-w-md rounded border"
+                    />
+
+                    <canvas ref={canvasRef} className="hidden" />
+
+                    <div className="mt-3 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={capturePhoto}
+                            className="bg-green-700 text-white px-4 py-2 rounded"
+                        >
+                            Capture Photo
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={closeCamera}
+                            className="bg-red-600 text-white px-4 py-2 rounded"
+                        >
+                            Cancel Camera
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {preview && (
+                <div className="mt-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                        Preview
+                    </p>
+
+                    <img
+                        src={preview}
+                        alt="Driver Preview"
+                        className="w-40 h-40 object-cover rounded border"
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
     return (
         <AppSidebarLayout title="Create Driver">
             <div className="min-h-screen bg-gray-100 p-6">
@@ -333,22 +466,23 @@ export default function Create({ serviceCategories = [] }) {
                             <Input label="NIC Number" name="nic_number" />
                             <Input label="Passport Number" name="passport_number" />
                             <Input label="Date of Birth" name="date_of_birth" type="date" />
-
                             <Select label="Gender" name="gender">
                                 <option value="">Select Gender</option>
                                 <option>Male</option>
                                 <option>Female</option>
-                                <option>Other</option>
                             </Select>
-
                             <Input label="Nationality" name="nationality" />
-                            <Input label="Marital Status" name="marital_status" />
+                            <Select label="Marital Status" name="marital_status">
+                                <option value="">Select Marital Status</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                            </Select>
                             <Input label="Mobile Number" name="mobile_number" />
                             <Input label="WhatsApp Number" name="whatsapp_number" />
                             <Input label="Alternative Contact Number" name="alternative_contact_number" />
                             <Input label="Email" name="email" type="email" />
                             <Input label="City" name="city" />
-                            <FileInput label="Driver Photo" name="driver_photo" />
+                            <DriverPhotoInput data={data} setData={setData} />
                             <TextArea label="Permanent Address" name="permanent_address" />
                             <TextArea label="Current Address" name="current_address" />
                         </Section>
