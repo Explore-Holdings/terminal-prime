@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DataTable from 'react-data-table-component';
+import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ drivers = [] }) {
     const [search, setSearch] = useState('');
@@ -113,8 +114,9 @@ export default function Index({ drivers = [] }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
+        <AppSidebarLayout>
+            <div className="min-h-screen bg-gray-100 p-8">
+                <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
 
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <div>
@@ -174,5 +176,6 @@ export default function Index({ drivers = [] }) {
                 />
             </div>
         </div>
+        </AppSidebarLayout>
     );
 }
