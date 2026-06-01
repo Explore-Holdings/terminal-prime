@@ -33,4 +33,13 @@ Route::resource('drivers', DriverController::class)->only([
     'index', 'create', 'store'
 ]);
 
+Route::get('/drivers/{driver}', [DriverController::class, 'show'])
+    ->name('drivers.show');
+
+Route::get('/drivers/{driver}/edit', [DriverController::class, 'edit'])
+    ->name('drivers.edit');
+
+Route::put('/drivers/{driver}', [DriverController::class, 'update'])
+    ->name('drivers.update');
+
 require __DIR__.'/auth.php';

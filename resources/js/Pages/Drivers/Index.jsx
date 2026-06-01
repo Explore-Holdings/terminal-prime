@@ -80,7 +80,7 @@ export default function Index({ drivers = [] }) {
             cell: row => (
                 <div className="flex gap-2">
                     <Link
-                        href={`/drivers/${row.id}`}
+                        href={route('drivers.show', row.id)}
                         className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
                     >
                         View

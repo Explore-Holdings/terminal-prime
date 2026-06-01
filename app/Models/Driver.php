@@ -90,4 +90,15 @@ class Driver extends Model
     {
         return $this->hasOne(TourismCompliance::class);
     }
+
+    public function license()
+    {
+        return $this->hasOne(DrivingLicense::class);
+    }
+
+    public function vehicle()
+    {
+        return $this->hasOne(Vehicle::class);
+    }
+
 }
