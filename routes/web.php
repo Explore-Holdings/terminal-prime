@@ -3,8 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 use App\Http\Controllers\DriverController;
+use App\Models\Driver;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -19,8 +20,29 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
+
+
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    return Inertia::render('Dashboard', [
+        'stats' => [
+            'totalDrivers' => Driver::count(),
+            'activeDrivers' => Driver::where('driver_status', 'Active')->count(),
+            'pendingApproval' => Driver::where('registration_status', 'Pending')->count(),
+            'suspendedDrivers' => Driver::where('driver_status', 'Suspended')->count(),
+        ],
+
+        'recentDrivers' => Driver::latest()
+            ->take(5)
+            ->get([
+                'id',
+                'registration_number',
+                'full_name',
+                'mobile_number',
+                'driver_status',
+                'registration_status',
+                'created_at',
+            ]),
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {

@@ -44,7 +44,7 @@ export default function Index({ drivers = [] }) {
             sortable: true,
         },
         {
-            name: 'Status',
+            name: 'Driver Status',
             cell: row => (
                 <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -60,6 +60,11 @@ export default function Index({ drivers = [] }) {
                     {row.driver_status ?? 'Inactive'}
                 </span>
             ),
+            sortable: true,
+        },
+        {
+            name: 'Registration Status',
+            selector: row => row.registration_status ?? '-',
             sortable: true,
         },
         {
