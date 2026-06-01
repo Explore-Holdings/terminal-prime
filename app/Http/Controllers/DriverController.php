@@ -3,8 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\Driver;
+use App\Models\EmergencyContact;
+use App\Models\DrivingLicense;
+use App\Models\Vehicle;
+use App\Models\VehicleFeature;
+use App\Models\VehicleDocument;
+use App\Models\VehiclePicture;
+use App\Models\BankDetail;
+use App\Models\DriverDocument;
+use App\Models\AdminVerification;
+use App\Models\DriverLanguage;
 use App\Models\ServiceCategory;
+use App\Models\DriverAvailability;
+use App\Models\TechnologyInfo;
+use App\Models\TourismCompliance;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DriverController extends Controller
@@ -18,7 +32,6 @@ class DriverController extends Controller
 
     public function create()
     {
-        
         return Inertia::render('Drivers/Create', [
             'serviceCategories' => ServiceCategory::orderBy('name')->get(),
         ]);
@@ -26,17 +39,251 @@ class DriverController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'license_number' => 'nullable|string|max:100',
-            'nic' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'full_name' => 'required|string|max:255',
+            'nic_number' => 'required|string|max:20|unique:drivers,nic_number',
+            'date_of_birth' => 'required|date',
+            'gender' => 'required|string',
+            'nationality' => 'required|string|max:100',
+            'marital_status' => 'required|string|max:50',
+            'mobile_number' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'city' => 'required|string|max:100',
+            'permanent_address' => 'required|string',
+
+            'emergency_contact_name' => 'required|string|max:255',
+            'relationship' => 'required|string|max:100',
+            'emergency_contact_number' => 'required|string|max:20',
+
+            'license_type' => 'required|string|max:100',
+            'license_number' => 'required|string|max:100',
+            'issue_date' => 'required|date',
+            'expiry_date' => 'required|date|after:issue_date',
+            'years_of_experience' => 'required|integer|min:0',
+
+            'vehicle_registration_number' => 'required|string|max:50',
+            'vehicle_type' => 'required|string',
+            'brand' => 'required|string|max:100',
+            'model' => 'required|string|max:100',
+
+            'service_category_ids' => 'required|array|min:1',
+            'service_category_ids.*' => 'exists:service_categories,id',
+
+            'driver_languages' => 'required|array|min:1',
+            'driver_languages.*.language_name' => 'required|string|max:100',
+            'driver_languages.*.speaking_level' => 'required|string',
+            'driver_languages.*.reading_level' => 'required|string',
+            'driver_languages.*.writing_level' => 'required|string',
+
+            'driver_photo' => 'nullable|image|max:4096',
         ]);
 
-        Driver::create($data);
+        DB::transaction(function () use ($request) {
+            $driverPhoto = $request->hasFile('driver_photo')
+                ? $request->file('driver_photo')->store('drivers/photos', 'public')
+                : null;
+
+            $driver = Driver::create([
+                'registration_number' => 'DRV-' . now()->format('YmdHis'),
+                'registration_date' => now()->toDateString(),
+                'registration_status' => 'Pending',
+
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'full_name' => $request->full_name,
+                'nic_number' => $request->nic_number,
+                'passport_number' => $request->passport_number,
+                'date_of_birth' => $request->date_of_birth,
+                'gender' => $request->gender,
+                'nationality' => $request->nationality,
+                'marital_status' => $request->marital_status,
+                'mobile_number' => $request->mobile_number,
+                'whatsapp_number' => $request->whatsapp_number,
+                'alternative_contact_number' => $request->alternative_contact_number,
+                'email' => $request->email,
+                'permanent_address' => $request->permanent_address,
+                'current_address' => $request->current_address,
+                'city' => $request->city,
+                'driver_photo' => $driverPhoto,
+                'previous_employer' => $request->previous_employer,
+                'previous_tourism_experience' => $request->previous_tourism_experience,
+                'accident_history' => $request->accident_history,
+                'traffic_violation_history' => $request->traffic_violation_history,
+                'driver_status' => $request->driver_status ?? 'Inactive',
+            ]);
+
+            EmergencyContact::create([
+                'driver_id' => $driver->id,
+                'contact_name' => $request->emergency_contact_name,
+                'relationship' => $request->relationship,
+                'contact_number' => $request->emergency_contact_number,
+                'alternative_contact_number' => $request->emergency_alternative_contact_number,
+                'address' => $request->emergency_address,
+            ]);
+
+            DrivingLicense::create([
+                'driver_id' => $driver->id,
+                'license_number' => $request->license_number,
+                'license_type' => $request->license_type,
+                'issue_date' => $request->issue_date,
+                'expiry_date' => $request->expiry_date,
+                'years_of_experience' => $request->years_of_experience,
+                'tourist_license_available' => $request->boolean('tourist_license_available'),
+                'tourist_license_number' => $request->tourist_license_number,
+                'tourist_issue_date' => $request->tourist_issue_date,
+                'tourist_expiry_date' => $request->tourist_expiry_date,
+            ]);
+
+            foreach ($request->driver_languages ?? [] as $language) {
+                DriverLanguage::create([
+                    'driver_id' => $driver->id,
+                    'language_name' => $language['language_name'],
+                    'speaking_level' => $language['speaking_level'],
+                    'reading_level' => $language['reading_level'],
+                    'writing_level' => $language['writing_level'],
+                ]);
+            }
+
+            $driver->serviceCategories()->sync($request->service_category_ids ?? []);
+
+            DriverAvailability::create([
+                'driver_id' => $driver->id,
+                'monday' => $request->boolean('monday'),
+                'tuesday' => $request->boolean('tuesday'),
+                'wednesday' => $request->boolean('wednesday'),
+                'thursday' => $request->boolean('thursday'),
+                'friday' => $request->boolean('friday'),
+                'saturday' => $request->boolean('saturday'),
+                'sunday' => $request->boolean('sunday'),
+                'working_shift' => $request->working_shift,
+                'airport_pickups' => $request->boolean('airport_pickups'),
+                'airport_dropoffs' => $request->boolean('airport_dropoffs'),
+                'tours' => $request->boolean('tours'),
+                'long_distance_travel' => $request->boolean('long_distance_travel'),
+                'overnight_tours' => $request->boolean('overnight_tours'),
+            ]);
+
+            TechnologyInfo::create([
+                'driver_id' => $driver->id,
+                'smartphone_available' => $request->boolean('smartphone_available'),
+                'device_type' => $request->device_type,
+                'internet_connection_available' => $request->boolean('internet_connection_available'),
+                'gps_tracking_enabled' => $request->boolean('gps_tracking_enabled'),
+                'mobile_app_usage_experience' => $request->boolean('mobile_app_usage_experience'),
+            ]);
+
+            TourismCompliance::create([
+                'driver_id' => $driver->id,
+                'tourism_registration_number' => $request->tourism_registration_number,
+                'sltda_registered_driver' => $request->boolean('sltda_registered_driver'),
+                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy_file', 'tourism'),
+                'tourism_authority_permit_copy' => $this->upload($request, 'tourism_authority_permit_copy', 'tourism'),
+                'airport_access_permit' => $this->upload($request, 'airport_access_permit', 'tourism'),
+            ]);
+
+            $vehicle = Vehicle::create([
+                'driver_id' => $driver->id,
+                'registration_number' => $request->vehicle_registration_number,
+                'vehicle_type' => $request->vehicle_type,
+                'brand' => $request->brand,
+                'model' => $request->model,
+                'vehicle_year' => $request->vehicle_year,
+                'color' => $request->color,
+                'seating_capacity' => $request->seating_capacity,
+                'luggage_capacity' => $request->luggage_capacity,
+                'fuel_type' => $request->fuel_type,
+                'transmission_type' => $request->transmission_type,
+                'ownership_type' => $request->ownership_type,
+                'ownership_confirmation_letter' => $this->upload($request, 'ownership_confirmation_letter', 'vehicles/ownership'),
+            ]);
+
+            VehicleFeature::create([
+                'vehicle_id' => $vehicle->id,
+                'air_conditioned' => $request->boolean('air_conditioned'),
+                'wifi_available' => $request->boolean('wifi_available'),
+                'gps_enabled' => $request->boolean('gps_enabled'),
+                'child_seat_available' => $request->boolean('child_seat_available'),
+                'wheelchair_accessible' => $request->boolean('wheelchair_accessible'),
+                'pet_friendly' => $request->boolean('pet_friendly'),
+            ]);
+
+            VehicleDocument::create([
+                'vehicle_id' => $vehicle->id,
+                'registration_book' => $this->upload($request, 'registration_book', 'vehicles/documents'),
+                'insurance_certificate' => $this->upload($request, 'insurance_certificate', 'vehicles/documents'),
+                'revenue_license' => $this->upload($request, 'revenue_license', 'vehicles/documents'),
+                'emission_test_certificate' => $this->upload($request, 'emission_test_certificate', 'vehicles/documents'),
+                'driving_license_copy' => $this->upload($request, 'vehicle_driving_license_copy', 'vehicles/documents'),
+                'insurance_expiry_date' => $request->insurance_expiry_date,
+                'revenue_license_expiry_date' => $request->revenue_license_expiry_date,
+                'emission_test_expiry_date' => $request->emission_test_expiry_date,
+            ]);
+
+            VehiclePicture::create([
+                'vehicle_id' => $vehicle->id,
+                'front_view' => $this->upload($request, 'front_view', 'vehicles/photos'),
+                'rear_view' => $this->upload($request, 'rear_view', 'vehicles/photos'),
+                'left_side_view' => $this->upload($request, 'left_side_view', 'vehicles/photos'),
+                'right_side_view' => $this->upload($request, 'right_side_view', 'vehicles/photos'),
+                'front_interior_view' => $this->upload($request, 'front_interior_view', 'vehicles/photos'),
+                'passenger_seating_area' => $this->upload($request, 'passenger_seating_area', 'vehicles/photos'),
+                'dashboard_view' => $this->upload($request, 'dashboard_view', 'vehicles/photos'),
+                'luggage_compartment_view' => $this->upload($request, 'luggage_compartment_view', 'vehicles/photos'),
+            ]);
+
+            BankDetail::create([
+                'driver_id' => $driver->id,
+                'bank_name' => $request->bank_name,
+                'branch_name' => $request->branch_name,
+                'account_holder_name' => $request->account_holder_name,
+                'account_number' => $request->account_number,
+                'swift_code' => $request->swift_code,
+            ]);
+
+            DriverDocument::create([
+                'driver_id' => $driver->id,
+                'nic_copy' => $this->upload($request, 'nic_copy', 'drivers/documents'),
+                'passport_copy' => $this->upload($request, 'passport_copy', 'drivers/documents'),
+                'driver_photo' => $this->upload($request, 'document_driver_photo', 'drivers/documents'),
+                'driving_license_copy' => $this->upload($request, 'driving_license_copy', 'drivers/documents'),
+                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy', 'drivers/documents'),
+                'no_objection_letter' => $this->upload($request, 'no_objection_letter', 'drivers/documents'),
+                'police_clearance_certificate' => $this->upload($request, 'police_clearance_certificate', 'drivers/documents'),
+                'medical_fitness_certificate' => $this->upload($request, 'medical_fitness_certificate', 'drivers/documents'),
+                'tourism_authority_registration' => $this->upload($request, 'tourism_authority_registration', 'drivers/documents'),
+                'airport_permit' => $this->upload($request, 'airport_permit', 'drivers/documents'),
+            ]);
+
+            AdminVerification::create([
+                'driver_id' => $driver->id,
+                'nic_verified' => $request->boolean('nic_verified'),
+                'driving_license_verified' => $request->boolean('driving_license_verified'),
+                'tourist_license_verified' => $request->boolean('tourist_license_verified'),
+                'vehicle_ownership_verified' => $request->boolean('vehicle_ownership_verified'),
+                'vehicle_documents_verified' => $request->boolean('vehicle_documents_verified'),
+                'insurance_verified' => $request->boolean('insurance_verified'),
+                'no_objection_letter_verified' => $request->boolean('no_objection_letter_verified'),
+                'vehicle_photos_approved' => $request->boolean('vehicle_photos_approved'),
+                'tourism_registration_verified' => $request->boolean('tourism_registration_verified'),
+                'driver_approved' => $request->boolean('driver_approved'),
+                'remarks' => $request->remarks,
+                'approved_by' => $request->approved_by,
+                'approval_date' => $request->approval_date,
+            ]);
+        });
 
         return redirect()->route('drivers.index')
             ->with('success', 'Driver created successfully.');
+    }
+
+    private function upload(Request $request, string $field, string $path): ?string
+    {
+        if (!$request->hasFile($field)) {
+            return null;
+        }
+
+        return $request->file($field)->store($path, 'public');
     }
 }

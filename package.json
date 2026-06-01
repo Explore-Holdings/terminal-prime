@@ -23,6 +23,7 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "react-data-table-component": "^8.3.0"
+        "react-data-table-component": "^8.3.0",
+        "react-hot-toast": "^2.6.0"
     }
 }

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class DriverAvailability extends Model
 {
+
+    protected $table = 'driver_availability';
+    
     protected $fillable = [
         'driver_id',
         'monday',

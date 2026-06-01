@@ -1,6 +1,7 @@
 import { Link, useForm } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function Create({ serviceCategories = [] }) {
     const [activeTab, setActiveTab] = useState('personal');
@@ -156,8 +157,15 @@ export default function Create({ serviceCategories = [] }) {
 
     const submit = (e) => {
         e.preventDefault();
+
         post('/drivers', {
             forceFormData: true,
+            onSuccess: () => {
+                toast.success('Driver created successfully');
+            },
+            onError: () => {
+                toast.error('Please check the form errors');
+            },
         });
     };
 
@@ -183,7 +191,80 @@ export default function Create({ serviceCategories = [] }) {
     const isFirstTab = currentTabIndex === 0;
     const isLastTab = currentTabIndex === tabs.length - 1;
 
+    const requiredFieldsByTab = {
+        personal: [
+            'first_name',
+            'last_name',
+            'full_name',
+            'nic_number',
+            'date_of_birth',
+            'gender',
+            'nationality',
+            'marital_status',
+            'mobile_number',
+            'city',
+            'permanent_address',
+        ],
+        emergency: [
+            'emergency_contact_name',
+            'relationship',
+            'emergency_contact_number',
+        ],
+        license: [
+            'license_type',
+            'license_number',
+            'issue_date',
+            'expiry_date',
+            'years_of_experience',
+        ],
+        services: [
+            'service_category_ids',
+        ],
+        vehicle: [
+            'vehicle_registration_number',
+            'vehicle_type',
+            'brand',
+            'model',
+        ],
+    };
+
+    const validateCurrentTab = () => {
+        const requiredFields = requiredFieldsByTab[activeTab] || [];
+
+        for (const field of requiredFields) {
+            if (Array.isArray(data[field]) && data[field].length === 0) {
+                toast.error('Please fill required fields before continuing');
+                return false;
+            }
+
+            if (!Array.isArray(data[field]) && !data[field]) {
+                toast.error('Please fill required fields before continuing');
+                return false;
+            }
+        }
+
+        if (activeTab === 'languages') {
+            const invalidLanguage = data.driver_languages.some((language) => {
+                return !language.language_name ||
+                    !language.speaking_level ||
+                    !language.reading_level ||
+                    !language.writing_level;
+            });
+
+            if (invalidLanguage) {
+                toast.error('Please complete all language fields');
+                return false;
+            }
+        }
+
+        return true;
+    };
+
     const goNext = () => {
+        if (!validateCurrentTab()) {
+            return;
+        }
+
         if (!isLastTab) {
             setActiveTab(tabs[currentTabIndex + 1][0]);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -430,6 +511,7 @@ export default function Create({ serviceCategories = [] }) {
 
     return (
         <AppSidebarLayout title="Create Driver">
+            <Toaster position="top-right" />
             <div className="min-h-screen bg-gray-100 p-6">
                 <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
                     <div className="flex justify-between items-center mb-6">
