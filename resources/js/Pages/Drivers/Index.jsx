@@ -12,9 +12,7 @@ export default function Index({ drivers = [] }) {
                 ${driver.full_name ?? ''}
                 ${driver.first_name ?? ''}
                 ${driver.last_name ?? ''}
-                ${driver.email ?? ''}
                 ${driver.mobile_number ?? ''}
-                ${driver.nic_number ?? ''}
                 ${driver.driver_status ?? ''}
                 ${driver.registration_status ?? ''}
             `.toLowerCase();
@@ -36,19 +34,8 @@ export default function Index({ drivers = [] }) {
             wrap: true,
         },
         {
-            name: 'Email',
-            selector: row => row.email ?? '-',
-            sortable: true,
-            wrap: true,
-        },
-        {
             name: 'Phone',
             selector: row => row.mobile_number ?? '-',
-            sortable: true,
-        },
-        {
-            name: 'NIC',
-            selector: row => row.nic_number ?? '-',
             sortable: true,
         },
         {
