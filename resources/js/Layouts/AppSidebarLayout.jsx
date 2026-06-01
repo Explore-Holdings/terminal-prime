@@ -1,6 +1,24 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 export default function AppSidebarLayout({ children }) {
+
+    const { url } = usePage();
+
+    const isActive = (path) => {
+        if (path === '/drivers') {
+            return url.startsWith('/drivers');
+        }
+
+        return url === path;
+    };
+
+    const menuClass = (path) =>
+        `block px-4 py-3 rounded transition ${
+            isActive(path)
+                ? 'bg-blue-700 text-white font-semibold'
+                : 'hover:bg-slate-700 text-gray-200'
+        }`;
+
     return (
         <div className="min-h-screen bg-gray-100 flex">
 
@@ -17,21 +35,21 @@ export default function AppSidebarLayout({ children }) {
 
                     <Link
                         href="/dashboard"
-                        className="block px-4 py-3 rounded hover:bg-slate-700"
+                        className={menuClass('/dashboard')}
                     >
                         Dashboard
                     </Link>
 
                     <Link
                         href="/drivers"
-                        className="block px-4 py-3 rounded hover:bg-slate-700"
+                        className={menuClass('/drivers')}
                     >
                         Drivers
                     </Link>
 
                     <Link
                         href="/drivers/create"
-                        className="block px-4 py-3 rounded hover:bg-slate-700"
+                        className={menuClass('/drivers/create')}
                     >
                         Add Driver
                     </Link>
