@@ -1,12 +1,12 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
-export default function AppSidebarLayout({ children }) {
+export default function AppSidebarLayout({ children, title = 'Airport Counter' }) {
 
     const { url } = usePage();
 
     const isActive = (path) => {
         if (path === '/drivers') {
-            return url.startsWith('/drivers');
+            return url === '/drivers';
         }
 
         return url === path;
@@ -20,7 +20,9 @@ export default function AppSidebarLayout({ children }) {
         }`;
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
+        <>
+            <Head title={title} />
+            <div className="min-h-screen bg-gray-100 flex">
 
             {/* Sidebar */}
             <aside className="w-64 bg-slate-900 text-white min-h-screen">
@@ -63,5 +65,6 @@ export default function AppSidebarLayout({ children }) {
             </main>
 
         </div>
+        </>
     );
 }

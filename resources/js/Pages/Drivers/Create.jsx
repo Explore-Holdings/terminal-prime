@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Create() {
     const [activeTab, setActiveTab] = useState('personal');
@@ -196,9 +197,10 @@ export default function Create() {
     );
 
     return (
-        <div className="min-h-screen bg-gray-100 p-6">
-            <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
-                <div className="flex justify-between items-center mb-6">
+        <AppSidebarLayout title="Create Driver">
+            <div className="min-h-screen bg-gray-100 p-6">
+                <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
+                    <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold">Create Driver</h1>
 
                     <Link href="/drivers" className="bg-gray-500 text-white px-4 py-2 rounded">
@@ -424,6 +426,7 @@ export default function Create() {
                 </form>
             </div>
         </div>
+        </AppSidebarLayout>
     );
 }
 

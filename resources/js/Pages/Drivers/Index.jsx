@@ -114,7 +114,7 @@ export default function Index({ drivers = [] }) {
     };
 
     return (
-        <AppSidebarLayout>
+        <AppSidebarLayout title="Drivers">
             <div className="min-h-screen bg-gray-100 p-8">
                 <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
 
