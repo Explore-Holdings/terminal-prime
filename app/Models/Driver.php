@@ -75,4 +75,14 @@ class Driver extends Model
             'driver_service_categories'
         );
     }
+
+    public function availability()
+    {
+        return $this->hasOne(DriverAvailability::class);
+    }
+
+    public function technologyInfo()
+    {
+        return $this->hasOne(TechnologyInfo::class);
+    }
 }

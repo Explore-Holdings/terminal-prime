@@ -18,6 +18,7 @@ class DriverController extends Controller
 
     public function create()
     {
+        
         return Inertia::render('Drivers/Create', [
             'serviceCategories' => ServiceCategory::orderBy('name')->get(),
         ]);

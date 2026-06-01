@@ -124,6 +124,27 @@ export default function Create({ serviceCategories = [] }) {
         ],
 
         service_category_ids: [],
+        monday: false,
+        tuesday: false,
+        wednesday: false,
+        thursday: false,
+        friday: false,
+        saturday: false,
+        sunday: false,
+
+        working_shift: '',
+
+        airport_pickups: false,
+        airport_dropoffs: false,
+        tours: false,
+        long_distance_travel: false,
+        overnight_tours: false,
+
+        smartphone_available: false,
+        device_type: '',
+        internet_connection_available: false,
+        gps_tracking_enabled: false,
+        mobile_app_usage_experience: false,
     });
 
     const submit = (e) => {
@@ -139,6 +160,8 @@ export default function Create({ serviceCategories = [] }) {
         ['languages', 'Languages'],
         ['license', 'License'],
         ['services', 'Services'],
+        ['availability', 'Availability'],
+        ['technology', 'Technology'],
         ['vehicle', 'Vehicle'],
         ['features', 'Features'],
         ['vehicleDocs', 'Vehicle Docs'],
@@ -453,6 +476,84 @@ export default function Create({ serviceCategories = [] }) {
                                     </div>
                                 </div>
                             ))}
+
+                        </Section>
+                    )}
+
+                    {activeTab === 'availability' && (
+                        <Section title="Driver Availability">
+
+                            <Checkbox label="Monday" name="monday" />
+                            <Checkbox label="Tuesday" name="tuesday" />
+                            <Checkbox label="Wednesday" name="wednesday" />
+                            <Checkbox label="Thursday" name="thursday" />
+                            <Checkbox label="Friday" name="friday" />
+                            <Checkbox label="Saturday" name="saturday" />
+                            <Checkbox label="Sunday" name="sunday" />
+
+                            <Checkbox
+                                label="Available for Airport Pickups"
+                                name="airport_pickups"
+                            />
+
+                            <Checkbox
+                                label="Available for Airport Drop-offs"
+                                name="airport_dropoffs"
+                            />
+
+                            <Checkbox
+                                label="Available for Tours"
+                                name="tours"
+                            />
+
+                            <Checkbox
+                                label="Available for Long Distance Travel"
+                                name="long_distance_travel"
+                            />
+
+                            <Checkbox
+                                label="Available for Overnight Tours"
+                                name="overnight_tours"
+                            />
+
+                            <Select label="Working Shift" name="working_shift">
+                                <option value="">Select Shift</option>
+                                <option>Day Shift</option>
+                                <option>Night Shift</option>
+                                <option>Both</option>
+                            </Select>
+
+                        </Section>
+                    )}
+
+                    {activeTab === 'technology' && (
+                        <Section title="Technology Information">
+
+                            <Checkbox
+                                label="Smartphone Available"
+                                name="smartphone_available"
+                            />
+
+                            <Select label="Device Type" name="device_type">
+                                <option value="">Select Device</option>
+                                <option>Android</option>
+                                <option>iPhone</option>
+                            </Select>
+
+                            <Checkbox
+                                label="Internet Connection Available"
+                                name="internet_connection_available"
+                            />
+
+                            <Checkbox
+                                label="GPS Tracking Enabled"
+                                name="gps_tracking_enabled"
+                            />
+
+                            <Checkbox
+                                label="Mobile App Usage Experience"
+                                name="mobile_app_usage_experience"
+                            />
 
                         </Section>
                     )}
