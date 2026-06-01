@@ -85,4 +85,9 @@ class Driver extends Model
     {
         return $this->hasOne(TechnologyInfo::class);
     }
+
+    public function tourismCompliance()
+    {
+        return $this->hasOne(TourismCompliance::class);
+    }
 }

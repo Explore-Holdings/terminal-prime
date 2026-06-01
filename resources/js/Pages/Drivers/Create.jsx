@@ -145,6 +145,13 @@ export default function Create({ serviceCategories = [] }) {
         internet_connection_available: false,
         gps_tracking_enabled: false,
         mobile_app_usage_experience: false,
+
+
+        tourism_registration_number: '',
+        sltda_registered_driver: false,
+        tourist_driving_license_copy_file: null,
+        tourism_authority_permit_copy: null,
+        airport_access_permit: null,
     });
 
     const submit = (e) => {
@@ -162,13 +169,14 @@ export default function Create({ serviceCategories = [] }) {
         ['services', 'Services'],
         ['availability', 'Availability'],
         ['technology', 'Technology'],
+        ['tourism', 'Tourism'],
         ['vehicle', 'Vehicle'],
         ['features', 'Features'],
         ['vehicleDocs', 'Vehicle Docs'],
         ['vehiclePics', 'Vehicle Photos'],
         ['bank', 'Bank'],
         ['driverDocs', 'Driver Docs'],
-        ['admin', 'Admin'],
+        ['admin', 'Admin Checklist'],
     ];
 
     const Input = ({ label, name, type = 'text' }) => (
@@ -553,6 +561,37 @@ export default function Create({ serviceCategories = [] }) {
                             <Checkbox
                                 label="Mobile App Usage Experience"
                                 name="mobile_app_usage_experience"
+                            />
+
+                        </Section>
+                    )}
+
+                    {activeTab === 'tourism' && (
+                        <Section title="Tourism & Regulatory Compliance">
+
+                            <Input
+                                label="Tourism Registration Number"
+                                name="tourism_registration_number"
+                            />
+
+                            <Checkbox
+                                label="SLTDA Registered Driver"
+                                name="sltda_registered_driver"
+                            />
+
+                            <FileInput
+                                label="Tourist Driving License Copy"
+                                name="tourist_driving_license_copy_file"
+                            />
+
+                            <FileInput
+                                label="Tourism Authority Permit Copy"
+                                name="tourism_authority_permit_copy"
+                            />
+
+                            <FileInput
+                                label="Airport Access Permit"
+                                name="airport_access_permit"
                             />
 
                         </Section>
