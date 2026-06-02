@@ -19,6 +19,7 @@ use App\Models\TourismCompliance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class DriverController extends Controller
 {
@@ -332,7 +333,7 @@ class DriverController extends Controller
     {
         $driver->load([
             'emergencyContact',
-            'drivingLicense',
+            'license',
             'languages',
             'serviceCategories',
             'availability',
@@ -359,17 +360,19 @@ class DriverController extends Controller
             'last_name' => 'required|string|max:100',
             'full_name' => 'required|string|max:255',
             'nic_number' => 'required|string|max:20|unique:drivers,nic_number,' . $driver->id,
+            'date_of_birth' => 'required|date',
+            'gender' => 'required|string',
+            'nationality' => 'required|string|max:100',
+            'marital_status' => 'required|string|max:50',
             'mobile_number' => 'required|string|max:20',
             'city' => 'required|string|max:100',
             'permanent_address' => 'required|string',
+            'license_type' => 'required|string|max:100',
+            'license_number' => 'required|string|max:100',
         ]);
 
         DB::transaction(function () use ($request, $driver) {
-            $driverPhoto = $driver->driver_photo;
-
-            if ($request->hasFile('driver_photo')) {
-                $driverPhoto = $request->file('driver_photo')->store('drivers/photos', 'public');
-            }
+            $reg = $driver->registration_number;
 
             $driver->update([
                 'first_name' => $request->first_name,
@@ -388,7 +391,7 @@ class DriverController extends Controller
                 'permanent_address' => $request->permanent_address,
                 'current_address' => $request->current_address,
                 'city' => $request->city,
-                'driver_photo' => $driverPhoto,
+                'driver_photo' => $this->replaceUpload($request, 'driver_photo', $driver->driver_photo, $reg, 'profile'),
                 'previous_employer' => $request->previous_employer,
                 'previous_tourism_experience' => $request->previous_tourism_experience,
                 'accident_history' => $request->accident_history,
@@ -407,7 +410,7 @@ class DriverController extends Controller
                 ]
             );
 
-            $driver->drivingLicense()->updateOrCreate(
+            $driver->license()->updateOrCreate(
                 ['driver_id' => $driver->id],
                 [
                     'license_number' => $request->license_number,
@@ -423,7 +426,6 @@ class DriverController extends Controller
             );
 
             $driver->languages()->delete();
-
             foreach ($request->driver_languages ?? [] as $language) {
                 $driver->languages()->create($language);
             }
@@ -460,9 +462,19 @@ class DriverController extends Controller
                 ]
             );
 
-            $vehicle = $driver->vehicles()->firstOrCreate([
-                'driver_id' => $driver->id,
-            ]);
+            $tourism = $driver->tourismCompliance;
+            $driver->tourismCompliance()->updateOrCreate(
+                ['driver_id' => $driver->id],
+                [
+                    'tourism_registration_number' => $request->tourism_registration_number,
+                    'sltda_registered_driver' => $request->boolean('sltda_registered_driver'),
+                    'tourist_driving_license_copy' => $this->replaceUpload($request, 'tourist_driving_license_copy_file', $tourism?->tourist_driving_license_copy, $reg, 'tourism'),
+                    'tourism_authority_permit_copy' => $this->replaceUpload($request, 'tourism_authority_permit_copy', $tourism?->tourism_authority_permit_copy, $reg, 'tourism'),
+                    'airport_access_permit' => $this->replaceUpload($request, 'airport_access_permit', $tourism?->airport_access_permit, $reg, 'tourism'),
+                ]
+            );
+
+            $vehicle = $driver->vehicles()->firstOrCreate(['driver_id' => $driver->id]);
 
             $vehicle->update([
                 'registration_number' => $request->vehicle_registration_number,
@@ -476,7 +488,67 @@ class DriverController extends Controller
                 'fuel_type' => $request->fuel_type,
                 'transmission_type' => $request->transmission_type,
                 'ownership_type' => $request->ownership_type,
+                'ownership_confirmation_letter' => $this->replaceUpload($request, 'ownership_confirmation_letter', $vehicle->ownership_confirmation_letter, $reg, 'ownership'),
             ]);
+
+            $vehicle->features()->updateOrCreate(
+                ['vehicle_id' => $vehicle->id],
+                [
+                    'air_conditioned' => $request->boolean('air_conditioned'),
+                    'wifi_available' => $request->boolean('wifi_available'),
+                    'gps_enabled' => $request->boolean('gps_enabled'),
+                    'child_seat_available' => $request->boolean('child_seat_available'),
+                    'wheelchair_accessible' => $request->boolean('wheelchair_accessible'),
+                    'pet_friendly' => $request->boolean('pet_friendly'),
+                ]
+            );
+
+            $vehicleDocs = $vehicle->documents;
+            $vehicle->documents()->updateOrCreate(
+                ['vehicle_id' => $vehicle->id],
+                [
+                    'registration_book' => $this->replaceUpload($request, 'registration_book', $vehicleDocs?->registration_book, $reg, 'vehicle-documents'),
+                    'insurance_certificate' => $this->replaceUpload($request, 'insurance_certificate', $vehicleDocs?->insurance_certificate, $reg, 'vehicle-documents'),
+                    'revenue_license' => $this->replaceUpload($request, 'revenue_license', $vehicleDocs?->revenue_license, $reg, 'vehicle-documents'),
+                    'emission_test_certificate' => $this->replaceUpload($request, 'emission_test_certificate', $vehicleDocs?->emission_test_certificate, $reg, 'vehicle-documents'),
+                    'driving_license_copy' => $this->replaceUpload($request, 'vehicle_driving_license_copy', $vehicleDocs?->driving_license_copy, $reg, 'vehicle-documents'),
+                    'insurance_expiry_date' => $request->insurance_expiry_date,
+                    'revenue_license_expiry_date' => $request->revenue_license_expiry_date,
+                    'emission_test_expiry_date' => $request->emission_test_expiry_date,
+                ]
+            );
+
+            $vehiclePics = $vehicle->pictures;
+            $vehicle->pictures()->updateOrCreate(
+                ['vehicle_id' => $vehicle->id],
+                [
+                    'front_view' => $this->replaceUpload($request, 'front_view', $vehiclePics?->front_view, $reg, 'vehicle-photos'),
+                    'rear_view' => $this->replaceUpload($request, 'rear_view', $vehiclePics?->rear_view, $reg, 'vehicle-photos'),
+                    'left_side_view' => $this->replaceUpload($request, 'left_side_view', $vehiclePics?->left_side_view, $reg, 'vehicle-photos'),
+                    'right_side_view' => $this->replaceUpload($request, 'right_side_view', $vehiclePics?->right_side_view, $reg, 'vehicle-photos'),
+                    'front_interior_view' => $this->replaceUpload($request, 'front_interior_view', $vehiclePics?->front_interior_view, $reg, 'vehicle-photos'),
+                    'passenger_seating_area' => $this->replaceUpload($request, 'passenger_seating_area', $vehiclePics?->passenger_seating_area, $reg, 'vehicle-photos'),
+                    'dashboard_view' => $this->replaceUpload($request, 'dashboard_view', $vehiclePics?->dashboard_view, $reg, 'vehicle-photos'),
+                    'luggage_compartment_view' => $this->replaceUpload($request, 'luggage_compartment_view', $vehiclePics?->luggage_compartment_view, $reg, 'vehicle-photos'),
+                ]
+            );
+
+            $driverDocs = $driver->documents;
+            $driver->documents()->updateOrCreate(
+                ['driver_id' => $driver->id],
+                [
+                    'nic_copy' => $this->replaceUpload($request, 'nic_copy', $driverDocs?->nic_copy, $reg, 'driver-documents'),
+                    'passport_copy' => $this->replaceUpload($request, 'passport_copy', $driverDocs?->passport_copy, $reg, 'driver-documents'),
+                    'driver_photo' => $this->replaceUpload($request, 'document_driver_photo', $driverDocs?->driver_photo, $reg, 'driver-documents'),
+                    'driving_license_copy' => $this->replaceUpload($request, 'driving_license_copy', $driverDocs?->driving_license_copy, $reg, 'driver-documents'),
+                    'tourist_driving_license_copy' => $this->replaceUpload($request, 'tourist_driving_license_copy', $driverDocs?->tourist_driving_license_copy, $reg, 'driver-documents'),
+                    'no_objection_letter' => $this->replaceUpload($request, 'no_objection_letter', $driverDocs?->no_objection_letter, $reg, 'driver-documents'),
+                    'police_clearance_certificate' => $this->replaceUpload($request, 'police_clearance_certificate', $driverDocs?->police_clearance_certificate, $reg, 'driver-documents'),
+                    'medical_fitness_certificate' => $this->replaceUpload($request, 'medical_fitness_certificate', $driverDocs?->medical_fitness_certificate, $reg, 'driver-documents'),
+                    'tourism_authority_registration' => $this->replaceUpload($request, 'tourism_authority_registration', $driverDocs?->tourism_authority_registration, $reg, 'driver-documents'),
+                    'airport_permit' => $this->replaceUpload($request, 'airport_permit', $driverDocs?->airport_permit, $reg, 'driver-documents'),
+                ]
+            );
 
             $driver->bankDetail()->updateOrCreate(
                 ['driver_id' => $driver->id],
@@ -511,5 +583,21 @@ class DriverController extends Controller
 
         return redirect()->route('drivers.show', $driver)
             ->with('success', 'Driver updated successfully.');
+    }
+
+    private function replaceUpload(Request $request, string $field, ?string $oldPath, string $registrationNumber, string $folder): ?string
+    {
+        if (!$request->hasFile($field)) {
+            return $oldPath;
+        }
+
+        if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return $request->file($field)->store(
+            "drivers/{$registrationNumber}/{$folder}",
+            'public'
+        );
     }
 }
