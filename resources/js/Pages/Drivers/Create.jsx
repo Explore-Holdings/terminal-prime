@@ -121,10 +121,11 @@ export default function Create({ serviceCategories = [] }) {
                 speaking_level: '',
                 reading_level: '',
                 writing_level: '',
-            }
+            },
         ],
 
         service_category_ids: [],
+
         monday: false,
         tuesday: false,
         wednesday: false,
@@ -132,9 +133,7 @@ export default function Create({ serviceCategories = [] }) {
         friday: false,
         saturday: false,
         sunday: false,
-
         working_shift: '',
-
         airport_pickups: false,
         airport_dropoffs: false,
         tours: false,
@@ -147,27 +146,12 @@ export default function Create({ serviceCategories = [] }) {
         gps_tracking_enabled: false,
         mobile_app_usage_experience: false,
 
-
         tourism_registration_number: '',
         sltda_registered_driver: false,
         tourist_driving_license_copy_file: null,
         tourism_authority_permit_copy: null,
         airport_access_permit: null,
     });
-
-    const submit = (e) => {
-        e.preventDefault();
-
-        post('/drivers', {
-            forceFormData: true,
-            onSuccess: () => {
-                toast.success('Driver created successfully');
-            },
-            onError: () => {
-                toast.error('Please check the form errors');
-            },
-        });
-    };
 
     const tabs = [
         ['personal', 'Personal'],
@@ -186,10 +170,6 @@ export default function Create({ serviceCategories = [] }) {
         ['driverDocs', 'Driver Docs'],
         ['admin', 'Admin Checklist'],
     ];
-
-    const currentTabIndex = tabs.findIndex(([key]) => key === activeTab);
-    const isFirstTab = currentTabIndex === 0;
-    const isLastTab = currentTabIndex === tabs.length - 1;
 
     const requiredFieldsByTab = {
         personal: [
@@ -217,9 +197,7 @@ export default function Create({ serviceCategories = [] }) {
             'expiry_date',
             'years_of_experience',
         ],
-        services: [
-            'service_category_ids',
-        ],
+        services: ['service_category_ids'],
         vehicle: [
             'vehicle_registration_number',
             'vehicle_type',
@@ -229,9 +207,19 @@ export default function Create({ serviceCategories = [] }) {
     };
 
     const requiredFields = Object.values(requiredFieldsByTab).flat();
-
     const isRequired = (name) => requiredFields.includes(name);
-    
+
+    const currentTabIndex = tabs.findIndex(([key]) => key === activeTab);
+    const isFirstTab = currentTabIndex === 0;
+    const isLastTab = currentTabIndex === tabs.length - 1;
+
+    const fieldProps = {
+        data,
+        setData,
+        errors,
+        isRequired,
+    };
+
     const validateCurrentTab = () => {
         const requiredFields = requiredFieldsByTab[activeTab] || [];
 
@@ -249,10 +237,12 @@ export default function Create({ serviceCategories = [] }) {
 
         if (activeTab === 'languages') {
             const invalidLanguage = data.driver_languages.some((language) => {
-                return !language.language_name ||
+                return (
+                    !language.language_name ||
                     !language.speaking_level ||
                     !language.reading_level ||
-                    !language.writing_level;
+                    !language.writing_level
+                );
             });
 
             if (invalidLanguage) {
@@ -265,9 +255,7 @@ export default function Create({ serviceCategories = [] }) {
     };
 
     const goNext = () => {
-        if (!validateCurrentTab()) {
-            return;
-        }
+        if (!validateCurrentTab()) return;
 
         if (!isLastTab) {
             setActiveTab(tabs[currentTabIndex + 1][0]);
@@ -282,7 +270,447 @@ export default function Create({ serviceCategories = [] }) {
         }
     };
 
-    const Input = ({ label, name, type = 'text' }) => (
+    const submit = (e) => {
+        e.preventDefault();
+
+        post('/drivers', {
+            forceFormData: true,
+            onSuccess: () => toast.success('Driver created successfully'),
+            onError: () => toast.error('Please check the form errors'),
+        });
+    };
+
+    const toggleServiceCategory = (id) => {
+        const current = data.service_category_ids;
+
+        setData(
+            'service_category_ids',
+            current.includes(id)
+                ? current.filter((item) => item !== id)
+                : [...current, id]
+        );
+    };
+
+    const addLanguage = () => {
+        setData('driver_languages', [
+            ...data.driver_languages,
+            {
+                language_name: '',
+                speaking_level: '',
+                reading_level: '',
+                writing_level: '',
+            },
+        ]);
+    };
+
+    const updateLanguage = (index, field, value) => {
+        const languages = [...data.driver_languages];
+        languages[index][field] = value;
+        setData('driver_languages', languages);
+    };
+
+    const removeLanguage = (index) => {
+        setData(
+            'driver_languages',
+            data.driver_languages.filter((_, i) => i !== index)
+        );
+    };
+
+    return (
+        <AppSidebarLayout title="Create Driver">
+            <Toaster position="top-right" />
+
+            <div className="min-h-screen bg-gray-100 p-6">
+                <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-2xl font-bold">Create Driver</h1>
+
+                        <Link href="/drivers" className="bg-gray-500 text-white px-4 py-2 rounded">
+                            Back
+                        </Link>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
+                        {tabs.map(([key, label]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setActiveTab(key)}
+                                className={`px-4 py-2 rounded text-sm font-semibold ${
+                                    activeTab === key
+                                        ? 'bg-blue-700 text-white'
+                                        : 'bg-gray-200 text-gray-700'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <form onSubmit={submit}>
+                        {activeTab === 'personal' && (
+                            <Section title="Personal Information">
+                                <Input {...fieldProps} label="First Name" name="first_name" />
+                                <Input {...fieldProps} label="Last Name" name="last_name" />
+                                <Input {...fieldProps} label="Full Name" name="full_name" />
+                                <Input {...fieldProps} label="NIC Number" name="nic_number" />
+                                <Input {...fieldProps} label="Passport Number" name="passport_number" />
+                                <Input {...fieldProps} label="Date of Birth" name="date_of_birth" type="date" />
+
+                                <Select {...fieldProps} label="Gender" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                </Select>
+
+                                <Input {...fieldProps} label="Nationality" name="nationality" />
+
+                                <Select {...fieldProps} label="Marital Status" name="marital_status">
+                                    <option value="">Select Marital Status</option>
+                                    <option value="Single">Single</option>
+                                    <option value="Married">Married</option>
+                                </Select>
+
+                                <Input {...fieldProps} label="Mobile Number" name="mobile_number" />
+                                <Input {...fieldProps} label="WhatsApp Number" name="whatsapp_number" />
+                                <Input {...fieldProps} label="Alternative Contact Number" name="alternative_contact_number" />
+                                <Input {...fieldProps} label="Email" name="email" type="email" />
+                                <Input {...fieldProps} label="City" name="city" />
+
+                                <DriverPhotoInput data={data} setData={setData} />
+
+                                <TextArea {...fieldProps} label="Permanent Address" name="permanent_address" />
+                                <TextArea {...fieldProps} label="Current Address" name="current_address" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'emergency' && (
+                            <Section title="Emergency Contact">
+                                <Input {...fieldProps} label="Contact Name" name="emergency_contact_name" />
+                                <Input {...fieldProps} label="Relationship" name="relationship" />
+                                <Input {...fieldProps} label="Contact Number" name="emergency_contact_number" />
+                                <Input {...fieldProps} label="Alternative Contact Number" name="emergency_alternative_contact_number" />
+                                <TextArea {...fieldProps} label="Address" name="emergency_address" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'languages' && (
+                            <Section title="Language Proficiency">
+                                <div className="col-span-3 mb-4">
+                                    <button
+                                        type="button"
+                                        onClick={addLanguage}
+                                        className="bg-green-600 text-white px-4 py-2 rounded"
+                                    >
+                                        + Add Language
+                                    </button>
+                                </div>
+
+                                {data.driver_languages.map((language, index) => (
+                                    <div key={index} className="col-span-3 border rounded-lg p-4 bg-gray-50 mb-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <LanguageInput
+                                                label="Language"
+                                                value={language.language_name}
+                                                onChange={(value) => updateLanguage(index, 'language_name', value)}
+                                            />
+
+                                            <LanguageSelect
+                                                label="Speaking"
+                                                value={language.speaking_level}
+                                                onChange={(value) => updateLanguage(index, 'speaking_level', value)}
+                                            />
+
+                                            <LanguageSelect
+                                                label="Reading"
+                                                value={language.reading_level}
+                                                onChange={(value) => updateLanguage(index, 'reading_level', value)}
+                                            />
+
+                                            <LanguageSelect
+                                                label="Writing"
+                                                value={language.writing_level}
+                                                onChange={(value) => updateLanguage(index, 'writing_level', value)}
+                                            />
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => removeLanguage(index)}
+                                            className="mt-3 bg-red-600 text-white px-3 py-2 rounded"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </Section>
+                        )}
+
+                        {activeTab === 'license' && (
+                            <Section title="Driving License Information">
+                                <Select {...fieldProps} label="License Type" name="license_type">
+                                    <option value="">Select License Type</option>
+                                    <option value="Light Vehicle">Light Vehicle</option>
+                                    <option value="Heavy Vehicle">Heavy Vehicle</option>
+                                    <option value="Bus">Bus</option>
+                                    <option value="Tourist Driver">Tourist Driver</option>
+                                    <option value="Chauffeur">Chauffeur</option>
+                                </Select>
+
+                                <Input {...fieldProps} label="License Number" name="license_number" />
+                                <Input {...fieldProps} label="Issue Date" name="issue_date" type="date" />
+                                <Input {...fieldProps} label="Expiry Date" name="expiry_date" type="date" />
+                                <Input {...fieldProps} label="Years of Experience" name="years_of_experience" type="number" />
+
+                                <Select {...fieldProps} label="Tourist License Available" name="tourist_license_available">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </Select>
+
+                                <Input {...fieldProps} label="Tourist License Number" name="tourist_license_number" />
+                                <Input {...fieldProps} label="Tourist Issue Date" name="tourist_issue_date" type="date" />
+                                <Input {...fieldProps} label="Tourist Expiry Date" name="tourist_expiry_date" type="date" />
+                                <Input {...fieldProps} label="Previous Employer" name="previous_employer" />
+                                <TextArea {...fieldProps} label="Previous Tourism Experience" name="previous_tourism_experience" />
+                                <TextArea {...fieldProps} label="Accident History" name="accident_history" />
+                                <TextArea {...fieldProps} label="Traffic Violation History" name="traffic_violation_history" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'services' && (
+                            <Section title="Service Categories">
+                                {serviceCategories.map((category) => (
+                                    <label key={category.id} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.service_category_ids.includes(category.id)}
+                                            onChange={() => toggleServiceCategory(category.id)}
+                                            className="rounded border-gray-300"
+                                        />
+                                        <span>{category.name}</span>
+                                    </label>
+                                ))}
+                            </Section>
+                        )}
+
+                        {activeTab === 'availability' && (
+                            <Section title="Driver Availability">
+                                <Checkbox {...fieldProps} label="Monday" name="monday" />
+                                <Checkbox {...fieldProps} label="Tuesday" name="tuesday" />
+                                <Checkbox {...fieldProps} label="Wednesday" name="wednesday" />
+                                <Checkbox {...fieldProps} label="Thursday" name="thursday" />
+                                <Checkbox {...fieldProps} label="Friday" name="friday" />
+                                <Checkbox {...fieldProps} label="Saturday" name="saturday" />
+                                <Checkbox {...fieldProps} label="Sunday" name="sunday" />
+
+                                <Checkbox {...fieldProps} label="Available for Airport Pickups" name="airport_pickups" />
+                                <Checkbox {...fieldProps} label="Available for Airport Drop-offs" name="airport_dropoffs" />
+                                <Checkbox {...fieldProps} label="Available for Tours" name="tours" />
+                                <Checkbox {...fieldProps} label="Available for Long Distance Travel" name="long_distance_travel" />
+                                <Checkbox {...fieldProps} label="Available for Overnight Tours" name="overnight_tours" />
+
+                                <Select {...fieldProps} label="Working Shift" name="working_shift">
+                                    <option value="">Select Shift</option>
+                                    <option>Day Shift</option>
+                                    <option>Night Shift</option>
+                                    <option>Both</option>
+                                </Select>
+                            </Section>
+                        )}
+
+                        {activeTab === 'technology' && (
+                            <Section title="Technology Information">
+                                <Checkbox {...fieldProps} label="Smartphone Available" name="smartphone_available" />
+
+                                <Select {...fieldProps} label="Device Type" name="device_type">
+                                    <option value="">Select Device</option>
+                                    <option>Android</option>
+                                    <option>iPhone</option>
+                                </Select>
+
+                                <Checkbox {...fieldProps} label="Internet Connection Available" name="internet_connection_available" />
+                                <Checkbox {...fieldProps} label="GPS Tracking Enabled" name="gps_tracking_enabled" />
+                                <Checkbox {...fieldProps} label="Mobile App Usage Experience" name="mobile_app_usage_experience" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'tourism' && (
+                            <Section title="Tourism & Regulatory Compliance">
+                                <Input {...fieldProps} label="Tourism Registration Number" name="tourism_registration_number" />
+                                <Checkbox {...fieldProps} label="SLTDA Registered Driver" name="sltda_registered_driver" />
+                                <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy_file" setData={setData} />
+                                <FileInput label="Tourism Authority Permit Copy" name="tourism_authority_permit_copy" setData={setData} />
+                                <FileInput label="Airport Access Permit" name="airport_access_permit" setData={setData} />
+                            </Section>
+                        )}
+
+                        {activeTab === 'vehicle' && (
+                            <Section title="Vehicle Information">
+                                <Input {...fieldProps} label="Vehicle Registration Number" name="vehicle_registration_number" />
+
+                                <Select {...fieldProps} label="Vehicle Type" name="vehicle_type">
+                                    <option value="">Select Vehicle Type</option>
+                                    <option>Sedan</option>
+                                    <option>SUV</option>
+                                    <option>Van</option>
+                                    <option>Luxury Sedan</option>
+                                    <option>Luxury SUV</option>
+                                    <option>Mini Coach</option>
+                                </Select>
+
+                                <Input {...fieldProps} label="Brand" name="brand" />
+                                <Input {...fieldProps} label="Model" name="model" />
+                                <Input {...fieldProps} label="Vehicle Year" name="vehicle_year" type="number" />
+                                <Input {...fieldProps} label="Color" name="color" />
+                                <Input {...fieldProps} label="Seating Capacity" name="seating_capacity" type="number" />
+                                <Input {...fieldProps} label="Luggage Capacity" name="luggage_capacity" type="number" />
+                                <Input {...fieldProps} label="Fuel Type" name="fuel_type" />
+                                <Input {...fieldProps} label="Transmission Type" name="transmission_type" />
+
+                                <Select {...fieldProps} label="Ownership Type" name="ownership_type">
+                                    <option value="">Select Ownership</option>
+                                    <option>Company-Owned</option>
+                                    <option>Outsourced Vehicle</option>
+                                    <option>Personally Owned</option>
+                                </Select>
+
+                                <FileInput label="Ownership Confirmation Letter" name="ownership_confirmation_letter" setData={setData} />
+                            </Section>
+                        )}
+
+                        {activeTab === 'features' && (
+                            <Section title="Vehicle Features">
+                                <Checkbox {...fieldProps} label="Air Conditioned" name="air_conditioned" />
+                                <Checkbox {...fieldProps} label="WiFi Available" name="wifi_available" />
+                                <Checkbox {...fieldProps} label="GPS Enabled" name="gps_enabled" />
+                                <Checkbox {...fieldProps} label="Child Seat Available" name="child_seat_available" />
+                                <Checkbox {...fieldProps} label="Wheelchair Accessible" name="wheelchair_accessible" />
+                                <Checkbox {...fieldProps} label="Pet Friendly" name="pet_friendly" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'vehicleDocs' && (
+                            <Section title="Vehicle Documents">
+                                <FileInput label="Registration Book" name="registration_book" setData={setData} />
+                                <FileInput label="Insurance Certificate" name="insurance_certificate" setData={setData} />
+                                <FileInput label="Revenue License" name="revenue_license" setData={setData} />
+                                <FileInput label="Emission Test Certificate" name="emission_test_certificate" setData={setData} />
+                                <FileInput label="Driving License Copy" name="vehicle_driving_license_copy" setData={setData} />
+                                <Input {...fieldProps} label="Insurance Expiry Date" name="insurance_expiry_date" type="date" />
+                                <Input {...fieldProps} label="Revenue License Expiry Date" name="revenue_license_expiry_date" type="date" />
+                                <Input {...fieldProps} label="Emission Test Expiry Date" name="emission_test_expiry_date" type="date" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'vehiclePics' && (
+                            <Section title="Vehicle Pictures">
+                                <FileInput label="Front View" name="front_view" setData={setData} />
+                                <FileInput label="Rear View" name="rear_view" setData={setData} />
+                                <FileInput label="Left Side View" name="left_side_view" setData={setData} />
+                                <FileInput label="Right Side View" name="right_side_view" setData={setData} />
+                                <FileInput label="Front Interior View" name="front_interior_view" setData={setData} />
+                                <FileInput label="Passenger Seating Area" name="passenger_seating_area" setData={setData} />
+                                <FileInput label="Dashboard View" name="dashboard_view" setData={setData} />
+                                <FileInput label="Luggage Compartment View" name="luggage_compartment_view" setData={setData} />
+                            </Section>
+                        )}
+
+                        {activeTab === 'bank' && (
+                            <Section title="Banking Information">
+                                <Input {...fieldProps} label="Bank Name" name="bank_name" />
+                                <Input {...fieldProps} label="Branch Name" name="branch_name" />
+                                <Input {...fieldProps} label="Account Holder Name" name="account_holder_name" />
+                                <Input {...fieldProps} label="Account Number" name="account_number" />
+                                <Input {...fieldProps} label="Swift Code" name="swift_code" />
+                            </Section>
+                        )}
+
+                        {activeTab === 'driverDocs' && (
+                            <Section title="Driver Documents">
+                                <FileInput label="NIC Copy" name="nic_copy" setData={setData} />
+                                <FileInput label="Passport Copy" name="passport_copy" setData={setData} />
+                                <FileInput label="Driver Photograph" name="document_driver_photo" setData={setData} />
+                                <FileInput label="Driving License Copy" name="driving_license_copy" setData={setData} />
+                                <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy" setData={setData} />
+                                <FileInput label="No Objection Letter" name="no_objection_letter" setData={setData} />
+                                <FileInput label="Police Clearance Certificate" name="police_clearance_certificate" setData={setData} />
+                                <FileInput label="Medical Fitness Certificate" name="medical_fitness_certificate" setData={setData} />
+                                <FileInput label="Tourism Authority Registration" name="tourism_authority_registration" setData={setData} />
+                                <FileInput label="Airport Permit" name="airport_permit" setData={setData} />
+                            </Section>
+                        )}
+
+                        {activeTab === 'admin' && (
+                            <Section title="Admin Verification">
+                                <Checkbox {...fieldProps} label="NIC Verified" name="nic_verified" />
+                                <Checkbox {...fieldProps} label="Driving License Verified" name="driving_license_verified" />
+                                <Checkbox {...fieldProps} label="Tourist License Verified" name="tourist_license_verified" />
+                                <Checkbox {...fieldProps} label="Vehicle Ownership Verified" name="vehicle_ownership_verified" />
+                                <Checkbox {...fieldProps} label="Vehicle Documents Verified" name="vehicle_documents_verified" />
+                                <Checkbox {...fieldProps} label="Insurance Verified" name="insurance_verified" />
+                                <Checkbox {...fieldProps} label="No Objection Letter Verified" name="no_objection_letter_verified" />
+                                <Checkbox {...fieldProps} label="Vehicle Photos Approved" name="vehicle_photos_approved" />
+                                <Checkbox {...fieldProps} label="Tourism Registration Verified" name="tourism_registration_verified" />
+                                <Checkbox {...fieldProps} label="Driver Approved" name="driver_approved" />
+
+                                <TextArea {...fieldProps} label="Remarks" name="remarks" />
+                                <Input {...fieldProps} label="Approved By" name="approved_by" type="number" />
+                                <Input {...fieldProps} label="Approval Date" name="approval_date" type="date" />
+
+                                <Select {...fieldProps} label="Driver Status" name="driver_status">
+                                    <option>Inactive</option>
+                                    <option>Active</option>
+                                    <option>Suspended</option>
+                                    <option>Rejected</option>
+                                </Select>
+                            </Section>
+                        )}
+
+                        <div className="flex justify-between items-center gap-3 mt-8 border-t pt-6">
+                            <Link href="/drivers" className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
+                                Cancel
+                            </Link>
+
+                            <div className="flex gap-3">
+                                {!isFirstTab && (
+                                    <button type="button" onClick={goPrevious} className="bg-slate-600 text-white px-6 py-2 rounded hover:bg-slate-700">
+                                        Previous
+                                    </button>
+                                )}
+
+                                {!isLastTab && (
+                                    <button type="button" onClick={goNext} className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800">
+                                        Next
+                                    </button>
+                                )}
+
+                                {isLastTab && (
+                                    <button type="submit" disabled={processing} className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800 disabled:opacity-50">
+                                        {processing ? 'Saving...' : 'Save Driver'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </AppSidebarLayout>
+    );
+}
+
+function Section({ title, children }) {
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4 border-b pb-2">{title}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function Input({ label, name, type = 'text', data, setData, errors, isRequired }) {
+    return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
                 {label}
@@ -299,32 +727,10 @@ export default function Create({ serviceCategories = [] }) {
             {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
+}
 
-    const FileInput = ({ label, name }) => (
-        <div>
-            <label className="block text-sm font-medium text-gray-700">{label}</label>
-            <input
-                type="file"
-                onChange={(e) => setData(name, e.target.files[0])}
-                className="mt-1 w-full border border-gray-300 rounded-md p-2"
-            />
-        </div>
-    );
-
-    const toggleServiceCategory = (id) => {
-        const current = data.service_category_ids;
-
-        if (current.includes(id)) {
-            setData(
-                'service_category_ids',
-                current.filter((item) => item !== id)
-            );
-        } else {
-            setData('service_category_ids', [...current, id]);
-        }
-    };
-
-    const Select = ({ label, name, children }) => (
+function Select({ label, name, children, data, setData, errors, isRequired }) {
+    return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
                 {label}
@@ -342,8 +748,10 @@ export default function Create({ serviceCategories = [] }) {
             {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
+}
 
-    const TextArea = ({ label, name }) => (
+function TextArea({ label, name, data, setData, errors, isRequired }) {
+    return (
         <div className="md:col-span-2 lg:col-span-3">
             <label className="block text-sm font-medium text-gray-700">
                 {label}
@@ -360,32 +768,24 @@ export default function Create({ serviceCategories = [] }) {
             {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
+}
 
-    const addLanguage = () => {
-        setData('driver_languages', [
-            ...data.driver_languages,
-            {
-                language_name: '',
-                speaking_level: '',
-                reading_level: '',
-                writing_level: '',
-            }
-        ]);
-    };
+function FileInput({ label, name, setData }) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700">{label}</label>
 
-    const updateLanguage = (index, field, value) => {
-        const languages = [...data.driver_languages];
-        languages[index][field] = value;
-        setData('driver_languages', languages);
-    };
+            <input
+                type="file"
+                onChange={(e) => setData(name, e.target.files[0])}
+                className="mt-1 w-full border border-gray-300 rounded-md p-2"
+            />
+        </div>
+    );
+}
 
-    const removeLanguage = (index) => {
-        const languages = [...data.driver_languages];
-        languages.splice(index, 1);
-        setData('driver_languages', languages);
-    };
-
-    const Checkbox = ({ label, name }) => (
+function Checkbox({ label, name, data, setData }) {
+    return (
         <label className="flex items-center gap-2">
             <input
                 type="checkbox"
@@ -396,8 +796,50 @@ export default function Create({ serviceCategories = [] }) {
             <span>{label}</span>
         </label>
     );
+}
 
-    function DriverPhotoInput({ data, setData }) {
+function LanguageInput({ label, value, onChange }) {
+    return (
+        <div>
+            <label className="block text-sm font-medium">
+                {label}
+                <span className="text-red-600 ml-1">*</span>
+            </label>
+
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="mt-1 w-full border-gray-300 rounded-md"
+                placeholder="English"
+            />
+        </div>
+    );
+}
+
+function LanguageSelect({ label, value, onChange }) {
+    return (
+        <div>
+            <label className="block text-sm font-medium">
+                {label}
+                <span className="text-red-600 ml-1">*</span>
+            </label>
+
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="mt-1 w-full border-gray-300 rounded-md"
+            >
+                <option value="">Select</option>
+                <option>Basic</option>
+                <option>Intermediate</option>
+                <option>Fluent</option>
+            </select>
+        </div>
+    );
+}
+
+function DriverPhotoInput({ data, setData }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -515,9 +957,7 @@ export default function Create({ serviceCategories = [] }) {
 
             {preview && (
                 <div className="mt-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                        Preview
-                    </p>
+                    <p className="text-sm text-gray-600 mb-2">Preview</p>
 
                     <img
                         src={preview}
@@ -526,540 +966,6 @@ export default function Create({ serviceCategories = [] }) {
                     />
                 </div>
             )}
-        </div>
-    );
-}
-
-    return (
-        <AppSidebarLayout title="Create Driver">
-            <Toaster position="top-right" />
-            <div className="min-h-screen bg-gray-100 p-6">
-                <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
-                    <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Create Driver</h1>
-
-                    <Link href="/drivers" className="bg-gray-500 text-white px-4 py-2 rounded">
-                        Back
-                    </Link>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
-                    {tabs.map(([key, label]) => (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => setActiveTab(key)}
-                            className={`px-4 py-2 rounded text-sm font-semibold ${
-                                activeTab === key
-                                    ? 'bg-blue-700 text-white'
-                                    : 'bg-gray-200 text-gray-700'
-                            }`}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
-
-                <form onSubmit={submit}>
-                    {activeTab === 'personal' && (
-                        <Section title="Personal Information">
-                            <Input label="First Name" name="first_name" />
-                            <Input label="Last Name" name="last_name" />
-                            <Input label="Full Name" name="full_name" />
-                            <Input label="NIC Number" name="nic_number" />
-                            <Input label="Passport Number" name="passport_number" />
-                            <Input label="Date of Birth" name="date_of_birth" type="date" />
-                            <Select label="Gender" name="gender">
-                                <option value="">Select Gender</option>
-                                <option>Male</option>
-                                <option>Female</option>
-                            </Select>
-                            <Input label="Nationality" name="nationality" />
-                            <Select label="Marital Status" name="marital_status">
-                                <option value="">Select Marital Status</option>
-                                <option value="Single">Single</option>
-                                <option value="Married">Married</option>
-                            </Select>
-                            <Input label="Mobile Number" name="mobile_number" />
-                            <Input label="WhatsApp Number" name="whatsapp_number" />
-                            <Input label="Alternative Contact Number" name="alternative_contact_number" />
-                            <Input label="Email" name="email" type="email" />
-                            <Input label="City" name="city" />
-                            <DriverPhotoInput data={data} setData={setData} />
-                            <TextArea label="Permanent Address" name="permanent_address" />
-                            <TextArea label="Current Address" name="current_address" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'emergency' && (
-                        <Section title="Emergency Contact">
-                            <Input label="Contact Name" name="emergency_contact_name" />
-                            <Input label="Relationship" name="relationship" />
-                            <Input label="Contact Number" name="emergency_contact_number" />
-                            <Input label="Alternative Contact Number" name="emergency_alternative_contact_number" />
-                            <TextArea label="Address" name="emergency_address" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'services' && (
-                        <Section title="Service Categories">
-                            {serviceCategories.map((category) => (
-                                <label key={category.id} className="flex items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        checked={data.service_category_ids.includes(category.id)}
-                                        onChange={() => toggleServiceCategory(category.id)}
-                                        className="rounded border-gray-300"
-                                    />
-                                    <span>{category.name}</span>
-                                </label>
-                            ))}
-                        </Section>
-                    )}
-
-                    {activeTab === 'languages' && (
-                        <Section title="Language Proficiency">
-
-                            <div className="col-span-3 mb-4">
-                                <button
-                                    type="button"
-                                    onClick={addLanguage}
-                                    className="bg-green-600 text-white px-4 py-2 rounded"
-                                >
-                                    + Add Language
-                                </button>
-                            </div>
-
-                            {data.driver_languages.map((language, index) => (
-                                <div
-                                    key={index}
-                                    className="col-span-3 border rounded-lg p-4 bg-gray-50 mb-4"
-                                >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-
-                                        <div>
-                                            <label className="block text-sm font-medium">
-                                                Language
-                                            </label>
-
-                                            <input
-                                                type="text"
-                                                value={language.language_name}
-                                                onChange={(e) =>
-                                                    updateLanguage(
-                                                        index,
-                                                        'language_name',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="mt-1 w-full border-gray-300 rounded-md"
-                                                placeholder="English"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium">
-                                                Speaking
-                                            </label>
-
-                                            <select
-                                                value={language.speaking_level}
-                                                onChange={(e) =>
-                                                    updateLanguage(
-                                                        index,
-                                                        'speaking_level',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="mt-1 w-full border-gray-300 rounded-md"
-                                            >
-                                                <option value="">Select</option>
-                                                <option>Basic</option>
-                                                <option>Intermediate</option>
-                                                <option>Fluent</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium">
-                                                Reading
-                                            </label>
-
-                                            <select
-                                                value={language.reading_level}
-                                                onChange={(e) =>
-                                                    updateLanguage(
-                                                        index,
-                                                        'reading_level',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="mt-1 w-full border-gray-300 rounded-md"
-                                            >
-                                                <option value="">Select</option>
-                                                <option>Basic</option>
-                                                <option>Intermediate</option>
-                                                <option>Fluent</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium">
-                                                Writing
-                                            </label>
-
-                                            <select
-                                                value={language.writing_level}
-                                                onChange={(e) =>
-                                                    updateLanguage(
-                                                        index,
-                                                        'writing_level',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className="mt-1 w-full border-gray-300 rounded-md"
-                                            >
-                                                <option value="">Select</option>
-                                                <option>Basic</option>
-                                                <option>Intermediate</option>
-                                                <option>Fluent</option>
-                                            </select>
-                                        </div>
-
-                                    </div>
-
-                                    <div className="mt-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => removeLanguage(index)}
-                                            className="bg-red-600 text-white px-3 py-2 rounded"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-
-                        </Section>
-                    )}
-
-                    {activeTab === 'availability' && (
-                        <Section title="Driver Availability">
-
-                            <Checkbox label="Monday" name="monday" />
-                            <Checkbox label="Tuesday" name="tuesday" />
-                            <Checkbox label="Wednesday" name="wednesday" />
-                            <Checkbox label="Thursday" name="thursday" />
-                            <Checkbox label="Friday" name="friday" />
-                            <Checkbox label="Saturday" name="saturday" />
-                            <Checkbox label="Sunday" name="sunday" />
-
-                            <Checkbox
-                                label="Available for Airport Pickups"
-                                name="airport_pickups"
-                            />
-
-                            <Checkbox
-                                label="Available for Airport Drop-offs"
-                                name="airport_dropoffs"
-                            />
-
-                            <Checkbox
-                                label="Available for Tours"
-                                name="tours"
-                            />
-
-                            <Checkbox
-                                label="Available for Long Distance Travel"
-                                name="long_distance_travel"
-                            />
-
-                            <Checkbox
-                                label="Available for Overnight Tours"
-                                name="overnight_tours"
-                            />
-
-                            <Select label="Working Shift" name="working_shift">
-                                <option value="">Select Shift</option>
-                                <option>Day Shift</option>
-                                <option>Night Shift</option>
-                                <option>Both</option>
-                            </Select>
-
-                        </Section>
-                    )}
-
-                    {activeTab === 'technology' && (
-                        <Section title="Technology Information">
-
-                            <Checkbox
-                                label="Smartphone Available"
-                                name="smartphone_available"
-                            />
-
-                            <Select label="Device Type" name="device_type">
-                                <option value="">Select Device</option>
-                                <option>Android</option>
-                                <option>iPhone</option>
-                            </Select>
-
-                            <Checkbox
-                                label="Internet Connection Available"
-                                name="internet_connection_available"
-                            />
-
-                            <Checkbox
-                                label="GPS Tracking Enabled"
-                                name="gps_tracking_enabled"
-                            />
-
-                            <Checkbox
-                                label="Mobile App Usage Experience"
-                                name="mobile_app_usage_experience"
-                            />
-
-                        </Section>
-                    )}
-
-                    {activeTab === 'tourism' && (
-                        <Section title="Tourism & Regulatory Compliance">
-
-                            <Input
-                                label="Tourism Registration Number"
-                                name="tourism_registration_number"
-                            />
-
-                            <Checkbox
-                                label="SLTDA Registered Driver"
-                                name="sltda_registered_driver"
-                            />
-
-                            <FileInput
-                                label="Tourist Driving License Copy"
-                                name="tourist_driving_license_copy_file"
-                            />
-
-                            <FileInput
-                                label="Tourism Authority Permit Copy"
-                                name="tourism_authority_permit_copy"
-                            />
-
-                            <FileInput
-                                label="Airport Access Permit"
-                                name="airport_access_permit"
-                            />
-
-                        </Section>
-                    )}
-
-                    {activeTab === 'license' && (
-                        <Section title="Driving License Information">
-                            <Select label="License Type" name="license_type">
-                                <option value="">Select License Type</option>
-                                <option value="Light Vehicle">Light Vehicle</option>
-                                <option value="Heavy Vehicle">Heavy Vehicle</option>
-                                <option value="Bus">Bus</option>
-                                <option value="Tourist Driver">Tourist Driver</option>
-                                <option value="Chauffeur">Chauffeur</option>
-                            </Select>
-                            <Input label="License Number" name="license_number" />
-                            <Input label="Issue Date" name="issue_date" type="date" />
-                            <Input label="Expiry Date" name="expiry_date" type="date" />
-                            <Input label="Years of Experience" name="years_of_experience" type="number" />
-
-                            <Select label="Tourist License Available" name="tourist_license_available">
-                                <option value="0">No</option>
-                                <option value="1">Yes</option>
-                            </Select>
-
-                            <Input label="Tourist License Number" name="tourist_license_number" />
-                            <Input label="Tourist Issue Date" name="tourist_issue_date" type="date" />
-                            <Input label="Tourist Expiry Date" name="tourist_expiry_date" type="date" />
-                            <Input label="Previous Employer" name="previous_employer" />
-                            <TextArea label="Previous Tourism Experience" name="previous_tourism_experience" />
-                            <TextArea label="Accident History" name="accident_history" />
-                            <TextArea label="Traffic Violation History" name="traffic_violation_history" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'vehicle' && (
-                        <Section title="Vehicle Information">
-                            <Input label="Vehicle Registration Number" name="vehicle_registration_number" />
-
-                            <Select label="Vehicle Type" name="vehicle_type">
-                                <option value="">Select Vehicle Type</option>
-                                <option>Sedan</option>
-                                <option>SUV</option>
-                                <option>Van</option>
-                                <option>Luxury Sedan</option>
-                                <option>Luxury SUV</option>
-                                <option>Mini Coach</option>
-                            </Select>
-
-                            <Input label="Brand" name="brand" />
-                            <Input label="Model" name="model" />
-                            <Input label="Vehicle Year" name="vehicle_year" type="number" />
-                            <Input label="Color" name="color" />
-                            <Input label="Seating Capacity" name="seating_capacity" type="number" />
-                            <Input label="Luggage Capacity" name="luggage_capacity" type="number" />
-                            <Input label="Fuel Type" name="fuel_type" />
-                            <Input label="Transmission Type" name="transmission_type" />
-
-                            <Select label="Ownership Type" name="ownership_type">
-                                <option value="">Select Ownership</option>
-                                <option>Company-Owned</option>
-                                <option>Outsourced Vehicle</option>
-                                <option>Personally Owned</option>
-                            </Select>
-
-                            <FileInput label="Ownership Confirmation Letter" name="ownership_confirmation_letter" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'features' && (
-                        <Section title="Vehicle Features">
-                            <Checkbox label="Air Conditioned" name="air_conditioned" />
-                            <Checkbox label="WiFi Available" name="wifi_available" />
-                            <Checkbox label="GPS Enabled" name="gps_enabled" />
-                            <Checkbox label="Child Seat Available" name="child_seat_available" />
-                            <Checkbox label="Wheelchair Accessible" name="wheelchair_accessible" />
-                            <Checkbox label="Pet Friendly" name="pet_friendly" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'vehicleDocs' && (
-                        <Section title="Vehicle Documents">
-                            <FileInput label="Registration Book" name="registration_book" />
-                            <FileInput label="Insurance Certificate" name="insurance_certificate" />
-                            <FileInput label="Revenue License" name="revenue_license" />
-                            <FileInput label="Emission Test Certificate" name="emission_test_certificate" />
-                            <FileInput label="Driving License Copy" name="vehicle_driving_license_copy" />
-                            <Input label="Insurance Expiry Date" name="insurance_expiry_date" type="date" />
-                            <Input label="Revenue License Expiry Date" name="revenue_license_expiry_date" type="date" />
-                            <Input label="Emission Test Expiry Date" name="emission_test_expiry_date" type="date" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'vehiclePics' && (
-                        <Section title="Vehicle Pictures">
-                            <FileInput label="Front View" name="front_view" />
-                            <FileInput label="Rear View" name="rear_view" />
-                            <FileInput label="Left Side View" name="left_side_view" />
-                            <FileInput label="Right Side View" name="right_side_view" />
-                            <FileInput label="Front Interior View" name="front_interior_view" />
-                            <FileInput label="Passenger Seating Area" name="passenger_seating_area" />
-                            <FileInput label="Dashboard View" name="dashboard_view" />
-                            <FileInput label="Luggage Compartment View" name="luggage_compartment_view" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'bank' && (
-                        <Section title="Banking Information">
-                            <Input label="Bank Name" name="bank_name" />
-                            <Input label="Branch Name" name="branch_name" />
-                            <Input label="Account Holder Name" name="account_holder_name" />
-                            <Input label="Account Number" name="account_number" />
-                            <Input label="Swift Code" name="swift_code" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'driverDocs' && (
-                        <Section title="Driver Documents">
-                            <FileInput label="NIC Copy" name="nic_copy" />
-                            <FileInput label="Passport Copy" name="passport_copy" />
-                            <FileInput label="Driver Photograph" name="document_driver_photo" />
-                            <FileInput label="Driving License Copy" name="driving_license_copy" />
-                            <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy" />
-                            <FileInput label="No Objection Letter" name="no_objection_letter" />
-                            <FileInput label="Police Clearance Certificate" name="police_clearance_certificate" />
-                            <FileInput label="Medical Fitness Certificate" name="medical_fitness_certificate" />
-                            <FileInput label="Tourism Authority Registration" name="tourism_authority_registration" />
-                            <FileInput label="Airport Permit" name="airport_permit" />
-                        </Section>
-                    )}
-
-                    {activeTab === 'admin' && (
-                        <Section title="Admin Verification">
-                            <Checkbox label="NIC Verified" name="nic_verified" />
-                            <Checkbox label="Driving License Verified" name="driving_license_verified" />
-                            <Checkbox label="Tourist License Verified" name="tourist_license_verified" />
-                            <Checkbox label="Vehicle Ownership Verified" name="vehicle_ownership_verified" />
-                            <Checkbox label="Vehicle Documents Verified" name="vehicle_documents_verified" />
-                            <Checkbox label="Insurance Verified" name="insurance_verified" />
-                            <Checkbox label="No Objection Letter Verified" name="no_objection_letter_verified" />
-                            <Checkbox label="Vehicle Photos Approved" name="vehicle_photos_approved" />
-                            <Checkbox label="Tourism Registration Verified" name="tourism_registration_verified" />
-                            <Checkbox label="Driver Approved" name="driver_approved" />
-
-                            <TextArea label="Remarks" name="remarks" />
-                            <Input label="Approved By" name="approved_by" type="number" />
-                            <Input label="Approval Date" name="approval_date" type="date" />
-
-                            <Select label="Driver Status" name="driver_status">
-                                <option>Inactive</option>
-                                <option>Active</option>
-                                <option>Suspended</option>
-                                <option>Rejected</option>
-                            </Select>
-                        </Section>
-                    )}
-
-                    <div className="flex justify-between items-center gap-3 mt-8 border-t pt-6">
-                        <div>
-                            <Link
-                                href="/drivers"
-                                className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
-                            >
-                                Cancel
-                            </Link>
-                        </div>
-
-                        <div className="flex gap-3">
-                            {!isFirstTab && (
-                                <button
-                                    type="button"
-                                    onClick={goPrevious}
-                                    className="bg-slate-600 text-white px-6 py-2 rounded hover:bg-slate-700"
-                                >
-                                    Previous
-                                </button>
-                            )}
-
-                            {!isLastTab && (
-                                <button
-                                    type="button"
-                                    onClick={goNext}
-                                    className="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800"
-                                >
-                                    Next
-                                </button>
-                            )}
-
-                            {isLastTab && (
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800 disabled:opacity-50"
-                                >
-                                    {processing ? 'Saving...' : 'Save Driver'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-        </AppSidebarLayout>
-    );
-}
-
-function Section({ title, children }) {
-    return (
-        <div>
-            <h2 className="text-xl font-bold mb-4 border-b pb-2">{title}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {children}
-            </div>
         </div>
     );
 }
