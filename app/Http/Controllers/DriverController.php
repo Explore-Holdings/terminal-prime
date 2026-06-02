@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Models\Driver;
 use App\Models\EmergencyContact;
 use App\Models\DrivingLicense;
@@ -85,8 +84,21 @@ class DriverController extends Controller
                 ? $request->file('driver_photo')->store('drivers/photos', 'public')
                 : null;
 
+            $lastDriver = Driver::where('registration_number', 'REGEXP', '^DRV-[0-9]{3}$')
+                ->orderByRaw("CAST(SUBSTRING(registration_number, 5) AS UNSIGNED) DESC")
+                ->first();
+
+            $nextNumber = 1;
+
+            if ($lastDriver) {
+                $lastNumber = (int) substr($lastDriver->registration_number, 4);
+                $nextNumber = $lastNumber + 1;
+            }
+
+            $registrationNumber = 'DRV-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
             $driver = Driver::create([
-                'registration_number' => 'DRV-' . now()->format('YmdHis'),
+                'registration_number' => $registrationNumber,
                 'registration_date' => now()->toDateString(),
                 'registration_status' => 'Pending',
 
