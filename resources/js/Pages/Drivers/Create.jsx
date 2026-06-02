@@ -45,6 +45,43 @@ export default function Create({ serviceCategories = [] }) {
         accident_history: '',
         traffic_violation_history: '',
 
+        driver_languages: [
+            {
+                language_name: '',
+                speaking_level: '',
+                reading_level: '',
+                writing_level: '',
+            },
+        ],
+
+        service_category_ids: [],
+
+        monday: false,
+        tuesday: false,
+        wednesday: false,
+        thursday: false,
+        friday: false,
+        saturday: false,
+        sunday: false,
+        working_shift: '',
+        airport_pickups: false,
+        airport_dropoffs: false,
+        tours: false,
+        long_distance_travel: false,
+        overnight_tours: false,
+
+        smartphone_available: false,
+        device_type: '',
+        internet_connection_available: false,
+        gps_tracking_enabled: false,
+        mobile_app_usage_experience: false,
+
+        tourism_registration_number: '',
+        sltda_registered_driver: false,
+        tourist_driving_license_copy_file: null,
+        tourism_authority_permit_copy: null,
+        airport_access_permit: null,
+
         vehicle_registration_number: '',
         vehicle_type: '',
         brand: '',
@@ -114,43 +151,6 @@ export default function Create({ serviceCategories = [] }) {
         approved_by: '',
         approval_date: '',
         driver_status: 'Inactive',
-
-        driver_languages: [
-            {
-                language_name: '',
-                speaking_level: '',
-                reading_level: '',
-                writing_level: '',
-            },
-        ],
-
-        service_category_ids: [],
-
-        monday: false,
-        tuesday: false,
-        wednesday: false,
-        thursday: false,
-        friday: false,
-        saturday: false,
-        sunday: false,
-        working_shift: '',
-        airport_pickups: false,
-        airport_dropoffs: false,
-        tours: false,
-        long_distance_travel: false,
-        overnight_tours: false,
-
-        smartphone_available: false,
-        device_type: '',
-        internet_connection_available: false,
-        gps_tracking_enabled: false,
-        mobile_app_usage_experience: false,
-
-        tourism_registration_number: '',
-        sltda_registered_driver: false,
-        tourist_driving_license_copy_file: null,
-        tourism_authority_permit_copy: null,
-        airport_access_permit: null,
     });
 
     const tabs = [
@@ -173,43 +173,45 @@ export default function Create({ serviceCategories = [] }) {
 
     const requiredFieldsByTab = {
         personal: [
-            'first_name',
-            'last_name',
-            'full_name',
-            'nic_number',
-            'date_of_birth',
-            'gender',
-            'nationality',
-            'marital_status',
-            'mobile_number',
-            'whatsapp_number',
-            'city',
-            'email',
-            'permanent_address',
-            'driver_photo',
+            { field: 'first_name', message: 'First Name is required' },
+            { field: 'last_name', message: 'Last Name is required' },
+            { field: 'full_name', message: 'Full Name is required' },
+            { field: 'nic_number', message: 'NIC Number is required' },
+            { field: 'date_of_birth', message: 'Date of Birth is required' },
+            { field: 'gender', message: 'Gender is required' },
+            { field: 'nationality', message: 'Nationality is required' },
+            { field: 'marital_status', message: 'Marital Status is required' },
+            { field: 'mobile_number', message: 'Mobile Number is required' },
+            { field: 'whatsapp_number', message: 'WhatsApp Number is required' },
+            { field: 'email', message: 'Email is required' },
+            { field: 'city', message: 'City is required' },
+            { field: 'permanent_address', message: 'Permanent Address is required' },
+            { field: 'driver_photo', message: 'Driver Photo is required' },
         ],
         emergency: [
-            'emergency_contact_name',
-            'relationship',
-            'emergency_contact_number',
+            { field: 'emergency_contact_name', message: 'Emergency Contact Name is required' },
+            { field: 'relationship', message: 'Relationship is required' },
+            { field: 'emergency_contact_number', message: 'Emergency Contact Number is required' },
         ],
         license: [
-            'license_type',
-            'license_number',
-            'issue_date',
-            'expiry_date',
-            'years_of_experience',
+            { field: 'license_type', message: 'License Type is required' },
+            { field: 'license_number', message: 'License Number is required' },
+            { field: 'issue_date', message: 'License Issue Date is required' },
+            { field: 'expiry_date', message: 'License Expiry Date is required' },
+            { field: 'years_of_experience', message: 'Years of Experience is required' },
         ],
-        services: ['service_category_ids'],
+        services: [
+            { field: 'service_category_ids', message: 'Please select at least one Service Category' },
+        ],
         vehicle: [
-            'vehicle_registration_number',
-            'vehicle_type',
-            'brand',
-            'model',
+            { field: 'vehicle_registration_number', message: 'Vehicle Registration Number is required' },
+            { field: 'vehicle_type', message: 'Vehicle Type is required' },
+            { field: 'brand', message: 'Vehicle Brand is required' },
+            { field: 'model', message: 'Vehicle Model is required' },
         ],
     };
 
-    const requiredFields = Object.values(requiredFieldsByTab).flat();
+    const requiredFields = Object.values(requiredFieldsByTab).flat().map((item) => item.field);
     const isRequired = (name) => requiredFields.includes(name);
 
     const currentTabIndex = tabs.findIndex(([key]) => key === activeTab);
@@ -224,32 +226,61 @@ export default function Create({ serviceCategories = [] }) {
     };
 
     const validateCurrentTab = () => {
-        const requiredFields = requiredFieldsByTab[activeTab] || [];
+        const rules = requiredFieldsByTab[activeTab] || [];
 
-        for (const field of requiredFields) {
-            if (Array.isArray(data[field]) && data[field].length === 0) {
-                toast.error('Please fill required fields before continuing');
+        for (const rule of rules) {
+            const value = data[rule.field];
+
+            if (Array.isArray(value) && value.length === 0) {
+                toast.error(rule.message);
                 return false;
             }
 
-            if (!Array.isArray(data[field]) && !data[field]) {
-                toast.error('Please fill required fields before continuing');
+            if (!Array.isArray(value) && !value) {
+                toast.error(rule.message);
                 return false;
             }
         }
 
         if (activeTab === 'languages') {
-            const invalidLanguage = data.driver_languages.some((language) => {
-                return (
-                    !language.language_name ||
-                    !language.speaking_level ||
-                    !language.reading_level ||
-                    !language.writing_level
-                );
-            });
+            for (let i = 0; i < data.driver_languages.length; i++) {
+                const language = data.driver_languages[i];
 
-            if (invalidLanguage) {
-                toast.error('Please complete all language fields');
+                if (!language.language_name) {
+                    toast.error(`Language name is required in row ${i + 1}`);
+                    return false;
+                }
+
+                if (!language.speaking_level) {
+                    toast.error(`Speaking level is required in row ${i + 1}`);
+                    return false;
+                }
+
+                if (!language.reading_level) {
+                    toast.error(`Reading level is required in row ${i + 1}`);
+                    return false;
+                }
+
+                if (!language.writing_level) {
+                    toast.error(`Writing level is required in row ${i + 1}`);
+                    return false;
+                }
+            }
+        }
+
+        if (activeTab === 'license' && data.tourist_license_available === '1') {
+            if (!data.tourist_license_number) {
+                toast.error('Tourist License Number is required');
+                return false;
+            }
+
+            if (!data.tourist_issue_date) {
+                toast.error('Tourist License Issue Date is required');
+                return false;
+            }
+
+            if (!data.tourist_expiry_date) {
+                toast.error('Tourist License Expiry Date is required');
                 return false;
             }
         }
@@ -319,7 +350,7 @@ export default function Create({ serviceCategories = [] }) {
         );
     };
 
-    return (
+        return (
         <AppSidebarLayout title="Create Driver">
             <Toaster position="top-right" />
 
@@ -470,9 +501,33 @@ export default function Create({ serviceCategories = [] }) {
                                     <option value="1">Yes</option>
                                 </Select>
 
-                                <Input {...fieldProps} label="Tourist License Number" name="tourist_license_number" />
-                                <Input {...fieldProps} label="Tourist Issue Date" name="tourist_issue_date" type="date" />
-                                <Input {...fieldProps} label="Tourist Expiry Date" name="tourist_expiry_date" type="date" />
+                                {data.tourist_license_available === '1' && (
+                                    <>
+                                        <Input
+                                            {...fieldProps}
+                                            label="Tourist License Number"
+                                            name="tourist_license_number"
+                                            required
+                                        />
+
+                                        <Input
+                                            {...fieldProps}
+                                            label="Tourist Issue Date"
+                                            name="tourist_issue_date"
+                                            type="date"
+                                            required
+                                        />
+
+                                        <Input
+                                            {...fieldProps}
+                                            label="Tourist Expiry Date"
+                                            name="tourist_expiry_date"
+                                            type="date"
+                                            required
+                                        />
+                                    </>
+                                )}
+
                                 <Input {...fieldProps} label="Previous Employer" name="previous_employer" />
                                 <TextArea {...fieldProps} label="Previous Tourism Experience" name="previous_tourism_experience" />
                                 <TextArea {...fieldProps} label="Accident History" name="accident_history" />
@@ -712,12 +767,12 @@ function Section({ title, children }) {
     );
 }
 
-function Input({ label, name, type = 'text', data, setData, errors, isRequired }) {
+function Input({ label, name, type = 'text', data, setData, errors, isRequired, required = false }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
                 {label}
-                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+                {(isRequired(name) || required) && <span className="text-red-600 ml-1">*</span>}
             </label>
 
             <input
