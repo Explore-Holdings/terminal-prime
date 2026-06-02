@@ -315,12 +315,16 @@ class DriverController extends Controller
             'tourismCompliance',
             'emergencyContact',
             'license',
-            'vehicle',
+            'vehicles.features',
+            'vehicles.documents',
+            'vehicles.pictures',
             'bankDetail',
+            'documents',
+            'adminVerification',
         ]);
 
         return Inertia::render('Drivers/Show', [
-            'driver' => $driver
+            'driver' => $driver,
         ]);
     }
 
