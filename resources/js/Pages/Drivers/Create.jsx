@@ -228,6 +228,10 @@ export default function Create({ serviceCategories = [] }) {
         ],
     };
 
+    const requiredFields = Object.values(requiredFieldsByTab).flat();
+
+    const isRequired = (name) => requiredFields.includes(name);
+    
     const validateCurrentTab = () => {
         const requiredFields = requiredFieldsByTab[activeTab] || [];
 
@@ -280,13 +284,18 @@ export default function Create({ serviceCategories = [] }) {
 
     const Input = ({ label, name, type = 'text' }) => (
         <div>
-            <label className="block text-sm font-medium text-gray-700">{label}</label>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+            </label>
+
             <input
                 type={type}
                 value={data[name] ?? ''}
                 onChange={(e) => setData(name, e.target.value)}
                 className="mt-1 w-full border-gray-300 rounded-md shadow-sm"
             />
+
             {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
@@ -317,7 +326,11 @@ export default function Create({ serviceCategories = [] }) {
 
     const Select = ({ label, name, children }) => (
         <div>
-            <label className="block text-sm font-medium text-gray-700">{label}</label>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+            </label>
+
             <select
                 value={data[name] ?? ''}
                 onChange={(e) => setData(name, e.target.value)}
@@ -325,18 +338,26 @@ export default function Create({ serviceCategories = [] }) {
             >
                 {children}
             </select>
+
+            {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
 
     const TextArea = ({ label, name }) => (
         <div className="md:col-span-2 lg:col-span-3">
-            <label className="block text-sm font-medium text-gray-700">{label}</label>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+            </label>
+
             <textarea
                 value={data[name] ?? ''}
                 onChange={(e) => setData(name, e.target.value)}
                 className="mt-1 w-full border-gray-300 rounded-md shadow-sm"
                 rows="3"
             />
+
+            {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
         </div>
     );
 
