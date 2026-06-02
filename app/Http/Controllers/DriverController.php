@@ -80,10 +80,6 @@ class DriverController extends Controller
         ]);
 
         DB::transaction(function () use ($request) {
-            $driverPhoto = $request->hasFile('driver_photo')
-                ? $request->file('driver_photo')->store('drivers/photos', 'public')
-                : null;
-
             $lastDriver = Driver::where('registration_number', 'REGEXP', '^DRV-[0-9]{3}$')
                 ->orderByRaw("CAST(SUBSTRING(registration_number, 5) AS UNSIGNED) DESC")
                 ->first();
@@ -96,6 +92,13 @@ class DriverController extends Controller
             }
 
             $registrationNumber = 'DRV-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+            $driverPhoto = $this->upload(
+                $request,
+                'driver_photo',
+                $registrationNumber,
+                'profile'
+            );
 
             $driver = Driver::create([
                 'registration_number' => $registrationNumber,
@@ -190,9 +193,9 @@ class DriverController extends Controller
                 'driver_id' => $driver->id,
                 'tourism_registration_number' => $request->tourism_registration_number,
                 'sltda_registered_driver' => $request->boolean('sltda_registered_driver'),
-                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy_file', 'tourism'),
-                'tourism_authority_permit_copy' => $this->upload($request, 'tourism_authority_permit_copy', 'tourism'),
-                'airport_access_permit' => $this->upload($request, 'airport_access_permit', 'tourism'),
+                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy_file', $registrationNumber, 'tourism'),
+                'tourism_authority_permit_copy' => $this->upload($request, 'tourism_authority_permit_copy', $registrationNumber, 'tourism'),
+                'airport_access_permit' => $this->upload($request, 'airport_access_permit', $registrationNumber, 'tourism'),
             ]);
 
             $vehicle = Vehicle::create([
@@ -208,7 +211,7 @@ class DriverController extends Controller
                 'fuel_type' => $request->fuel_type,
                 'transmission_type' => $request->transmission_type,
                 'ownership_type' => $request->ownership_type,
-                'ownership_confirmation_letter' => $this->upload($request, 'ownership_confirmation_letter', 'vehicles/ownership'),
+                'ownership_confirmation_letter' => $this->upload($request, 'ownership_confirmation_letter', $registrationNumber, 'ownership'),            
             ]);
 
             VehicleFeature::create([
@@ -223,11 +226,11 @@ class DriverController extends Controller
 
             VehicleDocument::create([
                 'vehicle_id' => $vehicle->id,
-                'registration_book' => $this->upload($request, 'registration_book', 'vehicles/documents'),
-                'insurance_certificate' => $this->upload($request, 'insurance_certificate', 'vehicles/documents'),
-                'revenue_license' => $this->upload($request, 'revenue_license', 'vehicles/documents'),
-                'emission_test_certificate' => $this->upload($request, 'emission_test_certificate', 'vehicles/documents'),
-                'driving_license_copy' => $this->upload($request, 'vehicle_driving_license_copy', 'vehicles/documents'),
+                'registration_book' => $this->upload($request, 'registration_book', $registrationNumber, 'documents'),
+                'insurance_certificate' => $this->upload($request, 'insurance_certificate', $registrationNumber, 'documents'),
+                'revenue_license' => $this->upload($request, 'revenue_license', $registrationNumber, 'documents'),
+                'emission_test_certificate' => $this->upload($request, 'emission_test_certificate', $registrationNumber, 'documents'),
+                'driving_license_copy' => $this->upload($request, 'vehicle_driving_license_copy', $registrationNumber, 'documents'),
                 'insurance_expiry_date' => $request->insurance_expiry_date,
                 'revenue_license_expiry_date' => $request->revenue_license_expiry_date,
                 'emission_test_expiry_date' => $request->emission_test_expiry_date,
@@ -235,14 +238,14 @@ class DriverController extends Controller
 
             VehiclePicture::create([
                 'vehicle_id' => $vehicle->id,
-                'front_view' => $this->upload($request, 'front_view', 'vehicles/photos'),
-                'rear_view' => $this->upload($request, 'rear_view', 'vehicles/photos'),
-                'left_side_view' => $this->upload($request, 'left_side_view', 'vehicles/photos'),
-                'right_side_view' => $this->upload($request, 'right_side_view', 'vehicles/photos'),
-                'front_interior_view' => $this->upload($request, 'front_interior_view', 'vehicles/photos'),
-                'passenger_seating_area' => $this->upload($request, 'passenger_seating_area', 'vehicles/photos'),
-                'dashboard_view' => $this->upload($request, 'dashboard_view', 'vehicles/photos'),
-                'luggage_compartment_view' => $this->upload($request, 'luggage_compartment_view', 'vehicles/photos'),
+                'front_view' => $this->upload($request, 'front_view', $registrationNumber, 'photos'),
+                'rear_view' => $this->upload($request, 'rear_view', $registrationNumber, 'photos'),
+                'left_side_view' => $this->upload($request, 'left_side_view', $registrationNumber, 'photos'),
+                'right_side_view' => $this->upload($request, 'right_side_view', $registrationNumber, 'photos'),
+                'front_interior_view' => $this->upload($request, 'front_interior_view', $registrationNumber, 'photos'),
+                'passenger_seating_area' => $this->upload($request, 'passenger_seating_area', $registrationNumber, 'photos'),
+                'dashboard_view' => $this->upload($request, 'dashboard_view', $registrationNumber, 'photos'),
+                'luggage_compartment_view' => $this->upload($request, 'luggage_compartment_view', $registrationNumber, 'photos'),
             ]);
 
             BankDetail::create([
@@ -256,16 +259,16 @@ class DriverController extends Controller
 
             DriverDocument::create([
                 'driver_id' => $driver->id,
-                'nic_copy' => $this->upload($request, 'nic_copy', 'drivers/documents'),
-                'passport_copy' => $this->upload($request, 'passport_copy', 'drivers/documents'),
-                'driver_photo' => $this->upload($request, 'document_driver_photo', 'drivers/documents'),
-                'driving_license_copy' => $this->upload($request, 'driving_license_copy', 'drivers/documents'),
-                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy', 'drivers/documents'),
-                'no_objection_letter' => $this->upload($request, 'no_objection_letter', 'drivers/documents'),
-                'police_clearance_certificate' => $this->upload($request, 'police_clearance_certificate', 'drivers/documents'),
-                'medical_fitness_certificate' => $this->upload($request, 'medical_fitness_certificate', 'drivers/documents'),
-                'tourism_authority_registration' => $this->upload($request, 'tourism_authority_registration', 'drivers/documents'),
-                'airport_permit' => $this->upload($request, 'airport_permit', 'drivers/documents'),
+                'nic_copy' => $this->upload($request, 'nic_copy', $registrationNumber, 'documents'),
+                'passport_copy' => $this->upload($request, 'passport_copy', $registrationNumber, 'documents'),
+                'driver_photo' => $this->upload($request, 'document_driver_photo', $registrationNumber, 'documents'),
+                'driving_license_copy' => $this->upload($request, 'driving_license_copy', $registrationNumber, 'documents'),
+                'tourist_driving_license_copy' => $this->upload($request, 'tourist_driving_license_copy', $registrationNumber, 'documents'),
+                'no_objection_letter' => $this->upload($request, 'no_objection_letter', $registrationNumber, 'documents'),
+                'police_clearance_certificate' => $this->upload($request, 'police_clearance_certificate', $registrationNumber, 'documents'),
+                'medical_fitness_certificate' => $this->upload($request, 'medical_fitness_certificate', $registrationNumber, 'documents'),
+                'tourism_authority_registration' => $this->upload($request, 'tourism_authority_registration', $registrationNumber, 'documents'),
+                'airport_permit' => $this->upload($request, 'airport_permit', $registrationNumber, 'documents'),
             ]);
 
             AdminVerification::create([
@@ -290,13 +293,16 @@ class DriverController extends Controller
             ->with('success', 'Driver created successfully.');
     }
 
-    private function upload(Request $request, string $field, string $path): ?string
+    private function upload(Request $request, string $field, string $registrationNumber, string $folder): ?string
     {
         if (!$request->hasFile($field)) {
             return null;
         }
 
-        return $request->file($field)->store($path, 'public');
+        return $request->file($field)->store(
+            "drivers/{$registrationNumber}/{$folder}",
+            'public'
+        );
     }
 
     public function show(Driver $driver)
