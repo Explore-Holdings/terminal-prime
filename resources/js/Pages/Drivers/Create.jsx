@@ -182,8 +182,11 @@ export default function Create({ serviceCategories = [] }) {
             'nationality',
             'marital_status',
             'mobile_number',
+            'whatsapp_number',
             'city',
+            'email',
             'permanent_address',
+            'driver_photo',
         ],
         emergency: [
             'emergency_contact_name',
@@ -904,7 +907,7 @@ function DriverPhotoInput({ data, setData }) {
     return (
         <div className="md:col-span-2 lg:col-span-3">
             <label className="block text-sm font-medium text-gray-700">
-                Driver Photo
+                Driver Photo <span className="text-red-600 ml-1">*</span>
             </label>
 
             <div className="mt-2 flex flex-wrap gap-3">
