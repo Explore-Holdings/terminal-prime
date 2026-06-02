@@ -30,7 +30,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
 
                     <div className="p-6 border-b border-slate-700">
                         <h2 className="text-2xl font-bold">
-                            Airport Counter
+                            TERMINAL PRIME
                         </h2>
                     </div>
 
@@ -54,12 +54,12 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                             {user?.name ?? 'User'}
                         </div>
 
-                        <Link
+                        {/* <Link
                             href="/profile"
                             className="block px-4 py-3 rounded hover:bg-slate-700 text-gray-200"
                         >
                             View Profile
-                        </Link>
+                        </Link> */}
 
                         <Link
                             href={route('logout')}

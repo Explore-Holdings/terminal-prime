@@ -34,7 +34,7 @@ export default function Login({ status, canResetPassword }) {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold">
-                                        Airport Counter
+                                        Terminal Prime
                                     </h1>
                                     <p className="text-sm text-blue-200">
                                         Terminal Operations System
@@ -64,7 +64,7 @@ export default function Login({ status, canResetPassword }) {
                                 ✈
                             </div>
                             <h1 className="text-2xl font-bold text-white">
-                                Airport Counter
+                                Terminal Prime
                             </h1>
                             <p className="text-slate-400">
                                 Terminal Operations System
