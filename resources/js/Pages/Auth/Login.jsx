@@ -1,8 +1,11 @@
 import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 
 export default function Login({ status, canResetPassword }) {
+    const [showPassword, setShowPassword] = useState(false);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -21,141 +24,122 @@ export default function Login({ status, canResetPassword }) {
         <>
             <Head title="Airport Counter Login" />
 
-            <div className="min-h-screen flex bg-slate-950">
-                {/* Left Side */}
-                <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-slate-900 to-black"></div>
-
-                    <div className="relative z-10 flex flex-col justify-center p-12 text-white w-full">
-                        <div>
-                            <div className="inline-flex items-center gap-3 mb-8">
-                                <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center text-2xl font-bold">
-                                    ✈
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl font-bold">
-                                        Terminal Prime
-                                    </h1>
-                                    <p className="text-sm text-blue-200">
-                                        Terminal Operations System
-                                    </p>
-                                </div>
-                            </div>
-
-                            <h2 className="text-5xl font-bold leading-tight">
-                                Driver & Counter <br />
-                                Management Portal
-                            </h2>
-
-                            <p className="mt-6 text-lg text-slate-300 max-w-md">
-                                Secure access for airport counter staff to manage
-                                drivers, registrations, vehicles, documents, and approvals.
-                            </p>
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* Right Side Login */}
-                <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
-                    <div className="w-full max-w-md">
-                        <div className="lg:hidden text-center mb-8">
-                            <div className="mx-auto h-14 w-14 rounded-xl bg-blue-600 flex items-center justify-center text-3xl text-white mb-3">
+            <div
+                className="min-h-screen flex items-center justify-center bg-cover bg-center px-4"
+                style={{
+                    backgroundImage:
+                        "linear-gradient(rgba(2, 6, 23, 0.68), rgba(2, 6, 23, 0.68)), url('/assets/images/airport-login-bg.jpg')",
+                }}
+            >
+                <div className="w-full max-w-md">
+                    <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
+                        <div className="text-center mb-7">
+                            <div className="mx-auto h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center text-3xl text-white mb-3">
                                 ✈
                             </div>
-                            <h1 className="text-2xl font-bold text-white">
-                                Terminal Prime
+
+                            <h1 className="text-3xl font-bold text-slate-900">
+                                TERMINAL PRIME
                             </h1>
-                            <p className="text-slate-400">
-                                Terminal Operations System
+
+                            <p className="text-sm text-slate-500">
+                                Airport Counter Login
                             </p>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-2xl p-8">
-                            <div className="mb-6">
-                                <h2 className="text-3xl font-bold text-slate-900">
-                                    Welcome Back
-                                </h2>
-                                <p className="text-slate-500 mt-2">
-                                    Sign in to continue to your counter dashboard.
-                                </p>
+                        {status && (
+                            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                                {status}
+                            </div>
+                        )}
+
+                        <form onSubmit={submit} className="space-y-5">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                                    Email Address
+                                </label>
+
+                                <input
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    value={data.email}
+                                    autoComplete="username"
+                                    autoFocus
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    placeholder="counter@airport.lk"
+                                    className="w-full rounded-xl border-slate-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                />
+
+                                <InputError message={errors.email} className="mt-2" />
                             </div>
 
-                            {status && (
-                                <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
-                                    {status}
-                                </div>
-                            )}
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                                    Password
+                                </label>
 
-                            <form onSubmit={submit} className="space-y-5">
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                        Email Address
-                                    </label>
-
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        name="email"
-                                        value={data.email}
-                                        autoComplete="username"
-                                        autoFocus
-                                        onChange={(e) => setData('email', e.target.value)}
-                                        placeholder="counter@airport.lk"
-                                        className="w-full rounded-lg border-slate-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    />
-
-                                    <InputError message={errors.email} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                        Password
-                                    </label>
-
+                                <div className="relative">
                                     <input
                                         id="password"
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         name="password"
                                         value={data.password}
                                         autoComplete="current-password"
                                         onChange={(e) => setData('password', e.target.value)}
                                         placeholder="Enter password"
-                                        className="w-full rounded-lg border-slate-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="w-full rounded-xl border-slate-300 px-4 py-3 pr-20 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     />
 
-                                    <InputError message={errors.password} className="mt-2" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-3 text-sm font-semibold text-blue-700"
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </button>
                                 </div>
 
-                                <div className="flex items-center justify-between">
-                                    <label className="flex items-center">
-                                        <Checkbox
-                                            name="remember"
-                                            checked={data.remember}
-                                            onChange={(e) =>
-                                                setData('remember', e.target.checked)
-                                            }
-                                        />
-                                        <span className="ms-2 text-sm text-slate-600">
-                                            Remember me
-                                        </span>
-                                    </label>
-                                </div>
+                                <InputError message={errors.password} className="mt-2" />
+                            </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="w-full rounded-lg bg-blue-700 px-4 py-3 text-white font-semibold shadow hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                                >
-                                    {processing ? 'Signing in...' : 'Log in to Counter'}
-                                </button>
-                            </form>
-                        </div>
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center">
+                                    <Checkbox
+                                        name="remember"
+                                        checked={data.remember}
+                                        onChange={(e) =>
+                                            setData('remember', e.target.checked)
+                                        }
+                                    />
+                                    <span className="ms-2 text-sm text-slate-600">
+                                        Remember me
+                                    </span>
+                                </label>
 
-                        <p className="text-center text-sm text-slate-500 mt-6">
-                        © {new Date().getFullYear()} Explore Holdings IT Department. All rights reserved.
-                        </p>
+                                {/* {canResetPassword && (
+                                    <Link
+                                        href={route('password.request')}
+                                        className="text-sm font-semibold text-blue-700 hover:text-blue-900"
+                                    >
+                                        Forgot?
+                                    </Link>
+                                )} */}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="w-full rounded-xl bg-slate-900 px-4 py-3 text-white font-semibold shadow-lg hover:bg-blue-800 active:scale-[0.98] transition disabled:opacity-50"
+                            >
+                                {processing ? 'Signing in...' : 'Log in'}
+                            </button>
+                        </form>
                     </div>
+
+                    <p className="text-center text-xs text-white/80 mt-4">
+                        © {new Date().getFullYear()} Explore Holdings IT Department
+                    </p>
                 </div>
             </div>
         </>
