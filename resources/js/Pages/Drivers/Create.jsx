@@ -904,6 +904,7 @@ function DriverPhotoInput({ data, setData }) {
     const [cameraOpen, setCameraOpen] = useState(false);
     const [preview, setPreview] = useState(null);
     const [stream, setStream] = useState(null);
+    const [unmirrorCamera, setUnmirrorCamera] = useState(true);
 
     const openCamera = async () => {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -937,7 +938,13 @@ function DriverPhotoInput({ data, setData }) {
         canvas.height = video.videoHeight;
 
         const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0);
+
+        if (unmirrorCamera) {
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+        }
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob((blob) => {
             const file = new File([blob], 'driver-photo.jpg', {
@@ -989,6 +996,7 @@ function DriverPhotoInput({ data, setData }) {
                         autoPlay
                         playsInline
                         className="w-full max-w-md rounded border"
+                        style={{ transform: unmirrorCamera ? 'scaleX(-1)' : 'none' }}
                     />
 
                     <canvas ref={canvasRef} className="hidden" />
