@@ -1,10 +1,14 @@
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Create({ serviceCategories = [] }) {
     const [activeTab, setActiveTab] = useState('personal');
+
+    const { props } = usePage();
+    const loggedUser = props.auth?.user;
+    const today = new Date().toISOString().split('T')[0];
 
     const { data, setData, post, processing, errors } = useForm({
         first_name: '',
@@ -21,6 +25,7 @@ export default function Create({ serviceCategories = [] }) {
         alternative_contact_number: '',
         email: '',
         permanent_address: '',
+        same_as_permanent: true,
         current_address: '',
         city: '',
         driver_photo: null,
@@ -45,15 +50,7 @@ export default function Create({ serviceCategories = [] }) {
         accident_history: '',
         traffic_violation_history: '',
 
-        driver_languages: [
-            {
-                language_name: '',
-                speaking_level: '',
-                reading_level: '',
-                writing_level: '',
-            },
-        ],
-
+        driver_languages: [{ language_name: '', speaking_level: '', reading_level: '', writing_level: '' }],
         service_category_ids: [],
 
         monday: false,
@@ -137,20 +134,21 @@ export default function Create({ serviceCategories = [] }) {
         tourism_authority_registration: null,
         airport_permit: null,
 
-        nic_verified: false,
-        driving_license_verified: false,
-        tourist_license_verified: false,
-        vehicle_ownership_verified: false,
-        vehicle_documents_verified: false,
-        insurance_verified: false,
-        no_objection_letter_verified: false,
-        vehicle_photos_approved: false,
-        tourism_registration_verified: false,
-        driver_approved: false,
+        nic_verified: true,
+        driving_license_verified: true,
+        tourist_license_verified: true,
+        vehicle_ownership_verified: true,
+        vehicle_documents_verified: true,
+        insurance_verified: true,
+        no_objection_letter_verified: true,
+        vehicle_photos_approved: true,
+        tourism_registration_verified: true,
+        driver_approved: true,
         remarks: '',
-        approved_by: '',
-        approval_date: '',
-        driver_status: 'Inactive',
+        approved_by: loggedUser?.id ?? '',
+        approved_by_name: loggedUser?.name ?? '',
+        approval_date: today,
+        driver_status: 'Active',
     });
 
     const tabs = [
@@ -209,6 +207,63 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'brand', message: 'Vehicle Brand is required' },
             { field: 'model', message: 'Vehicle Model is required' },
         ],
+        availability: [
+            { field: 'working_shift', message: 'Working Shift is required' },
+        ],
+
+        technology: [
+            { field: 'device_type', message: 'Device Type is required' },
+        ],
+
+        features: [
+            { field: 'air_conditioned', message: 'Air Conditioned selection is required' },
+            { field: 'wifi_available', message: 'WiFi Available selection is required' },
+            { field: 'gps_enabled', message: 'GPS Enabled selection is required' },
+            { field: 'child_seat_available', message: 'Child Seat Available selection is required' },
+            { field: 'wheelchair_accessible', message: 'Wheelchair Accessible selection is required' },
+            { field: 'pet_friendly', message: 'Pet Friendly selection is required' },
+        ],
+
+        vehicleDocs: [
+            { field: 'registration_book', message: 'Registration Book is required' },
+            { field: 'insurance_certificate', message: 'Insurance Certificate is required' },
+            { field: 'revenue_license', message: 'Revenue License is required' },
+            { field: 'emission_test_certificate', message: 'Emission Test Certificate is required' },
+            { field: 'vehicle_driving_license_copy', message: 'Vehicle Driving License Copy is required' },
+            { field: 'insurance_expiry_date', message: 'Insurance Expiry Date is required' },
+            { field: 'revenue_license_expiry_date', message: 'Revenue License Expiry Date is required' },
+            { field: 'emission_test_expiry_date', message: 'Emission Test Expiry Date is required' },
+        ],
+
+        vehiclePics: [
+            { field: 'front_view', message: 'Front View image is required' },
+            { field: 'rear_view', message: 'Rear View image is required' },
+            { field: 'left_side_view', message: 'Left Side View image is required' },
+            { field: 'right_side_view', message: 'Right Side View image is required' },
+            { field: 'front_interior_view', message: 'Front Interior View image is required' },
+            { field: 'passenger_seating_area', message: 'Passenger Seating Area image is required' },
+            { field: 'dashboard_view', message: 'Dashboard View image is required' },
+            { field: 'luggage_compartment_view', message: 'Luggage Compartment View image is required' },
+        ],
+
+        bank: [
+            { field: 'bank_name', message: 'Bank Name is required' },
+            { field: 'branch_name', message: 'Branch Name is required' },
+            { field: 'account_holder_name', message: 'Account Holder Name is required' },
+            { field: 'account_number', message: 'Account Number is required' },
+        ],
+
+        driverDocs: [
+            { field: 'nic_copy', message: 'NIC Copy is required' },
+            { field: 'passport_copy', message: 'Passport Copy is required' },
+            { field: 'driving_license_copy', message: 'Driving License Copy is required' },
+            { field: 'tourist_driving_license_copy', message: 'Tourist Driving License Copy is required' },
+            { field: 'no_objection_letter', message: 'No Objection Letter is required' },
+            { field: 'police_clearance_certificate', message: 'Police Clearance Certificate is required' },
+            { field: 'medical_fitness_certificate', message: 'Medical Fitness Certificate is required' },
+            { field: 'tourism_authority_registration', message: 'Tourism Authority Registration is required' },
+            { field: 'airport_permit', message: 'Airport Permit is required' },
+        ],
     };
 
     const requiredFields = Object.values(requiredFieldsByTab).flat().map((item) => item.field);
@@ -218,26 +273,66 @@ export default function Create({ serviceCategories = [] }) {
     const isFirstTab = currentTabIndex === 0;
     const isLastTab = currentTabIndex === tabs.length - 1;
 
-    const fieldProps = {
-        data,
-        setData,
-        errors,
-        isRequired,
+    const fieldProps = { data, setData, errors, isRequired };
+
+    const getDetailsFromNIC = (nic) => {
+        const cleanNic = nic.trim();
+        let year;
+        let dayOfYear;
+
+        if (/^[0-9]{9}[vVxX]$/.test(cleanNic)) {
+            year = 1900 + parseInt(cleanNic.substring(0, 2));
+            dayOfYear = parseInt(cleanNic.substring(2, 5));
+        } else if (/^[0-9]{12}$/.test(cleanNic)) {
+            year = parseInt(cleanNic.substring(0, 4));
+            dayOfYear = parseInt(cleanNic.substring(4, 7));
+        } else {
+            return null;
+        }
+
+        let gender = 'Male';
+
+        if (dayOfYear > 500) {
+            gender = 'Female';
+            dayOfYear -= 500;
+        }
+
+        const birthDate = new Date(year, 0);
+        birthDate.setDate(dayOfYear);
+
+        return {
+            date_of_birth: birthDate.toISOString().split('T')[0],
+            gender,
+        };
+    };
+
+    const isEmptyValue = (value) => {
+        if (value === null || value === undefined) return true;
+        if (Array.isArray(value)) return value.length === 0;
+        if (typeof value === 'string') return value.trim() === '';
+        return false;
     };
 
     const validateCurrentTab = () => {
         const rules = requiredFieldsByTab[activeTab] || [];
 
         for (const rule of rules) {
-            const value = data[rule.field];
-
-            if (Array.isArray(value) && value.length === 0) {
+            if (isEmptyValue(data[rule.field])) {
                 toast.error(rule.message);
                 return false;
             }
+        }
 
-            if (!Array.isArray(value) && !value) {
-                toast.error(rule.message);
+        if (activeTab === 'personal') {
+            const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
+
+            if (!nicRegex.test(data.nic_number)) {
+                toast.error('Please enter a valid Sri Lankan NIC Number');
+                return false;
+            }
+
+            if (!data.same_as_permanent && !data.current_address) {
+                toast.error('Current Address is required');
                 return false;
             }
         }
@@ -307,6 +402,15 @@ export default function Create({ serviceCategories = [] }) {
     const submit = (e) => {
         e.preventDefault();
 
+        const submitData = {
+            ...data,
+            current_address: data.same_as_permanent
+                ? data.permanent_address
+                : data.current_address,
+        };
+
+        setData(submitData);
+
         post('/drivers', {
             forceFormData: true,
             onSuccess: () => toast.success('Driver created successfully'),
@@ -315,13 +419,11 @@ export default function Create({ serviceCategories = [] }) {
     };
 
     const toggleServiceCategory = (id) => {
-        const current = data.service_category_ids;
-
         setData(
             'service_category_ids',
-            current.includes(id)
-                ? current.filter((item) => item !== id)
-                : [...current, id]
+            data.service_category_ids.includes(id)
+                ? data.service_category_ids.filter((item) => item !== id)
+                : [...data.service_category_ids, id]
         );
     };
 
@@ -350,7 +452,7 @@ export default function Create({ serviceCategories = [] }) {
         );
     };
 
-        return (
+    return (
         <AppSidebarLayout title="Create Driver">
             <Toaster position="top-right" />
 
@@ -387,7 +489,14 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="First Name" name="first_name" />
                                 <Input {...fieldProps} label="Last Name" name="last_name" />
                                 <Input {...fieldProps} label="Full Name" name="full_name" />
-                                <Input {...fieldProps} label="NIC Number" name="nic_number" />
+
+                                <NICInput
+                                    {...fieldProps}
+                                    label="NIC Number"
+                                    name="nic_number"
+                                    getDetailsFromNIC={getDetailsFromNIC}
+                                />
+
                                 <Input {...fieldProps} label="Passport Number" name="passport_number" />
                                 <Input {...fieldProps} label="Date of Birth" name="date_of_birth" type="date" />
 
@@ -414,7 +523,36 @@ export default function Create({ serviceCategories = [] }) {
                                 <DriverPhotoInput data={data} setData={setData} />
 
                                 <TextArea {...fieldProps} label="Permanent Address" name="permanent_address" />
-                                <TextArea {...fieldProps} label="Current Address" name="current_address" />
+
+                                <div className="md:col-span-2 lg:col-span-3">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.same_as_permanent}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setData({
+                                                    ...data,
+                                                    same_as_permanent: checked,
+                                                    current_address: checked ? data.permanent_address : '',
+                                                });
+                                            }}
+                                            className="rounded border-gray-300"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700">
+                                            Current address is same as permanent address
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {!data.same_as_permanent && (
+                                    <TextArea
+                                        {...fieldProps}
+                                        label="Current Address"
+                                        name="current_address"
+                                        required
+                                    />
+                                )}
                             </Section>
                         )}
 
@@ -431,11 +569,7 @@ export default function Create({ serviceCategories = [] }) {
                         {activeTab === 'languages' && (
                             <Section title="Language Proficiency">
                                 <div className="col-span-3 mb-4">
-                                    <button
-                                        type="button"
-                                        onClick={addLanguage}
-                                        className="bg-green-600 text-white px-4 py-2 rounded"
-                                    >
+                                    <button type="button" onClick={addLanguage} className="bg-green-600 text-white px-4 py-2 rounded">
                                         + Add Language
                                     </button>
                                 </div>
@@ -468,11 +602,7 @@ export default function Create({ serviceCategories = [] }) {
                                             />
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => removeLanguage(index)}
-                                            className="mt-3 bg-red-600 text-white px-3 py-2 rounded"
-                                        >
+                                        <button type="button" onClick={() => removeLanguage(index)} className="mt-3 bg-red-600 text-white px-3 py-2 rounded">
                                             Remove
                                         </button>
                                     </div>
@@ -503,28 +633,9 @@ export default function Create({ serviceCategories = [] }) {
 
                                 {data.tourist_license_available === '1' && (
                                     <>
-                                        <Input
-                                            {...fieldProps}
-                                            label="Tourist License Number"
-                                            name="tourist_license_number"
-                                            required
-                                        />
-
-                                        <Input
-                                            {...fieldProps}
-                                            label="Tourist Issue Date"
-                                            name="tourist_issue_date"
-                                            type="date"
-                                            required
-                                        />
-
-                                        <Input
-                                            {...fieldProps}
-                                            label="Tourist Expiry Date"
-                                            name="tourist_expiry_date"
-                                            type="date"
-                                            required
-                                        />
+                                        <Input {...fieldProps} label="Tourist License Number" name="tourist_license_number" required />
+                                        <Input {...fieldProps} label="Tourist Issue Date" name="tourist_issue_date" type="date" required />
+                                        <Input {...fieldProps} label="Tourist Expiry Date" name="tourist_expiry_date" type="date" required />
                                     </>
                                 )}
 
@@ -553,13 +664,9 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'availability' && (
                             <Section title="Driver Availability">
-                                <Checkbox {...fieldProps} label="Monday" name="monday" />
-                                <Checkbox {...fieldProps} label="Tuesday" name="tuesday" />
-                                <Checkbox {...fieldProps} label="Wednesday" name="wednesday" />
-                                <Checkbox {...fieldProps} label="Thursday" name="thursday" />
-                                <Checkbox {...fieldProps} label="Friday" name="friday" />
-                                <Checkbox {...fieldProps} label="Saturday" name="saturday" />
-                                <Checkbox {...fieldProps} label="Sunday" name="sunday" />
+                                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                                    <Checkbox key={day} {...fieldProps} label={day.toUpperCase()} name={day} />
+                                ))}
 
                                 <Checkbox {...fieldProps} label="Available for Airport Pickups" name="airport_pickups" />
                                 <Checkbox {...fieldProps} label="Available for Airport Drop-offs" name="airport_dropoffs" />
@@ -687,7 +794,6 @@ export default function Create({ serviceCategories = [] }) {
                             <Section title="Driver Documents">
                                 <FileInput label="NIC Copy" name="nic_copy" setData={setData} />
                                 <FileInput label="Passport Copy" name="passport_copy" setData={setData} />
-                                <FileInput label="Driver Photograph" name="document_driver_photo" setData={setData} />
                                 <FileInput label="Driving License Copy" name="driving_license_copy" setData={setData} />
                                 <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy" setData={setData} />
                                 <FileInput label="No Objection Letter" name="no_objection_letter" setData={setData} />
@@ -712,8 +818,18 @@ export default function Create({ serviceCategories = [] }) {
                                 <Checkbox {...fieldProps} label="Driver Approved" name="driver_approved" />
 
                                 <TextArea {...fieldProps} label="Remarks" name="remarks" />
-                                <Input {...fieldProps} label="Approved By" name="approved_by" type="number" />
-                                <Input {...fieldProps} label="Approval Date" name="approval_date" type="date" />
+
+                                <ReadOnlyInput
+                                    label="Approved By"
+                                    value={data.approved_by_name}
+                                />
+
+                                <Input
+                                    {...fieldProps}
+                                    label="Approval Date"
+                                    name="approval_date"
+                                    type="date"
+                                />
 
                                 <Select {...fieldProps} label="Driver Status" name="driver_status">
                                     <option>Inactive</option>
@@ -787,6 +903,61 @@ function Input({ label, name, type = 'text', data, setData, errors, isRequired, 
     );
 }
 
+function ReadOnlyInput({ label, value }) {
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                <span className="text-red-600 ml-1">*</span>
+            </label>
+
+            <input
+                type="text"
+                value={value || ''}
+                readOnly
+                className="mt-1 w-full border-gray-300 rounded-md shadow-sm bg-gray-100"
+            />
+        </div>
+    );
+}
+
+function NICInput({ label, name, data, setData, errors, isRequired, getDetailsFromNIC }) {
+    const handleChange = (e) => {
+        const value = e.target.value.toUpperCase();
+        const details = getDetailsFromNIC(value);
+
+        if (details) {
+            setData({
+                ...data,
+                [name]: value,
+                date_of_birth: details.date_of_birth,
+                gender: details.gender,
+            });
+        } else {
+            setData(name, value);
+        }
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+            </label>
+
+            <input
+                type="text"
+                value={data[name] ?? ''}
+                onChange={handleChange}
+                placeholder="901234567V or 200012345678"
+                className="mt-1 w-full border-gray-300 rounded-md shadow-sm uppercase"
+            />
+
+            {errors[name] && <p className="text-red-600 text-sm">{errors[name]}</p>}
+        </div>
+    );
+}
+
 function Select({ label, name, children, data, setData, errors, isRequired }) {
     return (
         <div>
@@ -808,12 +979,12 @@ function Select({ label, name, children, data, setData, errors, isRequired }) {
     );
 }
 
-function TextArea({ label, name, data, setData, errors, isRequired }) {
+function TextArea({ label, name, data, setData, errors, isRequired, required = false }) {
     return (
         <div className="md:col-span-2 lg:col-span-3">
             <label className="block text-sm font-medium text-gray-700">
                 {label}
-                {isRequired(name) && <span className="text-red-600 ml-1">*</span>}
+                {(isRequired(name) || required) && <span className="text-red-600 ml-1">*</span>}
             </label>
 
             <textarea
@@ -828,10 +999,13 @@ function TextArea({ label, name, data, setData, errors, isRequired }) {
     );
 }
 
-function FileInput({ label, name, setData }) {
+function FileInput({ label, name, setData, required = true }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700">{label}</label>
+            <label className="block text-sm font-medium text-gray-700">
+                {label}
+                {required && <span className="text-red-600 ml-1">*</span>}
+            </label>
 
             <input
                 type="file"
@@ -904,7 +1078,6 @@ function DriverPhotoInput({ data, setData }) {
     const [cameraOpen, setCameraOpen] = useState(false);
     const [preview, setPreview] = useState(null);
     const [stream, setStream] = useState(null);
-    const [unmirrorCamera, setUnmirrorCamera] = useState(true);
 
     const openCamera = async () => {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -938,12 +1111,8 @@ function DriverPhotoInput({ data, setData }) {
         canvas.height = video.videoHeight;
 
         const context = canvas.getContext('2d');
-
-        if (unmirrorCamera) {
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
-        }
-
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob((blob) => {
@@ -980,11 +1149,7 @@ function DriverPhotoInput({ data, setData }) {
                     className="border border-gray-300 rounded-md p-2"
                 />
 
-                <button
-                    type="button"
-                    onClick={openCamera}
-                    className="bg-blue-700 text-white px-4 py-2 rounded"
-                >
+                <button type="button" onClick={openCamera} className="bg-blue-700 text-white px-4 py-2 rounded">
                     Use Webcam
                 </button>
             </div>
@@ -996,25 +1161,17 @@ function DriverPhotoInput({ data, setData }) {
                         autoPlay
                         playsInline
                         className="w-full max-w-md rounded border"
-                        style={{ transform: unmirrorCamera ? 'scaleX(-1)' : 'none' }}
+                        style={{ transform: 'scaleX(-1)' }}
                     />
 
                     <canvas ref={canvasRef} className="hidden" />
 
                     <div className="mt-3 flex gap-3">
-                        <button
-                            type="button"
-                            onClick={capturePhoto}
-                            className="bg-green-700 text-white px-4 py-2 rounded"
-                        >
+                        <button type="button" onClick={capturePhoto} className="bg-green-700 text-white px-4 py-2 rounded">
                             Capture Photo
                         </button>
 
-                        <button
-                            type="button"
-                            onClick={closeCamera}
-                            className="bg-red-600 text-white px-4 py-2 rounded"
-                        >
+                        <button type="button" onClick={closeCamera} className="bg-red-600 text-white px-4 py-2 rounded">
                             Cancel Camera
                         </button>
                     </div>

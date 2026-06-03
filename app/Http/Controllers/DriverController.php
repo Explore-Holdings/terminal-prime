@@ -285,8 +285,8 @@ class DriverController extends Controller
                 'tourism_registration_verified' => $request->boolean('tourism_registration_verified'),
                 'driver_approved' => $request->boolean('driver_approved'),
                 'remarks' => $request->remarks,
-                'approved_by' => $request->approved_by,
-                'approval_date' => $request->approval_date,
+                'approved_by' => auth()->id(),
+                'approval_date' => now()->toDateString(),
             ]);
         });
 
@@ -396,7 +396,7 @@ class DriverController extends Controller
                 'previous_tourism_experience' => $request->previous_tourism_experience,
                 'accident_history' => $request->accident_history,
                 'traffic_violation_history' => $request->traffic_violation_history,
-                'driver_status' => $request->driver_status ?? 'Inactive',
+                'driver_status' => $request->driver_status ?? 'Active',
             ]);
 
             $driver->emergencyContact()->updateOrCreate(
