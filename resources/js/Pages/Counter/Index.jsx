@@ -5,9 +5,10 @@ import {
     CreditCard,
     Car,
     Users,
+    CarFront
 } from 'lucide-react';
 
-export default function Index({ pendingAgents = [] }) {
+export default function Index({ pendingAgents = [] , vehicles = []  }) {
     return (
         <>
             <Head title="Counter" />
@@ -57,13 +58,25 @@ export default function Index({ pendingAgents = [] }) {
                     </section>
 
                     <section className="bg-white rounded-xl shadow p-5 min-h-[300px]">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">
-                            Vehicles
-                        </h2>
+                        <div className="flex items-center gap-2 mb-4">
+                            <CarFront className="text-green-700" size={22} />
 
-                        <div className="h-[220px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
-                            Blank for now
+                            <h2 className="text-lg font-bold text-gray-800">
+                                Vehicles Checked In
+                            </h2>
                         </div>
+
+                        {vehicles.length > 0 ? (
+                            <div className="flex gap-3 overflow-x-auto pb-2">
+                                {vehicles.map((vehicle) => (
+                                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-[220px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
+                                No vehicles found
+                            </div>
+                        )}
                     </section>
 
                     <section className="bg-white rounded-xl shadow p-5 min-h-[300px]">
@@ -120,5 +133,67 @@ function CustomerCard({ agent }) {
                 </button>
             </div>
         </div>
+    );
+}
+
+function VehicleCard({ vehicle }) {
+    const image =
+        vehicle.pictures?.front_view ??
+        vehicle.front_view ??
+        null;
+
+    const languages =
+        vehicle.driver?.languages
+            ?.map((lang) => lang.language_name)
+            .join(', ') || '-';
+
+    return (
+        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm hover:shadow-md transition">
+
+            <div className="flex gap-3">
+
+                <VehicleImage path={image} />
+
+                <div className="flex-1">
+
+                    <h3 className="font-semibold text-sm text-gray-800 truncate">
+                        {vehicle.driver?.full_name ?? 'Driver'} : {vehicle.driver?.mobile_number ?? '-'}
+                    </h3>
+
+                    <p className="text-xs font-medium text-blue-700 truncate">
+                        {vehicle.registration_number ?? '-'}
+                    </p>
+
+                    <p className="text-xs text-gray-600 truncate mt-1">
+                        {vehicle.vehicle_type ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}
+                    </p>
+
+                    <p className="text-xs font-bold text-dark-500 mt-1 truncate" title={languages}>
+                        🌐 {languages}
+                    </p>
+
+                </div>
+
+            </div>
+        </div>
+    );
+}
+
+function VehicleImage({ path }) {
+    if (!path) {
+        return (
+            <div className="w-32 h-24 rounded-lg bg-gray-100 border flex items-center justify-center text-xs text-gray-400">
+                No Image
+            </div>
+        );
+    }
+
+    return (
+        <a href={`/storage/${path}`} target="_blank" rel="noreferrer">
+            <img
+                src={`/storage/${path}`}
+                className="w-32 h-24 rounded-lg object-cover border"
+            />
+        </a>
     );
 }
