@@ -8,6 +8,7 @@ use App\Models\Driver;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\CustomerController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -68,5 +69,9 @@ Route::get('/drivers/{driver}/edit', [DriverController::class, 'edit'])
 
 Route::put('/drivers/{driver}', [DriverController::class, 'update'])
     ->name('drivers.update');
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::resource('customers', CustomerController::class);
+});
 
 require __DIR__.'/auth.php';

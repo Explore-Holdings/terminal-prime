@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'agent_id',
         'customer_code',
@@ -16,10 +18,11 @@ class Customer extends Model
         'whatsapp_number',
         'country',
         'passport_image',
+        'dropoff_location',
+        'passenger_count',
+        'language_preference',
         'status',
         'remarks',
-        'language_preference',
-        'passenger_count',
     ];
 
     public function agent()

@@ -41,12 +41,12 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                             Dashboard
                         </Link>
 
-                        <Link href="/drivers" className={menuClass('/drivers')}>
-                            Drivers
-                        </Link>
-
                         <Link href="/customers" className={menuClass('/customers')}>
                             Customers
+                        </Link>
+
+                        <Link href="/drivers" className={menuClass('/drivers')}>
+                            Drivers
                         </Link>
 
                         <Link href="/drivers/create" className={menuClass('/drivers/create')}>

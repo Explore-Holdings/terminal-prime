@@ -13,10 +13,12 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('customer_passport')->nullable();
             $table->string('name')->nullable();
+            $table->string('dropoff_location')->nullable();
             $table->integer('passenger_count')->nullable();
             $table->string('currency')->nullable();
             $table->decimal('price', 12, 2)->default(0);
             $table->text('remarks')->nullable();
+            $table->enum('status', ['Pending','Approved','Rejected'])->default('Pending')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
         });
