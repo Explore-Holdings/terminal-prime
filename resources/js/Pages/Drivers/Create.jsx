@@ -1054,6 +1054,9 @@ function FileInput({ label, name, setData, required = true }) {
         canvas.height = video.videoHeight;
 
         const context = canvas.getContext('2d');
+
+        // No mirror flip for document scans
+        context.setTransform(1, 0, 0, 1, 0, 0);
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob((blob) => {
@@ -1128,6 +1131,8 @@ function FileInput({ label, name, setData, required = true }) {
                                 autoPlay
                                 playsInline
                                 className="w-full rounded-lg"
+                                style={{ transform: 'scaleX(-1)' }}
+
                             />
 
                             <div className="absolute inset-8 border-4 border-blue-400 rounded-lg pointer-events-none"></div>
