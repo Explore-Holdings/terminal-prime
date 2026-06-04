@@ -1000,6 +1000,73 @@ function TextArea({ label, name, data, setData, errors, isRequired, required = f
 }
 
 function FileInput({ label, name, setData, required = true }) {
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [stream, setStream] = useState(null);
+    const [preview, setPreview] = useState(null);
+
+    const uploadFile = (e) => {
+        const file = e.target.files[0];
+
+        if (file) {
+            setData(name, file);
+            setPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const openScanner = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                },
+            });
+
+            setStream(mediaStream);
+            setCameraOpen(true);
+
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream;
+                }
+            }, 100);
+        } catch (error) {
+            toast.error('Camera access denied or not available');
+        }
+    };
+
+    const closeScanner = () => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+        }
+
+        setStream(null);
+        setCameraOpen(false);
+    };
+
+    const scanDocument = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob((blob) => {
+            const file = new File([blob], `${name}-scan.jpg`, {
+                type: 'image/jpeg',
+            });
+
+            setData(name, file);
+            setPreview(URL.createObjectURL(file));
+            closeScanner();
+        }, 'image/jpeg', 0.9);
+    };
+
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -1007,11 +1074,87 @@ function FileInput({ label, name, setData, required = true }) {
                 {required && <span className="text-red-600 ml-1">*</span>}
             </label>
 
-            <input
-                type="file"
-                onChange={(e) => setData(name, e.target.files[0])}
-                className="mt-1 w-full border border-gray-300 rounded-md p-2"
-            />
+            <div className="mt-1 flex flex-wrap gap-2">
+                <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={uploadFile}
+                    className="flex-1 border border-gray-300 rounded-md p-2"
+                />
+
+                <button
+                    type="button"
+                    onClick={openScanner}
+                    className="bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-900"
+                >
+                    Scan
+                </button>
+            </div>
+
+            {preview && (
+                <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-1">
+                        Selected Preview
+                    </p>
+
+                    <img
+                        src={preview}
+                        alt={label}
+                        className="w-40 h-28 object-cover rounded border"
+                    />
+                </div>
+            )}
+
+            {cameraOpen && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">
+                                Scan {label}
+                            </h2>
+
+                            <button
+                                type="button"
+                                onClick={closeScanner}
+                                className="text-red-600 font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="relative bg-black rounded-lg overflow-hidden">
+                            <video
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                className="w-full rounded-lg"
+                            />
+
+                            <div className="absolute inset-8 border-4 border-blue-400 rounded-lg pointer-events-none"></div>
+                        </div>
+
+                        <canvas ref={canvasRef} className="hidden" />
+
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button
+                                type="button"
+                                onClick={closeScanner}
+                                className="bg-gray-500 text-white px-4 py-2 rounded"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={scanDocument}
+                                className="bg-green-700 text-white px-4 py-2 rounded"
+                            >
+                                Capture Scan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
