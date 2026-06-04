@@ -21,6 +21,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'role_id',
+        'driver_id',
         'email',
         'password',
     ];
@@ -56,5 +57,10 @@ class User extends Authenticatable
     public function agents()
     {
         return $this->hasMany(Agent::class);
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(Driver::class);
     }
 }

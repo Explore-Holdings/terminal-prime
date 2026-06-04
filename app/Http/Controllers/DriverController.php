@@ -20,6 +20,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class DriverController extends Controller
 {
@@ -49,7 +51,7 @@ class DriverController extends Controller
             'nationality' => 'required|string|max:100',
             'marital_status' => 'required|string|max:50',
             'mobile_number' => 'required|string|max:20',
-            'email' => 'nullable|email|max:255',
+            'email' => 'required|email|max:255|unique:users,email|unique:drivers,email',
             'city' => 'required|string|max:100',
             'permanent_address' => 'required|string',
 
@@ -287,6 +289,14 @@ class DriverController extends Controller
                 'remarks' => $request->remarks,
                 'approved_by' => auth()->id(),
                 'approval_date' => now()->toDateString(),
+            ]);
+
+            $user = User::create([
+                'role_id' => 4,
+                'name' => $driver->full_name,
+                'driver_id' => $driver->id,
+                'email' => $driver->email,
+                'password' => Hash::make('Test@123'),
             ]);
         });
 
