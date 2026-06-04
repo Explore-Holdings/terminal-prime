@@ -45,6 +45,10 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                             Drivers
                         </Link>
 
+                        <Link href="/customers" className={menuClass('/customers')}>
+                            Customers
+                        </Link>
+
                         <Link href="/drivers/create" className={menuClass('/drivers/create')}>
                             Add Driver
                         </Link>
