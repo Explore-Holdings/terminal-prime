@@ -16,6 +16,7 @@ class Agent extends Model
         'currency',
         'passenger_count',
         'dropoff_location',
+        'status',
         'price',
         'remarks',
     ];
