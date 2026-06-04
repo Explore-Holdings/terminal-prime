@@ -1,10 +1,9 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { Link } from '@inertiajs/react';
 
-export default function Dashboard({ stats = {}, recentDrivers = [] }) {
+export default function Dashboard({ stats = {}, recentCustomers = [], recentDrivers = [] }) {
     return (
         <AppSidebarLayout title="Dashboard">
-
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-800">
                     Airport Counter Dashboard
@@ -14,113 +13,140 @@ export default function Dashboard({ stats = {}, recentDrivers = [] }) {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard
-                    title="Total Drivers"
-                    value={stats.totalDrivers}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <DashboardCard
+                    title="Customers"
+                    value={stats.totalCustomers}
+                    subtitle="Total registered customers"
+                    href="/customers"
+                    buttonText="Manage Customers"
                     color="text-blue-600"
                 />
 
-                <StatCard
-                    title="Active Drivers"
-                    value={stats.activeDrivers}
+                <DashboardCard
+                    title="Drivers"
+                    value={stats.totalDrivers}
+                    subtitle="Total registered drivers"
+                    href="/drivers"
+                    buttonText="Manage Drivers"
                     color="text-green-600"
                 />
 
-                <StatCard
-                    title="Pending Approval"
-                    value={stats.pendingApproval}
-                    color="text-yellow-500"
-                />
-
-                <StatCard
-                    title="Suspended Drivers"
-                    value={stats.suspendedDrivers}
-                    color="text-red-600"
+                <DashboardCard
+                    title="Finance"
+                    value={`Rs. ${Number(stats.totalFinance ?? 0).toLocaleString()}`}
+                    subtitle="Total recorded finance"
+                    href="/finance"
+                    buttonText="View Finance"
+                    color="text-purple-600"
                 />
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 className="text-xl font-semibold">
-                            Recent Drivers
-                        </h2>
-                        <p className="text-sm text-gray-500">
-                            Latest registered drivers
-                        </p>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <RecentCard
+                    title="Recent Customers"
+                    href="/customers"
+                    headers={['Name', 'WhatsApp', 'Status']}
+                    rows={recentCustomers.map((customer) => [
+                        customer.name ?? '-',
+                        customer.whatsapp_number ?? '-',
+                        <Badge value={customer.status} />,
+                    ])}
+                    emptyText="No customers found"
+                />
 
-                    <Link
-                        href="/drivers"
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                    >
-                        View All
-                    </Link>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full border">
-                        <thead>
-                            <tr className="bg-gray-100">
-                                <th className="border p-2 text-left">Reg No</th>
-                                <th className="border p-2 text-left">Name</th>
-                                <th className="border p-2 text-left">Phone</th>
-                                <th className="border p-2 text-left">Driver Status</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {recentDrivers.length > 0 ? (
-                                recentDrivers.map((driver) => (
-                                    <tr key={driver.id} className="hover:bg-gray-50">
-                                        <td className="border p-2">
-                                            {driver.registration_number ?? '-'}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {driver.full_name ?? '-'}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {driver.mobile_number ?? '-'}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            <Badge value={driver.driver_status} />
-                                        </td>
-
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td
-                                        colSpan="5"
-                                        className="border p-4 text-center text-gray-500"
-                                    >
-                                        No drivers found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <RecentCard
+                    title="Recent Drivers"
+                    href="/drivers"
+                    headers={['Reg No', 'Name', 'Status']}
+                    rows={recentDrivers.map((driver) => [
+                        driver.registration_number ?? '-',
+                        driver.full_name ?? '-',
+                        <Badge value={driver.driver_status} />,
+                    ])}
+                    emptyText="No drivers found"
+                />
             </div>
-
         </AppSidebarLayout>
     );
 }
 
-function StatCard({ title, value, color }) {
+function DashboardCard({ title, value, subtitle, href, buttonText, color }) {
     return (
-        <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm text-gray-500">
-                {title}
-            </h3>
+        <div className="bg-white rounded-xl shadow p-6 hover:shadow-lg transition">
+            <p className="text-sm font-semibold text-gray-500">{title}</p>
 
-            <p className={`text-3xl font-bold mt-2 ${color}`}>
+            <p className={`text-4xl font-bold mt-3 ${color}`}>
                 {value ?? 0}
             </p>
+
+            <p className="text-sm text-gray-500 mt-2">
+                {subtitle}
+            </p>
+
+            <Link
+                href={href}
+                className="inline-block mt-5 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800"
+            >
+                {buttonText}
+            </Link>
+        </div>
+    );
+}
+
+function RecentCard({ title, href, headers, rows, emptyText }) {
+    return (
+        <div className="bg-white rounded-xl shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold">{title}</h2>
+                    <p className="text-sm text-gray-500">Latest records</p>
+                </div>
+
+                <Link
+                    href={href}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+                >
+                    View All
+                </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full border">
+                    <thead>
+                        <tr className="bg-gray-100">
+                            {headers.map((header) => (
+                                <th key={header} className="border p-2 text-left">
+                                    {header}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {rows.length > 0 ? (
+                            rows.map((row, rowIndex) => (
+                                <tr key={rowIndex} className="hover:bg-gray-50">
+                                    {row.map((cell, cellIndex) => (
+                                        <td key={cellIndex} className="border p-2">
+                                            {cell}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td
+                                    colSpan={headers.length}
+                                    className="border p-4 text-center text-gray-500"
+                                >
+                                    {emptyText}
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
@@ -130,7 +156,10 @@ function Badge({ value }) {
         Active: 'bg-green-100 text-green-700',
         Inactive: 'bg-gray-100 text-gray-600',
         Pending: 'bg-yellow-100 text-yellow-700',
-        Approved: 'bg-blue-100 text-blue-700',
+        New: 'bg-blue-100 text-blue-700',
+        Confirmed: 'bg-green-100 text-green-700',
+        Completed: 'bg-purple-100 text-purple-700',
+        Cancelled: 'bg-red-100 text-red-700',
         Suspended: 'bg-red-100 text-red-700',
         Rejected: 'bg-gray-200 text-gray-700',
     };
