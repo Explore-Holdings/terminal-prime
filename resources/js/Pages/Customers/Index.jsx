@@ -1,5 +1,5 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function Index({ pendingAgents = [], customers = [] }) {
@@ -64,13 +64,26 @@ export default function Index({ pendingAgents = [], customers = [] }) {
 
     return (
         <AppSidebarLayout title="Customers">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">
-                    Customers
-                </h1>
-                <p className="text-gray-500 mt-1">
-                    Pending agent requests are shown below. Add customer details from each agent request.
-                </p>
+            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">
+                        Customers
+                    </h1>
+                    <p className="text-gray-500 mt-1">
+                        Pending agent requests are shown below. Add customer details from each agent request.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center justify-center rounded-lg bg-slate-800 p-3 text-white hover:bg-slate-900"
+                    aria-label="Reload page"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.31-.42 2.52-1.13 3.5l1.46 1.46C19.49 15.18 20 13.65 20 12c0-4.42-3.58-8-8-8zm-6.36 2.64L4.22 8.06A7.956 7.956 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.31.42-2.52 1.13-3.5z" />
+                    </svg>
+                </button>
             </div>
 
             <div className="bg-white rounded-xl shadow p-6 mb-8">
@@ -172,7 +185,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                 )}
             </div>
 
-            <div className="bg-white rounded-xl shadow p-6">
+            {/* <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-xl font-semibold mb-4">
                     Added Customers
                 </h2>
@@ -225,7 +238,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div> */}
 
             {showModal && selectedAgent && (
                 <Modal
