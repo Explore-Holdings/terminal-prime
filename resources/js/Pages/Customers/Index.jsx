@@ -1,5 +1,5 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function Index({ pendingAgents = [], customers = [] }) {
@@ -10,15 +10,10 @@ export default function Index({ pendingAgents = [], customers = [] }) {
         agent_id: '',
         name: '',
         email: '',
+        mobile_number: '',
         whatsapp_number: '',
         country: '',
-        passport_number: '',
         passport_image: null,
-        arrival_date: '',
-        departure_date: '',
-        flight_number: '',
-        hotel_name: '',
-        pickup_location: '',
         dropoff_location: '',
         passenger_count: 1,
         language_preference: '',
@@ -69,13 +64,26 @@ export default function Index({ pendingAgents = [], customers = [] }) {
 
     return (
         <AppSidebarLayout title="Customers">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">
-                    Customers
-                </h1>
-                <p className="text-gray-500 mt-1">
-                    Pending agent requests are shown below. Add customer details from each agent request.
-                </p>
+            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">
+                        Customers
+                    </h1>
+                    <p className="text-gray-500 mt-1">
+                        Pending agent requests are shown below. Add customer details from each agent request.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center justify-center rounded-lg bg-slate-800 p-3 text-white hover:bg-slate-900"
+                    aria-label="Reload page"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.31-.42 2.52-1.13 3.5l1.46 1.46C19.49 15.18 20 13.65 20 12c0-4.42-3.58-8-8-8zm-6.36 2.64L4.22 8.06A7.956 7.956 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.31.42-2.52 1.13-3.5z" />
+                    </svg>
+                </button>
             </div>
 
             <div className="bg-white rounded-xl shadow p-6 mb-8">
@@ -138,37 +146,19 @@ export default function Index({ pendingAgents = [], customers = [] }) {
 
                                             <div>
                                                 <p className="text-xs text-gray-500 uppercase">
-                                                    Currency
+                                                    Price
                                                 </p>
-                                                <p className="font-semibold">
-                                                    {agent.currency ?? 'USD'}
+                                                <p className="font-semibold text-red-600">
+                                                    {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
                                                 </p>
                                             </div>
 
                                             <div>
                                                 <p className="text-xs text-gray-500 uppercase">
-                                                    Price
-                                                </p>
-                                                <p className="font-semibold text-green-600">
-                                                    {Number(agent.price ?? 0).toLocaleString()}
-                                                </p>
-                                            </div>
-
-                                            <div className="md:col-span-2">
-                                                <p className="text-xs text-gray-500 uppercase">
                                                     Drop-off Location
                                                 </p>
                                                 <p className="font-semibold">
                                                     {agent.dropoff_location ?? '-'}
-                                                </p>
-                                            </div>
-
-                                            <div className="md:col-span-2">
-                                                <p className="text-xs text-gray-500 uppercase">
-                                                    Remarks
-                                                </p>
-                                                <p className="font-semibold">
-                                                    {agent.remarks ?? '-'}
                                                 </p>
                                             </div>
 
@@ -195,7 +185,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                 )}
             </div>
 
-            <div className="bg-white rounded-xl shadow p-6">
+            {/* <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-xl font-semibold mb-4">
                     Added Customers
                 </h2>
@@ -248,7 +238,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div> */}
 
             {showModal && selectedAgent && (
                 <Modal
@@ -280,7 +270,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                             <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
                             <Field label="Mobile Number" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
                             <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
-                            <Field label="Passenger Count *" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                            <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                             <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                             <div>
@@ -299,22 +289,6 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                                     <option>Russian</option>
                                     <option>German</option>
                                     <option>French</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="label">Status *</label>
-                                <select
-                                    value={form.data.status}
-                                    onChange={(e) => form.setData('status', e.target.value)}
-                                    className="input"
-                                >
-                                    <option>New</option>
-                                    <option>Contacted</option>
-                                    <option>Quoted</option>
-                                    <option>Confirmed</option>
-                                    <option>Completed</option>
-                                    <option>Cancelled</option>
                                 </select>
                             </div>
                         </div>

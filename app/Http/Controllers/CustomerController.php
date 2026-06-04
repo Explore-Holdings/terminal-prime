@@ -33,24 +33,28 @@ class CustomerController extends Controller
             'mobile_number' => 'nullable|string|max:30',
             'whatsapp_number' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:100',
-            'passport_image' => 'nullable|image|max:4096',
             'dropoff_location' => 'nullable|string|max:255',
             'passenger_count' => 'required|integer|min:1',
             'language_preference' => 'nullable|string|max:100',
-            'status' => 'required|string|max:50',
+            'status' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
         ]);
 
+        $agent = Agent::findOrFail($request->agent_id);
+
         $data['customer_code'] = $this->generateCustomerCode();
 
-        if ($request->hasFile('passport_image')) {
-            $data['passport_image'] = $request->file('passport_image')
-                ->store('customers/passports', 'public');
-        }
+        $data['passport_image'] = $agent->customer_passport;
+
+        $data['name'] = $data['name'] ?: $agent->name;
+        $data['dropoff_location'] = $data['dropoff_location'] ?: $agent->dropoff_location;
+        $data['passenger_count'] = $data['passenger_count'] ?: $agent->passenger_count;
+        $data['remarks'] = $data['remarks'] ?: $agent->remarks;
+        $data['status'] = $data['status'] ?? 'New';
 
         Customer::create($data);
 
-        Agent::where('id', $request->agent_id)->update([
+        $agent->update([
             'status' => 'Approved',
         ]);
 
