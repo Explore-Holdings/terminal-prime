@@ -280,7 +280,7 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                             <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
                             <Field label="Mobile Number" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
                             <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
-                            <Field label="Passenger Count *" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                            <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                             <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                             <div>
@@ -299,22 +299,6 @@ export default function Index({ pendingAgents = [], customers = [] }) {
                                     <option>Russian</option>
                                     <option>German</option>
                                     <option>French</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="label">Status *</label>
-                                <select
-                                    value={form.data.status}
-                                    onChange={(e) => form.setData('status', e.target.value)}
-                                    className="input"
-                                >
-                                    <option>New</option>
-                                    <option>Contacted</option>
-                                    <option>Quoted</option>
-                                    <option>Confirmed</option>
-                                    <option>Completed</option>
-                                    <option>Cancelled</option>
                                 </select>
                             </div>
                         </div>
