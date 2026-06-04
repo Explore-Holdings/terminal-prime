@@ -160,7 +160,7 @@ function VehicleCard({ vehicle }) {
                         {vehicle.driver?.full_name ?? 'Driver'} : {vehicle.driver?.mobile_number ?? '-'}
                     </h3>
 
-                    <p className="text-xs font-medium text-blue-700 truncate">
+                    <p className="text-s font-medium text-red-800 truncate mt-1">
                         {vehicle.registration_number ?? '-'}
                     </p>
 
