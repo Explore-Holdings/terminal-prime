@@ -22,6 +22,10 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::resource('users', UserController::class);
+    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+});
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard', [
@@ -64,14 +68,5 @@ Route::get('/drivers/{driver}/edit', [DriverController::class, 'edit'])
 
 Route::put('/drivers/{driver}', [DriverController::class, 'update'])
     ->name('drivers.update');
-
-
-
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::resource('users', UserController::class);
-
-    Route::post('/roles', [RoleController::class, 'store'])
-        ->name('roles.store');
-});
 
 require __DIR__.'/auth.php';
