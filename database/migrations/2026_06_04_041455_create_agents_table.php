@@ -12,10 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('customer_passport')->nullable();
+            $table->string('name')->nullable();
+            $table->integer('passenger_count')->nullable();
             $table->string('currency')->nullable();
             $table->decimal('price', 12, 2)->default(0);
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes(); 
         });
     }
 
