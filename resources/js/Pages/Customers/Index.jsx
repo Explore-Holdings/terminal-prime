@@ -138,37 +138,19 @@ export default function Index({ pendingAgents = [], customers = [] }) {
 
                                             <div>
                                                 <p className="text-xs text-gray-500 uppercase">
-                                                    Currency
+                                                    Price
                                                 </p>
-                                                <p className="font-semibold">
-                                                    {agent.currency ?? 'USD'}
+                                                <p className="font-semibold text-red-600">
+                                                    {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
                                                 </p>
                                             </div>
 
                                             <div>
                                                 <p className="text-xs text-gray-500 uppercase">
-                                                    Price
-                                                </p>
-                                                <p className="font-semibold text-green-600">
-                                                    {Number(agent.price ?? 0).toLocaleString()}
-                                                </p>
-                                            </div>
-
-                                            <div className="md:col-span-2">
-                                                <p className="text-xs text-gray-500 uppercase">
                                                     Drop-off Location
                                                 </p>
                                                 <p className="font-semibold">
                                                     {agent.dropoff_location ?? '-'}
-                                                </p>
-                                            </div>
-
-                                            <div className="md:col-span-2">
-                                                <p className="text-xs text-gray-500 uppercase">
-                                                    Remarks
-                                                </p>
-                                                <p className="font-semibold">
-                                                    {agent.remarks ?? '-'}
                                                 </p>
                                             </div>
 
