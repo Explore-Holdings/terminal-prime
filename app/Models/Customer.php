@@ -11,6 +11,7 @@ class Customer extends Model
 
     protected $fillable = [
         'agent_id',
+        'created_by',
         'customer_code',
         'name',
         'email',
@@ -23,6 +24,18 @@ class Customer extends Model
         'language_preference',
         'status',
         'remarks',
+        'payment_method',
+        'payment_notes',
+        'paid_amount',
+        'payment_status',
+        'transaction_id',
+        'card_number',
+        'invoice_number',
+        'invoice_path',
+    ];
+
+    protected $casts = [
+        'payment_notes' => 'array',
     ];
 
     public function agent()
