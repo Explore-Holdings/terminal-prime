@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\CustomerInvoiceMail;
 
 class CustomerController extends Controller
 {
@@ -211,6 +213,18 @@ class CustomerController extends Controller
         $customer->update([
             'invoice_path' => $invoicePath,
         ]);
+
+        if (!empty($customer->email)) {
+
+            Mail::to($customer->email)
+                ->send(
+                    new CustomerInvoiceMail(
+                        $customer,
+                        $invoiceNumber
+                    )
+                );
+
+        }
 
         return redirect()
         ->route('counter.index')
