@@ -170,6 +170,7 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
                     form={form}
                     saveCustomer={saveCustomer}
                     createdCustomerId={createdCustomerId}
+                    vehicles={vehicles}
                     onClose={() => setShowModal(false)}
                 />
             )}
@@ -233,6 +234,7 @@ function CounterModal({
     form,
     saveCustomer,
     createdCustomerId,
+    vehicles,
     onClose,
 }) {
     return (
@@ -299,7 +301,10 @@ function CounterModal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab agent={selectedAgent} />
+                        <VehicleTab
+                            agent={selectedAgent}
+                            vehicles={vehicles}
+                        />
                     )}
                 </div>
             </div>
@@ -712,19 +717,38 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
     );
 }
 
-function VehicleTab() {
+function VehicleTab({ vehicles = [] }) {
     return (
         <div>
-            <h3 className="font-bold text-lg mb-4">
-                Vehicle Assignment
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-lg">
+                    Select Vehicle
+                </h3>
 
-            <div className="text-gray-500">
-                Vehicle assignment section coming next.
+                <span className="text-sm text-gray-500">
+                    {vehicles.length} Vehicle(s) Available
+                </span>
             </div>
+
+            {vehicles.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2">
+                    {vehicles.map((vehicle, index) => (
+                        <VehicleSelectionCard
+                            key={vehicle.id}
+                            vehicle={vehicle}
+                            index={index}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-10 text-gray-500 border rounded-xl">
+                    No vehicles available.
+                </div>
+            )}
         </div>
     );
 }
+
 
 function VehicleCard({ vehicle }) {
     const image =
@@ -761,6 +785,78 @@ function VehicleCard({ vehicle }) {
                 </div>
             </div>
         </div>
+    );
+}
+
+function VehicleSelectionCard({ vehicle, index }) {
+    const image =
+        vehicle.pictures?.front_view ??
+        vehicle.front_view ??
+        null;
+
+    const languages =
+        vehicle.driver?.languages
+            ?.map((lang) => lang.language_name)
+            .join(', ') || '-';
+
+    return (
+        <div className="relative w-[180px] border rounded-lg bg-gray-50 p-2 hover:shadow-md transition">
+
+            {/* Vehicle Number */}
+            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-700 text-white flex items-center justify-center text-[10px] font-bold">
+                {index + 1}
+            </div>
+
+            <div className="flex flex-col items-center text-center">
+
+                <VehicleImageSmall path={image} />
+
+                <h3 className="mt-2 font-semibold text-xs text-gray-800 truncate w-full">
+                    {vehicle.driver?.full_name ?? 'Driver'}
+                </h3>
+
+                <p className="text-[10px] text-gray-500 truncate w-full">
+                    {vehicle.driver?.mobile_number ?? '-'}
+                </p>
+
+                <p className="text-xs font-bold text-red-700 mt-1">
+                    {vehicle.registration_number ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}
+                </p>
+
+                <p
+                    className="text-[12px] text-red-900 font-bold truncate w-full"
+                    title={languages}
+                >
+                    🌐 {languages}
+                </p>
+
+                <button
+                    type="button"
+                    className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px] font-medium hover:bg-blue-800"
+                >
+                    Assign
+                </button>
+
+            </div>
+        </div>
+    );
+}
+
+function VehicleImageSmall({ path }) {
+    if (!path) {
+        return (
+            <div className="w-20 h-20 rounded-md bg-gray-100 border flex items-center justify-center text-[9px] text-gray-400">
+                No Image
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={`/storage/${path}`}
+            className="w-20 h-20 rounded-md object-cover border"
+            alt=""
+        />
     );
 }
 
