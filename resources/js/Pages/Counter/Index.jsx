@@ -97,12 +97,15 @@ export default function Index({ pendingAgents = [] , vehicles = []  }) {
 function CustomerCard({ agent }) {
     return (
         <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm hover:shadow-md transition">
-            <h3 className="font-semibold text-sm text-gray-800 truncate">
-                {agent.name ?? 'Customer'}
+            <h3 className="flex justify-between items-center font-semibold text-sm text-gray-800">
+                <span className="truncate">{agent.name ?? 'Customer'}</span>
+                <span className="ml-2 whitespace-nowrap text-red-600 font-bold">
+                    {agent.distance_km ?? '-'} KM
+                </span>
             </h3>
 
             <p className="text-xs text-gray-600 mt-1 truncate">
-                {agent.passenger_count ?? 0} Pax : {agent.dropoff_location ?? '-'}
+                {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {agent.dropoff_location ?? '-'}
             </p>
 
             <div className="flex gap-1 mt-3">
