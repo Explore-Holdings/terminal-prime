@@ -55,9 +55,10 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
         form.post('/customers', {
             preserveScroll: true,
             onSuccess: () => {
-                setShowModal(false);
-                setSelectedAgent(null);
-                form.reset();
+                setActiveTab('payment'); // switch to next tab
+            },
+            onError: () => {
+                setActiveTab('customer');
             },
         });
     };
@@ -331,14 +332,6 @@ function CustomerTab({ agent, form, saveCustomer }) {
                 />
 
                 <Field
-                    label="Mobile Number"
-                    value={form.data.mobile_number}
-                    onChange={(e) => form.setData('mobile_number', e.target.value)}
-                    error={form.errors.mobile_number}
-                    required
-                />
-
-                <Field
                     label="WhatsApp Number"
                     value={form.data.whatsapp_number}
                     onChange={(e) => form.setData('whatsapp_number', e.target.value)}
@@ -411,7 +404,7 @@ function CustomerTab({ agent, form, saveCustomer }) {
                     disabled={form.processing}
                     className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50"
                 >
-                    {form.processing ? 'Saving...' : 'Save Customer'}
+                    {form.processing ? 'Saving...' : 'Save Customer & Continue'}
                 </button>
             </div>
         </form>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Agent;
 use App\Models\Customer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -51,6 +52,7 @@ class CustomerController extends Controller
         $data['passenger_count'] = $data['passenger_count'] ?: $agent->passenger_count;
         $data['remarks'] = $data['remarks'] ?: $agent->remarks;
         $data['status'] = $data['status'] ?? 'New';
+        $data['created_by'] = Auth::id();
 
         Customer::create($data);
 
