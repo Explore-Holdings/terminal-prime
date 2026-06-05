@@ -7,7 +7,9 @@ import {
     Car,
     Users,
     CarFront,
+    Trash2,
 } from 'lucide-react';
+
 
 export default function Index({ pendingAgents = [], vehicles = [], createdCustomerId: serverCustomerId = null }) {
     const [showModal, setShowModal] = useState(false);
@@ -438,24 +440,34 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
         currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
         price: agent?.new_price ?? agent?.price ?? 0,
         payment_method: 'Cash',
+        transaction_id: '',
+        card_number: '',
         payment_notes: [
-            { note: 5000, count: 0 },
-            { note: 1000, count: 0 },
-            { note: 500, count: 0 },
-            { note: 100, count: 0 },
-            { note: 50, count: 0 },
-            { note: 20, count: 0 },
+            { amount: '', count: '' },
         ],
     });
 
     const total = paymentForm.data.payment_notes.reduce((sum, item) => {
-        return sum + Number(item.note || 0) * Number(item.count || 0);
+        return sum + Number(item.amount || 0) * Number(item.count || 0);
     }, 0);
 
-    const updateNoteCount = (index, value) => {
+    const updateNote = (index, field, value) => {
         const notes = [...paymentForm.data.payment_notes];
-        notes[index].count = Number(value);
+        notes[index][field] = value;
         paymentForm.setData('payment_notes', notes);
+    };
+
+    const addNoteRow = () => {
+        const notes = [...paymentForm.data.payment_notes];
+        notes.push({ amount: '', count: '' });
+        paymentForm.setData('payment_notes', notes);
+    };
+
+    const removeNoteRow = (index) => {
+        if (paymentForm.data.payment_notes.length > 1) {
+            const notes = paymentForm.data.payment_notes.filter((_, i) => i !== index);
+            paymentForm.setData('payment_notes', notes);
+        }
     };
 
     const savePayment = (e) => {
@@ -473,13 +485,26 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
             return;
         }
 
-        console.log('Required Price:', paymentForm.data.price);
-        console.log('Entered Total:', total);
+        // Validate based on payment method
+        if (paymentForm.data.payment_method === 'Cash') {
+            console.log('Required Price:', paymentForm.data.price);
+            console.log('Entered Total:', total);
 
-        if (Number(total) !== Number(paymentForm.data.price)) {
-            console.error('Amount mismatch');
-            alert('Entered cash notes total must match the price.');
-            return;
+            if (Number(total) !== Number(paymentForm.data.price)) {
+                console.error('Amount mismatch');
+                alert('Entered cash notes total must match the price.');
+                return;
+            }
+        } else if (paymentForm.data.payment_method === 'POS') {
+            if (!paymentForm.data.transaction_id) {
+                alert('Please enter transaction ID.');
+                return;
+            }
+
+            if (!paymentForm.data.card_number) {
+                alert('Please enter card number.');
+                return;
+            }
         }
 
         console.log('Posting to:', `/customers/${customerId}/payment`);
@@ -545,47 +570,128 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
                         className="input"
                     >
                         <option value="Cash">Cash</option>
+                        <option value="POS">POS</option>
                     </select>
                 </div>
             </div>
 
-            <div className="border rounded-xl p-4 bg-gray-50">
-                <h3 className="font-bold mb-3">
-                    Cash Notes Received
-                </h3>
+            {paymentForm.data.payment_method === 'POS' && (
+                <div className="border rounded-xl p-4 bg-gray-50">
+                    <h3 className="font-bold mb-3">
+                        POS Payment Details
+                    </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {paymentForm.data.payment_notes.map((item, index) => (
-                        <div key={item.note}>
-                            <label className="label">
-                                {item.note} Notes
-                            </label>
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="label">Transaction ID</label>
                             <input
-                                type="number"
-                                min="0"
-                                value={item.count}
-                                onChange={(e) => updateNoteCount(index, e.target.value)}
+                                type="text"
+                                value={paymentForm.data.transaction_id}
+                                onChange={(e) => paymentForm.setData('transaction_id', e.target.value)}
+                                placeholder="Enter transaction ID"
                                 className="input"
+                                required
                             />
                         </div>
-                    ))}
-                </div>
 
-                <div className="mt-4 flex justify-between border-t pt-3">
-                    <p className="font-semibold">
-                        Required: {paymentForm.data.currency} {Number(paymentForm.data.price).toLocaleString()}
-                    </p>
-
-                    <p className={`font-bold ${
-                        Number(total) === Number(paymentForm.data.price)
-                            ? 'text-green-700'
-                            : 'text-red-600'
-                    }`}>
-                        Entered: {paymentForm.data.currency} {Number(total).toLocaleString()}
-                    </p>
+                        <div>
+                            <label className="label">Card Number</label>
+                            <input
+                                type="text"
+                                value={paymentForm.data.card_number}
+                                onChange={(e) => paymentForm.setData('card_number', e.target.value)}
+                                placeholder="Enter card number"
+                                className="input"
+                                required
+                            />
+                        </div>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {paymentForm.data.payment_method === 'Cash' && (
+                <div className="border rounded-xl p-4 bg-gray-50">
+                    <h3 className="font-bold mb-3">
+                        Cash Notes Received
+                    </h3>
+
+                    <div className="space-y-3">
+                        {paymentForm.data.payment_notes.map((note, index) => (
+                            <div
+                                key={index}
+                                className="grid grid-cols-12 gap-2 items-end"
+                            >
+                                <div className="col-span-5">
+                                    <label className="label">
+                                        Note Value
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={note.amount}
+                                        onChange={(e) =>
+                                            updateNote(index, 'amount', e.target.value)
+                                        }
+                                        className="input"
+                                        placeholder="1000"
+                                    />
+                                </div>
+
+                                <div className="col-span-5">
+                                    <label className="label">
+                                        Quantity
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={note.count}
+                                        onChange={(e) =>
+                                            updateNote(index, 'count', e.target.value)
+                                        }
+                                        className="input"
+                                        placeholder="2"
+                                    />
+                                </div>
+
+                                <div className="col-span-2">
+                                  <button
+                                        type="button"
+                                        onClick={() => removeNoteRow(index)}
+                                        disabled={paymentForm.data.payment_notes.length === 1}
+                                        className="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={addNoteRow}
+                            className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800"
+                        >
+                            + Add Note
+                        </button>
+                    </div>
+
+                    <div className="mt-4 flex justify-between border-t pt-3">
+                        <p className="font-semibold">
+                            Required: {paymentForm.data.currency} {Number(paymentForm.data.price).toLocaleString()}
+                        </p>
+
+                        <p className={`font-bold ${
+                            Number(total) === Number(paymentForm.data.price)
+                                ? 'text-green-700'
+                                : 'text-red-600'
+                        }`}>
+                            Entered: {paymentForm.data.currency} {Number(total).toLocaleString()}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {paymentForm.errors.payment_notes && (
                 <p className="text-red-600 text-sm">
@@ -596,7 +702,7 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
             <div className="flex justify-end">
                 <button
                     type="submit"
-                    disabled={paymentForm.processing || Number(total) !== Number(paymentForm.data.price)}
+                    disabled={paymentForm.processing || (paymentForm.data.payment_method === 'Cash' && Number(total) !== Number(paymentForm.data.price))}
                     className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50"
                 >
                     {paymentForm.processing ? 'Saving...' : 'Save Payment & Continue'}

@@ -123,31 +123,53 @@ class CustomerController extends Controller
 
     public function savePayment(Request $request, Customer $customer)
     {
-        $data = $request->validate([
+        $validationRules = [
             'currency' => 'required|string|max:10',
             'price' => 'required|numeric|min:0',
-            'payment_method' => 'required|in:Cash',
-            'payment_notes' => 'required|array|min:1',
-            'payment_notes.*.note' => 'required|numeric|min:1',
-            'payment_notes.*.count' => 'required|integer|min:0',
-        ]);
+            'payment_method' => 'required|in:Cash,POS',
+            'transaction_id' => 'nullable|string|max:100',
+            'card_number' => 'nullable|string|max:50',
+        ];
 
-        $total = collect($data['payment_notes'])->sum(function ($item) {
-            return ((float) $item['note']) * ((int) $item['count']);
-        });
-
-        if ((float) $total !== (float) $data['price']) {
-            return back()->withErrors([
-                'payment_notes' => 'Cash note total must match the price.',
-            ]);
+        // Add conditional validation based on payment method
+        if ($request->payment_method === 'Cash') {
+            $validationRules['payment_notes'] = 'required|array|min:1';
+            $validationRules['payment_notes.*.amount'] = 'required|numeric|min:0.01';
+            $validationRules['payment_notes.*.count'] = 'required|integer|min:1';
+        } else if ($request->payment_method === 'POS') {
+            $validationRules['transaction_id'] = 'required|string|max:100';
+            $validationRules['card_number'] = 'required|string|max:50';
         }
 
-        $customer->update([
-            'payment_method' => $data['payment_method'],
-            'payment_notes' => $data['payment_notes'],
-            'paid_amount' => $total,
-            'payment_status' => 'Paid',
-        ]);
+        $data = $request->validate($validationRules);
+
+        // For Cash payments, validate the total
+        if ($request->payment_method === 'Cash') {
+            $total = collect($data['payment_notes'])->sum(function ($item) {
+                return ((float) $item['amount']) * ((int) $item['count']);
+            });
+
+            if ((float) $total !== (float) $data['price']) {
+                return back()->withErrors([
+                    'payment_notes' => 'Cash note total must match the price.',
+                ]);
+            }
+
+            $customer->update([
+                'payment_method' => $data['payment_method'],
+                'payment_notes' => $data['payment_notes'],
+                'paid_amount' => $total,
+                'payment_status' => 'Paid',
+            ]);
+        } else if ($request->payment_method === 'POS') {
+            $customer->update([
+                'payment_method' => $data['payment_method'],
+                'transaction_id' => $data['transaction_id'],
+                'card_number' => $data['card_number'],
+                'paid_amount' => $data['price'],
+                'payment_status' => 'Paid',
+            ]);
+        }
 
         $customer->agent()->update([
             'new_currency' => $data['currency'],

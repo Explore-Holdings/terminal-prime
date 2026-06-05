@@ -28,6 +28,8 @@ class Customer extends Model
         'payment_notes',
         'paid_amount',
         'payment_status',
+        'transaction_id',
+        'card_number',
     ];
 
     protected $casts = [
