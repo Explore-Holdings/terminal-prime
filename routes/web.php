@@ -9,6 +9,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CounterController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -73,5 +74,12 @@ Route::put('/drivers/{driver}', [DriverController::class, 'update'])
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('customers', CustomerController::class);
 });
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/counter', [CounterController::class, 'index'])->name('counter.index');
+});
+
+Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePayment'])
+    ->name('customers.payment');
 
 require __DIR__.'/auth.php';

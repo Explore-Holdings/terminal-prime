@@ -19,6 +19,9 @@ class Agent extends Model
         'status',
         'price',
         'remarks',
+        'new_currency',
+        'new_price',
+        'currency_updated_by',
     ];
 
     public function user()

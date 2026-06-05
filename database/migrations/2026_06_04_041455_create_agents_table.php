@@ -19,6 +19,9 @@ return new class extends Migration
             $table->decimal('price', 12, 2)->default(0);
             $table->text('remarks')->nullable();
             $table->enum('status', ['Pending','Approved','Rejected'])->default('Pending')->nullable();
+            $table->string('new_currency')->nullable();
+            $table->decimal('new_price', 12, 2)->nullable();
+            $table->foreignId('currency_updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes(); 
         });
