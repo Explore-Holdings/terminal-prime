@@ -172,6 +172,7 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
                     createdCustomerId={createdCustomerId}
                     invoicePath={invoicePath}
                     setInvoicePath={setInvoicePath}
+                    vehicles={vehicles}
                     onClose={() => setShowModal(false)}
                 />
             )}
