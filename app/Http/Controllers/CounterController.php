@@ -16,9 +16,11 @@ class CounterController extends Controller
                 ->latest()
                 ->get(),
 
-            'vehicles' => Vehicle::with('driver','driver.languages','pictures')
+            'vehicles' => Vehicle::with('driver', 'driver.languages', 'pictures')
                 ->latest()
                 ->get(),
+
+            'createdCustomerId' => session('created_customer_id'),
         ]);
     }
 }

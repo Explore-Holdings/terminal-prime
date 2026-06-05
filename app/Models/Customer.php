@@ -24,6 +24,14 @@ class Customer extends Model
         'language_preference',
         'status',
         'remarks',
+        'payment_method',
+        'payment_notes',
+        'paid_amount',
+        'payment_status',
+    ];
+
+    protected $casts = [
+        'payment_notes' => 'array',
     ];
 
     public function agent()

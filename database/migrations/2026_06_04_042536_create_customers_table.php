@@ -22,6 +22,10 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->string('language_preference')->nullable();
             $table->integer('passenger_count')->default(1);
+            $table->string('payment_method')->nullable()->after('status');
+            $table->json('payment_notes')->nullable()->after('payment_method');
+            $table->decimal('paid_amount', 12, 2)->default(0)->after('payment_notes');
+            $table->string('payment_status')->default('Pending')->after('paid_amount');
             $table->timestamps();
             $table->softDeletes(); 
         });

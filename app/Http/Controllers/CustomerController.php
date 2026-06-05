@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agent;
 use App\Models\Customer;
+use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -13,15 +14,17 @@ class CustomerController extends Controller
 {
     public function index()
     {
-        return Inertia::render('Customers/Index', [
+        return Inertia::render('Counter/Index', [
             'pendingAgents' => Agent::with('user')
                 ->where('status', 'Pending')
                 ->latest()
                 ->get(),
 
-            'customers' => Customer::with(['agent.user'])
+            'vehicles' => Vehicle::with(['driver.languages', 'pictures'])
                 ->latest()
                 ->get(),
+
+            'createdCustomerId' => session()->pull('created_customer_id'),
         ]);
     }
 
@@ -54,13 +57,16 @@ class CustomerController extends Controller
         $data['status'] = $data['status'] ?? 'New';
         $data['created_by'] = Auth::id();
 
-        Customer::create($data);
+        $customer = Customer::create($data);
 
         $agent->update([
             'status' => 'Approved',
         ]);
 
-        return back()->with('success', 'Customer created successfully.');
+        return redirect()
+            ->route('counter.index')
+            ->with('success', 'Customer created successfully.')
+            ->with('created_customer_id', $customer->id);
     }
 
     public function update(Request $request, Customer $customer)
@@ -113,5 +119,42 @@ class CustomerController extends Controller
             : 1;
 
         return 'CUS-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function savePayment(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'currency' => 'required|string|max:10',
+            'price' => 'required|numeric|min:0',
+            'payment_method' => 'required|in:Cash',
+            'payment_notes' => 'required|array|min:1',
+            'payment_notes.*.note' => 'required|numeric|min:1',
+            'payment_notes.*.count' => 'required|integer|min:0',
+        ]);
+
+        $total = collect($data['payment_notes'])->sum(function ($item) {
+            return ((float) $item['note']) * ((int) $item['count']);
+        });
+
+        if ((float) $total !== (float) $data['price']) {
+            return back()->withErrors([
+                'payment_notes' => 'Cash note total must match the price.',
+            ]);
+        }
+
+        $customer->update([
+            'payment_method' => $data['payment_method'],
+            'payment_notes' => $data['payment_notes'],
+            'paid_amount' => $total,
+            'payment_status' => 'Paid',
+        ]);
+
+        $customer->agent()->update([
+            'new_currency' => $data['currency'],
+            'new_price' => $data['price'],
+            'currency_updated_by' => auth()->id(),
+        ]);
+
+        return back()->with('success', 'Payment saved successfully.');
     }
 }

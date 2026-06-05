@@ -9,11 +9,12 @@ import {
     CarFront,
 } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], vehicles = [] }) {
+export default function Index({ pendingAgents = [], vehicles = [], createdCustomerId: serverCustomerId = null }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
-
+    const [createdCustomerId, setCreatedCustomerId] = useState(null);
+    
     const form = useForm({
         agent_id: '',
         name: '',
@@ -54,11 +55,21 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
 
         form.post('/customers', {
             preserveScroll: true,
-            onSuccess: () => {
-                setActiveTab('payment'); // switch to next tab
+
+            onSuccess: (page) => {
+                console.log('Customer Save Success');
+                console.log(page.props);
+
+                const id = page.props.createdCustomerId;
+
+                console.log('created customer id:', id);
+
+                setCreatedCustomerId(id);
+                setActiveTab('payment');
             },
-            onError: () => {
-                setActiveTab('customer');
+
+            onError: (errors) => {
+                console.error(errors);
             },
         });
     };
@@ -156,6 +167,7 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
                     selectedAgent={selectedAgent}
                     form={form}
                     saveCustomer={saveCustomer}
+                    createdCustomerId={createdCustomerId}
                     onClose={() => setShowModal(false)}
                 />
             )}
@@ -218,6 +230,7 @@ function CounterModal({
     selectedAgent,
     form,
     saveCustomer,
+    createdCustomerId,
     onClose,
 }) {
     return (
@@ -276,7 +289,11 @@ function CounterModal({
                     )}
 
                     {activeTab === 'payment' && (
-                        <PaymentTab agent={selectedAgent} />
+                        <PaymentTab
+                            agent={selectedAgent}
+                            customerId={createdCustomerId}
+                            setActiveTab={setActiveTab}
+                        />
                     )}
 
                     {activeTab === 'vehicle' && (
@@ -313,7 +330,7 @@ function CustomerTab({ agent, form, saveCustomer }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field
                     label="Customer Name"
                     value={form.data.name}
@@ -391,7 +408,7 @@ function CustomerTab({ agent, form, saveCustomer }) {
                 <textarea
                     value={form.data.remarks}
                     onChange={(e) => form.setData('remarks', e.target.value)}
-                    rows="3"
+                    rows="2"
                     className="input"
                 />
 
@@ -411,33 +428,181 @@ function CustomerTab({ agent, form, saveCustomer }) {
     );
 }
 
-function PaymentTab({ agent }) {
+function PaymentTab({ agent, customerId, setActiveTab }) {
+    const currencies = [
+        'LKR', 'USD', 'EUR', 'GBP', 'AUD',
+        'CAD', 'INR', 'AED', 'CNY', 'JPY'
+    ];
+
+    const paymentForm = useForm({
+        currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
+        price: agent?.new_price ?? agent?.price ?? 0,
+        payment_method: 'Cash',
+        payment_notes: [
+            { note: 5000, count: 0 },
+            { note: 1000, count: 0 },
+            { note: 500, count: 0 },
+            { note: 100, count: 0 },
+            { note: 50, count: 0 },
+            { note: 20, count: 0 },
+        ],
+    });
+
+    const total = paymentForm.data.payment_notes.reduce((sum, item) => {
+        return sum + Number(item.note || 0) * Number(item.count || 0);
+    }, 0);
+
+    const updateNoteCount = (index, value) => {
+        const notes = [...paymentForm.data.payment_notes];
+        notes[index].count = Number(value);
+        paymentForm.setData('payment_notes', notes);
+    };
+
+    const savePayment = (e) => {
+        e.preventDefault();
+
+        console.log('========== PAYMENT DEBUG ==========');
+        console.log('customerId:', customerId);
+        console.log('customerId type:', typeof customerId);
+        console.log('selectedAgent:', agent);
+        console.log('paymentForm:', paymentForm.data);
+
+        if (!customerId) {
+            console.error('customerId is NULL or UNDEFINED');
+            alert('Please save customer details first.');
+            return;
+        }
+
+        console.log('Required Price:', paymentForm.data.price);
+        console.log('Entered Total:', total);
+
+        if (Number(total) !== Number(paymentForm.data.price)) {
+            console.error('Amount mismatch');
+            alert('Entered cash notes total must match the price.');
+            return;
+        }
+
+        console.log('Posting to:', `/customers/${customerId}/payment`);
+
+        paymentForm.post(`/customers/${customerId}/payment`, {
+            preserveScroll: true,
+
+            onBefore: () => {
+                console.log('Payment request starting...');
+            },
+
+            onSuccess: (page) => {
+                console.log('Payment Saved Successfully');
+                console.log(page);
+
+                setActiveTab('vehicle');
+            },
+
+            onError: (errors) => {
+                console.error('Payment Save Error');
+                console.error(errors);
+            },
+
+            onFinish: () => {
+                console.log('Payment Request Finished');
+            },
+        });
+    };
+
     return (
-        <div>
-            <h3 className="font-bold text-lg mb-4">
-                Payment
-            </h3>
-
+        <form onSubmit={savePayment} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                    className="border rounded p-2 bg-gray-100"
-                    value={agent?.currency || ''}
-                    readOnly
-                />
+                <div>
+                    <label className="label">Currency</label>
+                    <select
+                        value={paymentForm.data.currency}
+                        onChange={(e) => paymentForm.setData('currency', e.target.value)}
+                        className="input"
+                    >
+                        {currencies.map((currency) => (
+                            <option key={currency} value={currency}>
+                                {currency}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                <input
-                    className="border rounded p-2 bg-gray-100"
-                    value={agent?.price || ''}
-                    readOnly
-                />
+                <div>
+                    <label className="label">Price</label>
+                    <input
+                        type="number"
+                        value={paymentForm.data.price}
+                        onChange={(e) => paymentForm.setData('price', e.target.value)}
+                        className="input"
+                    />
+                </div>
 
-                <select className="border rounded p-2">
-                    <option>Cash</option>
-                    <option>Card</option>
-                    <option>Bank Transfer</option>
-                </select>
+                <div>
+                    <label className="label">Payment Method</label>
+                    <select
+                        value={paymentForm.data.payment_method}
+                        onChange={(e) => paymentForm.setData('payment_method', e.target.value)}
+                        className="input"
+                    >
+                        <option value="Cash">Cash</option>
+                    </select>
+                </div>
             </div>
-        </div>
+
+            <div className="border rounded-xl p-4 bg-gray-50">
+                <h3 className="font-bold mb-3">
+                    Cash Notes Received
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {paymentForm.data.payment_notes.map((item, index) => (
+                        <div key={item.note}>
+                            <label className="label">
+                                {item.note} Notes
+                            </label>
+
+                            <input
+                                type="number"
+                                min="0"
+                                value={item.count}
+                                onChange={(e) => updateNoteCount(index, e.target.value)}
+                                className="input"
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-4 flex justify-between border-t pt-3">
+                    <p className="font-semibold">
+                        Required: {paymentForm.data.currency} {Number(paymentForm.data.price).toLocaleString()}
+                    </p>
+
+                    <p className={`font-bold ${
+                        Number(total) === Number(paymentForm.data.price)
+                            ? 'text-green-700'
+                            : 'text-red-600'
+                    }`}>
+                        Entered: {paymentForm.data.currency} {Number(total).toLocaleString()}
+                    </p>
+                </div>
+            </div>
+
+            {paymentForm.errors.payment_notes && (
+                <p className="text-red-600 text-sm">
+                    {paymentForm.errors.payment_notes}
+                </p>
+            )}
+
+            <div className="flex justify-end">
+                <button
+                    type="submit"
+                    disabled={paymentForm.processing || Number(total) !== Number(paymentForm.data.price)}
+                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50"
+                >
+                    {paymentForm.processing ? 'Saving...' : 'Save Payment & Continue'}
+                </button>
+            </div>
+        </form>
     );
 }
 

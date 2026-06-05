@@ -79,4 +79,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter', [CounterController::class, 'index'])->name('counter.index');
 });
 
+Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePayment'])
+    ->name('customers.payment');
+
 require __DIR__.'/auth.php';
