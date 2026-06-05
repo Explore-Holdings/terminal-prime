@@ -21,6 +21,7 @@ class CounterController extends Controller
                 ->get(),
 
             'createdCustomerId' => session('created_customer_id'),
+            'invoicePath' => session('invoice_path'),
         ]);
     }
 }

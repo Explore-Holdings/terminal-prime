@@ -26,6 +26,8 @@ return new class extends Migration
             $table->json('payment_notes')->nullable()->after('payment_method');
             $table->decimal('paid_amount', 12, 2)->default(0)->after('payment_notes');
             $table->string('payment_status')->default('Pending')->after('paid_amount');
+            $table->string('invoice_number')->nullable();
+            $table->string('invoice_path')->nullable();
             $table->timestamps();
             $table->softDeletes(); 
         });

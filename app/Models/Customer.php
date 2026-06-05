@@ -30,6 +30,8 @@ class Customer extends Model
         'payment_status',
         'transaction_id',
         'card_number',
+        'invoice_number',
+        'invoice_path',
     ];
 
     protected $casts = [

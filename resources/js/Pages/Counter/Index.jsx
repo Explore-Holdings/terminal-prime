@@ -10,13 +10,13 @@ import {
     Trash2,
 } from 'lucide-react';
 
-
 export default function Index({ pendingAgents = [], vehicles = [], createdCustomerId: serverCustomerId = null }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [createdCustomerId, setCreatedCustomerId] = useState(null);
-    
+    const [invoicePath, setInvoicePath] = useState(null);
+
     const form = useForm({
         agent_id: '',
         name: '',
@@ -170,7 +170,8 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
                     form={form}
                     saveCustomer={saveCustomer}
                     createdCustomerId={createdCustomerId}
-                    vehicles={vehicles}
+                    invoicePath={invoicePath}
+                    setInvoicePath={setInvoicePath}
                     onClose={() => setShowModal(false)}
                 />
             )}
@@ -234,6 +235,8 @@ function CounterModal({
     form,
     saveCustomer,
     createdCustomerId,
+    invoicePath,
+    setInvoicePath,
     vehicles,
     onClose,
 }) {
@@ -297,6 +300,8 @@ function CounterModal({
                             agent={selectedAgent}
                             customerId={createdCustomerId}
                             setActiveTab={setActiveTab}
+                            invoicePath={invoicePath}
+                            setInvoicePath={setInvoicePath}
                         />
                     )}
 
@@ -435,7 +440,7 @@ function CustomerTab({ agent, form, saveCustomer }) {
     );
 }
 
-function PaymentTab({ agent, customerId, setActiveTab }) {
+function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePath,}) {
     const currencies = [
         'LKR', 'USD', 'EUR', 'GBP', 'AUD',
         'CAD', 'INR', 'AED', 'CNY', 'JPY'
@@ -522,10 +527,11 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
             },
 
             onSuccess: (page) => {
-                console.log('Payment Saved Successfully');
-                console.log(page);
+                const path = page.props.invoicePath;
 
-                setActiveTab('vehicle');
+                if (path) {
+                    setInvoicePath(path);
+                }
             },
 
             onError: (errors) => {
@@ -704,6 +710,28 @@ function PaymentTab({ agent, customerId, setActiveTab }) {
                 </p>
             )}
 
+            {invoicePath && (
+                <div className="mt-5 border rounded-xl p-4 bg-green-50">
+                    <h3 className="font-bold text-green-800 mb-3">
+                        Invoice Generated
+                    </h3>
+
+                    <iframe
+                        src={`/storage/${invoicePath}`}
+                        className="w-full h-[500px] border rounded-lg bg-white"
+                    />
+
+                    <a
+                        href={`/storage/${invoicePath}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block mt-3 bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800"
+                    >
+                        Open Invoice
+                    </a>
+                </div>
+            )}
+
             <div className="flex justify-end">
                 <button
                     type="submit"
@@ -748,7 +776,6 @@ function VehicleTab({ vehicles = [] }) {
         </div>
     );
 }
-
 
 function VehicleCard({ vehicle }) {
     const image =

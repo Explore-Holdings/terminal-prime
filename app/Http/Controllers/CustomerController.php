@@ -7,8 +7,9 @@ use App\Models\Customer;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
@@ -131,42 +132,51 @@ class CustomerController extends Controller
             'card_number' => 'nullable|string|max:50',
         ];
 
-        // Add conditional validation based on payment method
         if ($request->payment_method === 'Cash') {
             $validationRules['payment_notes'] = 'required|array|min:1';
             $validationRules['payment_notes.*.amount'] = 'required|numeric|min:0.01';
             $validationRules['payment_notes.*.count'] = 'required|integer|min:1';
-        } else if ($request->payment_method === 'POS') {
+        }
+
+        if ($request->payment_method === 'POS') {
             $validationRules['transaction_id'] = 'required|string|max:100';
             $validationRules['card_number'] = 'required|string|max:50';
         }
 
         $data = $request->validate($validationRules);
 
-        // For Cash payments, validate the total
-        if ($request->payment_method === 'Cash') {
-            $total = collect($data['payment_notes'])->sum(function ($item) {
+        $paidAmount = 0;
+
+        if ($data['payment_method'] === 'Cash') {
+            $paidAmount = collect($data['payment_notes'])->sum(function ($item) {
                 return ((float) $item['amount']) * ((int) $item['count']);
             });
 
-            if ((float) $total !== (float) $data['price']) {
+            if (round((float) $paidAmount, 2) !== round((float) $data['price'], 2)) {
                 return back()->withErrors([
                     'payment_notes' => 'Cash note total must match the price.',
                 ]);
             }
 
             $customer->update([
-                'payment_method' => $data['payment_method'],
+                'payment_method' => 'Cash',
                 'payment_notes' => $data['payment_notes'],
-                'paid_amount' => $total,
+                'transaction_id' => null,
+                'card_number' => null,
+                'paid_amount' => $paidAmount,
                 'payment_status' => 'Paid',
             ]);
-        } else if ($request->payment_method === 'POS') {
+        }
+
+        if ($data['payment_method'] === 'POS') {
+            $paidAmount = (float) $data['price'];
+
             $customer->update([
-                'payment_method' => $data['payment_method'],
+                'payment_method' => 'POS',
+                'payment_notes' => null,
                 'transaction_id' => $data['transaction_id'],
                 'card_number' => $data['card_number'],
-                'paid_amount' => $data['price'],
+                'paid_amount' => $paidAmount,
                 'payment_status' => 'Paid',
             ]);
         }
@@ -177,6 +187,34 @@ class CustomerController extends Controller
             'currency_updated_by' => auth()->id(),
         ]);
 
-        return back()->with('success', 'Payment saved successfully.');
+        $customer->load('agent.user');
+
+        $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
+
+        $customer->update([
+            'invoice_number' => $invoiceNumber,
+        ]);
+
+        $customer->refresh()->load('agent.user');
+
+        $pdf = Pdf::loadView('invoices.customer-invoice', [
+            'customer' => $customer,
+            'currency' => $data['currency'],
+            'price' => $data['price'],
+            'paidAmount' => $paidAmount,
+        ]);
+
+        $invoicePath = 'invoices/' . $invoiceNumber . '.pdf';
+
+        Storage::disk('public')->put($invoicePath, $pdf->output());
+
+        $customer->update([
+            'invoice_path' => $invoicePath,
+        ]);
+
+        return redirect()
+        ->route('counter.index')
+        ->with('success', 'Payment saved and invoice generated successfully.')
+        ->with('invoice_path', $invoicePath);
     }
 }
