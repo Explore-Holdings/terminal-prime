@@ -28,6 +28,8 @@ class CustomerController extends Controller
                 ->get(),
 
             'createdCustomerId' => session()->pull('created_customer_id'),
+            'invoicePath' => session()->pull('invoice_path'),
+            'paymentCompletedCustomerId' => session()->pull('payment_completed_customer_id'),
         ]);
     }
 
@@ -61,10 +63,6 @@ class CustomerController extends Controller
         $data['created_by'] = Auth::id();
 
         $customer = Customer::create($data);
-
-        $agent->update([
-            'status' => 'Approved',
-        ]);
 
         return redirect()
             ->route('counter.index')
@@ -154,7 +152,7 @@ class CustomerController extends Controller
                 return ((float) $item['amount']) * ((int) $item['count']);
             });
 
-            if (round((float) $paidAmount, 2) !== round((float) $data['price'], 2)) {
+            if (round($paidAmount, 2) !== round((float) $data['price'], 2)) {
                 return back()->withErrors([
                     'payment_notes' => 'Cash note total must match the price.',
                 ]);
@@ -189,8 +187,6 @@ class CustomerController extends Controller
             'currency_updated_by' => auth()->id(),
         ]);
 
-        $customer->load('agent.user');
-
         $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
 
         $customer->update([
@@ -214,21 +210,16 @@ class CustomerController extends Controller
             'invoice_path' => $invoicePath,
         ]);
 
+        // Email goes to queue/background, no waiting here
         if (!empty($customer->email)) {
-
             Mail::to($customer->email)
-                ->send(
-                    new CustomerInvoiceMail(
-                        $customer,
-                        $invoiceNumber
-                    )
-                );
-
+                ->queue(new CustomerInvoiceMail($customer, $invoiceNumber));
         }
 
         return redirect()
-        ->route('counter.index')
-        ->with('success', 'Payment saved and invoice generated successfully.')
-        ->with('invoice_path', $invoicePath);
+            ->route('counter.index')
+            ->with('success', 'Payment saved and invoice generated successfully.')
+            ->with('invoice_path', $invoicePath)
+            ->with('payment_completed_customer_id', $customer->id);
     }
 }

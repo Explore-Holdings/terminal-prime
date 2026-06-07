@@ -16,6 +16,8 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [createdCustomerId, setCreatedCustomerId] = useState(null);
     const [invoicePath, setInvoicePath] = useState(null);
+    const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
+    const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
 
     const form = useForm({
         agent_id: '',
@@ -31,9 +33,20 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
         remarks: '',
     });
 
-    const openCustomerModal = (agent) => {
+    const paymentForm = useForm({
+        currency: 'LKR',
+        price: 0,
+        payment_method: 'Cash',
+        transaction_id: '',
+        card_number: '',
+        payment_notes: [
+            { amount: '', count: '' },
+        ],
+    });
+
+    const openCustomerModal = (agent, tab = 'customer') => {
         setSelectedAgent(agent);
-        setActiveTab('customer');
+        setActiveTab(tab);
 
         form.setData({
             agent_id: agent.id,
@@ -47,6 +60,17 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
             language_preference: '',
             status: 'New',
             remarks: agent.remarks ?? '',
+        });
+
+        paymentForm.setData({
+            currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
+            price: agent?.new_price ?? agent?.price ?? 0,
+            payment_method: 'Cash',
+            transaction_id: '',
+            card_number: '',
+            payment_notes: [
+                { amount: '', count: '' },
+            ],
         });
 
         setShowModal(true);
@@ -118,6 +142,8 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
                                         key={agent.id}
                                         agent={agent}
                                         onCustomerClick={openCustomerModal}
+                                        paymentEnabled={paymentEnabledAgentId === agent.id}
+                                        vehicleEnabled={vehicleEnabledAgentId === agent.id}
                                     />
                                 ))}
                             </div>
@@ -172,6 +198,8 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
                     createdCustomerId={createdCustomerId}
                     invoicePath={invoicePath}
                     setInvoicePath={setInvoicePath}
+                    paymentForm={paymentForm}
+                    setVehicleEnabledAgentId={setVehicleEnabledAgentId}
                     vehicles={vehicles}
                     onClose={() => setShowModal(false)}
                 />
@@ -180,7 +208,7 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
     );
 }
 
-function CustomerCard({ agent, onCustomerClick }) {
+function CustomerCard({ agent, onCustomerClick, paymentEnabled, vehicleEnabled }) {
     return (
         <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm hover:shadow-md transition">
             <h3 className="flex justify-between items-center font-semibold text-sm text-gray-800">
@@ -198,7 +226,7 @@ function CustomerCard({ agent, onCustomerClick }) {
             <div className="flex gap-1 mt-3">
                 <button
                     type="button"
-                    onClick={() => onCustomerClick(agent)}
+                    onClick={() => onCustomerClick(agent, 'customer')}
                     className="flex-1 inline-flex items-center justify-center gap-1 bg-blue-700 text-white rounded py-1.5 text-[11px] font-medium hover:bg-blue-800"
                 >
                     <UserPlus size={13} />
@@ -207,9 +235,14 @@ function CustomerCard({ agent, onCustomerClick }) {
 
                 <button
                     type="button"
-                    disabled
-                    title="Complete customer first"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-300 text-gray-500 rounded py-1.5 text-[11px] font-medium cursor-not-allowed"
+                    disabled={!paymentEnabled}
+                    onClick={() => onCustomerClick(agent, 'payment')}
+                    title={paymentEnabled ? 'Open payment' : 'Complete customer first'}
+                    className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${
+                        paymentEnabled
+                            ? 'bg-green-700 text-white hover:bg-green-800'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                 >
                     <CreditCard size={13} />
                     Payment
@@ -217,9 +250,14 @@ function CustomerCard({ agent, onCustomerClick }) {
 
                 <button
                     type="button"
-                    disabled
-                    title="Complete customer first"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-300 text-gray-500 rounded py-1.5 text-[11px] font-medium cursor-not-allowed"
+                    disabled={!vehicleEnabled}
+                    onClick={() => onCustomerClick(agent, 'vehicle')}
+                    title={vehicleEnabled ? 'Open vehicle' : 'Complete payment first'}
+                    className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${
+                        vehicleEnabled
+                            ? 'bg-purple-700 text-white hover:bg-purple-800'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                 >
                     <Car size={13} />
                     Vehicle
@@ -238,6 +276,8 @@ function CounterModal({
     createdCustomerId,
     invoicePath,
     setInvoicePath,
+    paymentForm,
+    setVehicleEnabledAgentId,
     vehicles,
     onClose,
 }) {
@@ -274,14 +314,20 @@ function CounterModal({
 
                     <TabButton
                         active={activeTab === 'payment'}
-                        onClick={() => setActiveTab('payment')}
+                        disabled={!createdCustomerId}
+                        onClick={() => {
+                            if (createdCustomerId) setActiveTab('payment');
+                        }}
                     >
                         Payment
                     </TabButton>
 
                     <TabButton
                         active={activeTab === 'vehicle'}
-                        onClick={() => setActiveTab('vehicle')}
+                        disabled={!invoicePath}
+                        onClick={() => {
+                            if (invoicePath) setActiveTab('vehicle');
+                        }}
                     >
                         Vehicle
                     </TabButton>
@@ -303,6 +349,8 @@ function CounterModal({
                             setActiveTab={setActiveTab}
                             invoicePath={invoicePath}
                             setInvoicePath={setInvoicePath}
+                            paymentForm={paymentForm}
+                            setVehicleEnabledAgentId={setVehicleEnabledAgentId}
                         />
                     )}
 
@@ -441,22 +489,28 @@ function CustomerTab({ agent, form, saveCustomer }) {
     );
 }
 
-function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePath,}) {
+function PaymentTab({    agent,
+    customerId,
+    setActiveTab,
+    invoicePath,
+    setInvoicePath,
+    paymentForm,
+    setVehicleEnabledAgentId,}) {
     const currencies = [
         'LKR', 'USD', 'EUR', 'GBP', 'AUD',
         'CAD', 'INR', 'AED', 'CNY', 'JPY'
     ];
 
-    const paymentForm = useForm({
-        currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
-        price: agent?.new_price ?? agent?.price ?? 0,
-        payment_method: 'Cash',
-        transaction_id: '',
-        card_number: '',
-        payment_notes: [
-            { amount: '', count: '' },
-        ],
-    });
+    // const paymentForm = useForm({
+    //     currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
+    //     price: agent?.new_price ?? agent?.price ?? 0,
+    //     payment_method: 'Cash',
+    //     transaction_id: '',
+    //     card_number: '',
+    //     payment_notes: [
+    //         { amount: '', count: '' },
+    //     ],
+    // });
 
     const total = paymentForm.data.payment_notes.reduce((sum, item) => {
         return sum + Number(item.amount || 0) * Number(item.count || 0);
@@ -528,11 +582,17 @@ function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePa
             },
 
             onSuccess: (page) => {
-                const path = page.props.invoicePath;
+                const path =
+                    page.props.invoicePath ??
+                    page.props.flash?.invoice_path ??
+                    null;
 
                 if (path) {
                     setInvoicePath(path);
                 }
+
+                setVehicleEnabledAgentId(agent.id);
+                setActiveTab('vehicle');
             },
 
             onError: (errors) => {
@@ -614,7 +674,6 @@ function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePa
                                 onChange={(e) => paymentForm.setData('card_number', e.target.value)}
                                 placeholder="Enter card number"
                                 className="input"
-                                required
                             />
                         </div>
                     </div>
@@ -711,7 +770,7 @@ function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePa
                 </p>
             )}
 
-            {invoicePath && (
+            {/* {invoicePath && (
                 <div className="mt-5 border rounded-xl p-4 bg-green-50">
                     <h3 className="font-bold text-green-800 mb-3">
                         Invoice Generated
@@ -731,7 +790,7 @@ function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePa
                         Open Invoice
                     </a>
                 </div>
-            )}
+            )} */}
 
             <div className="flex justify-end">
                 <button
