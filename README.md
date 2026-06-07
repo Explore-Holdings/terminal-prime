@@ -4,71 +4,108 @@ A Laravel + React (Inertia.js) application for managing airport customer arrival
 
 ## Features
 
-* Customer Registration
-* Cash & POS Payments
-* PDF Invoice Generation
-* Email Invoices (Queue Based)
-* Vehicle Assignment
-* Driver Management
-* Trip Management
-* Agent Approval Workflow
+* Customer registration and passenger intake
+* Cash and POS payment processing
+* PDF invoice generation
+* Email invoices via queued jobs
+* Vehicle assignment and dispatch
+* Driver management, status tracking, and service categories
+* Trip creation and administration
+* Agent approval workflow for completed trips
 
 ## Tech Stack
 
-* Laravel
-* React
-* Inertia.js
-* MySQL
+* PHP 8.2+
+* Laravel 12
+* React 18 + Inertia.js
 * Tailwind CSS
+* Vite
+* MySQL (or compatible SQL database)
 * DomPDF
 
-## Installation
+## Prerequisites
+
+* PHP 8.2+
+* Composer
+* Node.js 18+ / npm
+* MySQL or another supported database
+* Git
+
+## Setup
+
+1. Clone the repository:
 
 ```bash
-git clone https://github.com/Explore-Holdings/terminal-prime.git
+git clone https://github.com/Explore-Holdings/terminal-prime.git airport-counter-system
+cd airport-counter-system
+```
 
+2. Install PHP dependencies:
+
+```bash
 composer install
+```
 
+3. Install frontend dependencies:
+
+```bash
 npm install
+```
 
-cp .env.example .env
+4. Copy the environment file and generate an application key:
 
+```bash
+copy .env.example .env
 php artisan key:generate
 ```
 
-Configure your database in `.env`
+5. Configure your database credentials in `.env`:
 
 ```env
-DB_DATABASE=
-DB_USERNAME=
-DB_PASSWORD=
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 ```
 
-Run migrations:
+6. Run database migrations:
 
 ```bash
 php artisan migrate
 ```
 
-Create storage link:
+7. Create the storage symlink:
 
 ```bash
 php artisan storage:link
 ```
 
-Start the application:
+## Development
+
+Start the application with Vite and Laravel development server:
 
 ```bash
-php artisan serve
-
 npm run dev
 ```
 
-Start queue worker:
+Then open the local application URL shown in the terminal.
+
+## Queue Worker
+
+Process emails and other background jobs using:
 
 ```bash
 php artisan queue:work
 ```
+
+## Useful Commands
+
+* `composer install` - install PHP dependencies
+* `npm install` - install frontend dependencies
+* `php artisan migrate` - run database migrations
+* `php artisan storage:link` - link storage to public
+* `npm run dev` - start Vite development server
+* `npm run build` - build production assets
+* `php artisan queue:work` - start queue worker
 
 ## Workflow
 
@@ -78,12 +115,12 @@ php artisan queue:work
 4. Generate invoice
 5. Assign vehicle
 6. Create trip
-7. Driver status changes to On Duty
-8. Agent status changes to Approved
+7. Driver status becomes `On Duty`
+8. Agent approval completes the workflow
 
 ## Driver Status
 
-* Off Duty
-* On Duty
+* `Off Duty`
+* `On Duty`
 
-Only On Duty drivers can be assigned to new trips.
+Only `On Duty` drivers can be assigned to new trips.
