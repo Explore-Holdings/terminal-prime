@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     ArrowLeft,
@@ -277,7 +278,14 @@ function Modal({
                         />
                     )}
 
-                    {activeTab === 'vehicle' && <VehicleTab vehicles={vehicles} />}
+                    {activeTab === 'vehicle' && (
+                        <VehicleTab
+                            vehicles={vehicles}
+                            customerId={customerId}
+                            agent={agent}
+                            onClose={onClose}
+                        />
+                    )}
                 </div>
             </div>
         </div>
@@ -486,7 +494,44 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles }) {
+function VehicleTab({ vehicles, customerId, agent,onClose, }) {
+    const assignForm = useForm({
+        driver_id: '',
+        agent_id: agent.id,
+        remarks: '',
+    });
+
+    const assignTrip = (vehicle) => {
+        const driverId = vehicle.driver_id ?? vehicle.driver?.id;
+
+        if (!customerId) {
+            alert('Customer not found.');
+            return;
+        }
+
+        if (!driverId) {
+            alert('Driver not found for this vehicle.');
+            return;
+        }
+
+        assignForm.setData({
+            driver_id: driverId,
+            agent_id: agent.id,
+            remarks: '',
+        });
+
+        assignForm.post(`/customers/${customerId}/assign-trip`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                onClose();
+
+                router.reload({
+                    only: ['pendingAgents', 'vehicles'],
+                });
+            },
+        });
+    };
+
     return (
         <div>
             <div className="flex justify-between mb-3">
@@ -496,7 +541,13 @@ function VehicleTab({ vehicles }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[600px] overflow-y-auto">
                 {vehicles.map((vehicle, i) => (
-                    <VehicleSelectCard key={vehicle.id} vehicle={vehicle} index={i} />
+                    <VehicleSelectCard
+                        key={vehicle.id}
+                        vehicle={vehicle}
+                        index={i}
+                        assigning={assignForm.processing}
+                        onAssign={() => assignTrip(vehicle)}
+                    />
                 ))}
             </div>
         </div>
@@ -519,7 +570,7 @@ function VehicleCard({ vehicle }) {
     );
 }
 
-function VehicleSelectCard({ vehicle, index }) {
+function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
     const languages = vehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-';
 
     return (
@@ -530,13 +581,29 @@ function VehicleSelectCard({ vehicle, index }) {
 
             <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-20 h-20 mx-auto" />
 
-            <h3 className="mt-2 font-semibold text-xs truncate">{vehicle.driver?.full_name ?? 'Driver'}</h3>
-            <p className="text-[10px] text-gray-500">{vehicle.driver?.mobile_number ?? '-'}</p>
-            <p className="text-xs font-bold text-red-700">{vehicle.registration_number ?? '-'}</p>
-            <p className="text-[11px] font-bold text-red-900 truncate">🌐 {languages}</p>
+            <h3 className="mt-2 font-semibold text-xs truncate">
+                {vehicle.driver?.full_name ?? 'Driver'}
+            </h3>
 
-            <button className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px]">
-                Assign
+            <p className="text-[10px] text-gray-500">
+                {vehicle.driver?.mobile_number ?? '-'}
+            </p>
+
+            <p className="text-xs font-bold text-red-700">
+                {vehicle.registration_number ?? '-'}
+            </p>
+
+            <p className="text-[11px] font-bold text-red-900 truncate">
+                🌐 {languages}
+            </p>
+
+            <button
+                type="button"
+                disabled={assigning}
+                onClick={onAssign}
+                className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px] disabled:opacity-50"
+            >
+                {assigning ? 'Assigning...' : 'Assign'}
             </button>
         </div>
     );

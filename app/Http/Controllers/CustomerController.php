@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Trip;
+use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
@@ -121,6 +123,33 @@ class CustomerController extends Controller
         return redirect()
             ->route('counter.index')
             ->with('invoice_path', $invoicePath);
+    }
+
+    public function assignTrip(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'driver_id' => 'required|exists:drivers,id',
+            'agent_id' => 'required|exists:agents,id',
+            'remarks' => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($data, $customer) {
+            Trip::create([
+                'driver_id' => $data['driver_id'],
+                'customer_id' => $customer->id,
+                'agent_id' => $data['agent_id'],
+                'trip_assigned_at' => now(),
+                'trip_assigned_by' => auth()->id(),
+                'remarks' => $data['remarks'] ?? null,
+                'status' => 'Assigned',
+            ]);
+
+            Agent::where('id', $data['agent_id'])->update([
+                'status' => 'Approved',
+            ]);
+        });
+
+        return back()->with('success', 'Trip assigned successfully.');
     }
 
     private function generateCustomerCode()
