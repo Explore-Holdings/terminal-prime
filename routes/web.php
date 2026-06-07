@@ -82,4 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePayment'])
     ->name('customers.payment');
 
+Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'assignTrip'])
+    ->name('customers.assign-trip');
+
 require __DIR__.'/auth.php';

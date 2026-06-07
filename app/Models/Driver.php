@@ -32,6 +32,7 @@ class Driver extends Model
         'accident_history',
         'traffic_violation_history',
         'driver_status',
+        'status',
     ];
 
     public function emergencyContact()

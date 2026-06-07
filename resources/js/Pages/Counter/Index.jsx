@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     ArrowLeft,
@@ -10,14 +11,16 @@ import {
     Trash2,
 } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], vehicles = [], createdCustomerId: serverCustomerId = null }) {
+export default function Index({ pendingAgents = [], vehicles = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [createdCustomerId, setCreatedCustomerId] = useState(null);
     const [invoicePath, setInvoicePath] = useState(null);
+    const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
+    const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
 
-    const form = useForm({
+    const customerForm = useForm({
         agent_id: '',
         name: '',
         email: '',
@@ -31,11 +34,17 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
         remarks: '',
     });
 
-    const openCustomerModal = (agent) => {
-        setSelectedAgent(agent);
-        setActiveTab('customer');
+    const paymentForm = useForm({
+        currency: 'LKR',
+        price: 0,
+        payment_method: 'Cash',
+        transaction_id: '',
+        card_number: '',
+        payment_notes: [{ amount: '', count: '' }],
+    });
 
-        form.setData({
+    const resetCustomerForm = (agent) => {
+        customerForm.setData({
             agent_id: agent.id,
             name: agent.name ?? '',
             email: '',
@@ -49,29 +58,43 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
             remarks: agent.remarks ?? '',
         });
 
+        paymentForm.setData({
+            currency: agent.new_currency ?? agent.currency ?? 'LKR',
+            price: agent.new_price ?? agent.price ?? 0,
+            payment_method: 'Cash',
+            transaction_id: '',
+            card_number: '',
+            payment_notes: [{ amount: '', count: '' }],
+        });
+
+        setCreatedCustomerId(null);
+        setInvoicePath(null);
+    };
+
+    const openModal = (agent, tab = 'customer') => {
+        const isNewAgent = selectedAgent?.id !== agent.id;
+
+        setSelectedAgent(agent);
+
+        if (tab === 'customer' || isNewAgent) {
+            resetCustomerForm(agent);
+        }
+
+        setActiveTab(tab);
         setShowModal(true);
     };
 
     const saveCustomer = (e) => {
         e.preventDefault();
 
-        form.post('/customers', {
+        customerForm.post('/customers', {
             preserveScroll: true,
-
             onSuccess: (page) => {
-                console.log('Customer Save Success');
-                console.log(page.props);
-
                 const id = page.props.createdCustomerId;
 
-                console.log('created customer id:', id);
-
                 setCreatedCustomerId(id);
+                setPaymentEnabledAgentId(selectedAgent.id);
                 setActiveTab('payment');
-            },
-
-            onError: (errors) => {
-                console.error(errors);
             },
         });
     };
@@ -83,96 +106,63 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
             <div className="min-h-screen bg-gray-100 p-6">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800">
-                            Counter
-                        </h1>
-
-                        <p className="text-gray-500 mt-1">
-                            Airport counter customer handling
-                        </p>
+                        <h1 className="text-3xl font-bold text-gray-800">Counter</h1>
+                        <p className="text-gray-500 mt-1">Airport counter customer handling</p>
                     </div>
 
                     <Link
                         href="/dashboard"
-                        className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg shadow hover:bg-slate-800 transition"
+                        className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800"
                     >
                         <ArrowLeft size={18} />
-                        Back to Dashboard
+                        Back
                     </Link>
                 </div>
 
-                <div className="space-y-6">
-                    <section className="bg-white rounded-xl shadow p-5">
-                        <div className="flex items-center gap-2 mb-4">
-                            <Users className="text-blue-700" size={22} />
-
-                            <h2 className="text-lg font-bold text-gray-800">
-                                Pending Customers
-                            </h2>
+                <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>
+                    {pendingAgents.length ? (
+                        <div className="flex gap-3 overflow-x-auto pb-2">
+                            {pendingAgents.map((agent) => (
+                                <CustomerCard
+                                    key={agent.id}
+                                    agent={agent}
+                                    onOpen={openModal}
+                                    paymentEnabled={paymentEnabledAgentId === agent.id}
+                                    vehicleEnabled={vehicleEnabledAgentId === agent.id}
+                                />
+                            ))}
                         </div>
+                    ) : (
+                        <Empty text="No pending customers found." />
+                    )}
+                </Section>
 
-                        {pendingAgents.length > 0 ? (
-                            <div className="flex gap-3 overflow-x-auto pb-2">
-                                {pendingAgents.map((agent) => (
-                                    <CustomerCard
-                                        key={agent.id}
-                                        agent={agent}
-                                        onCustomerClick={openCustomerModal}
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-10 text-gray-500">
-                                No pending customers found.
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="bg-white rounded-xl shadow p-5 min-h-[300px]">
-                        <div className="flex items-center gap-2 mb-4">
-                            <CarFront className="text-green-700" size={22} />
-
-                            <h2 className="text-lg font-bold text-gray-800">
-                                Vehicles Checked In
-                            </h2>
+                <Section title="Vehicles Checked In" icon={<CarFront className="text-green-700" size={22} />}>
+                    {vehicles.length ? (
+                        <div className="flex gap-3 overflow-x-auto pb-2">
+                            {vehicles.map((vehicle) => (
+                                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                            ))}
                         </div>
-
-                        {vehicles.length > 0 ? (
-                            <div className="flex gap-3 overflow-x-auto pb-2">
-                                {vehicles.map((vehicle) => (
-                                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="h-[220px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
-                                No vehicles found
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="bg-white rounded-xl shadow p-5 min-h-[300px]">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4">
-                            Ongoing Trips
-                        </h2>
-
-                        <div className="h-[220px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
-                            Blank for now
-                        </div>
-                    </section>
-                </div>
+                    ) : (
+                        <Empty text="No vehicles found." />
+                    )}
+                </Section>
             </div>
 
             {showModal && selectedAgent && (
-                <CounterModal
+                <Modal
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
-                    selectedAgent={selectedAgent}
-                    form={form}
+                    agent={selectedAgent}
+                    customerForm={customerForm}
+                    paymentForm={paymentForm}
                     saveCustomer={saveCustomer}
-                    createdCustomerId={createdCustomerId}
+                    customerId={createdCustomerId}
                     invoicePath={invoicePath}
                     setInvoicePath={setInvoicePath}
                     vehicles={vehicles}
+                    setVehicleEnabledAgentId={setVehicleEnabledAgentId}
                     onClose={() => setShowModal(false)}
                 />
             )}
@@ -180,15 +170,12 @@ export default function Index({ pendingAgents = [], vehicles = [], createdCustom
     );
 }
 
-function CustomerCard({ agent, onCustomerClick }) {
+function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
     return (
-        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm hover:shadow-md transition">
-            <h3 className="flex justify-between items-center font-semibold text-sm text-gray-800">
+        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm">
+            <h3 className="flex justify-between font-semibold text-sm">
                 <span className="truncate">{agent.name ?? 'Customer'}</span>
-
-                <span className="ml-2 whitespace-nowrap text-red-600 font-bold">
-                    {agent.distance_km ?? '-'} KM
-                </span>
+                <span className="text-red-600 font-bold">{agent.distance_km ?? '-'} KM</span>
             </h3>
 
             <p className="text-xs text-gray-600 mt-1 truncate">
@@ -196,84 +183,70 @@ function CustomerCard({ agent, onCustomerClick }) {
             </p>
 
             <div className="flex gap-1 mt-3">
-                <button
-                    type="button"
-                    onClick={() => onCustomerClick(agent)}
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-blue-700 text-white rounded py-1.5 text-[11px] font-medium hover:bg-blue-800"
-                >
-                    <UserPlus size={13} />
+                <CardButton color="blue" onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
                     Customer
-                </button>
+                </CardButton>
 
-                <button
-                    type="button"
-                    disabled
-                    title="Complete customer first"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-300 text-gray-500 rounded py-1.5 text-[11px] font-medium cursor-not-allowed"
+                <CardButton
+                    color="green"
+                    disabled={!paymentEnabled}
+                    onClick={() => onOpen(agent, 'payment')}
+                    icon={<CreditCard size={13} />}
                 >
-                    <CreditCard size={13} />
                     Payment
-                </button>
+                </CardButton>
 
-                <button
-                    type="button"
-                    disabled
-                    title="Complete customer first"
-                    className="flex-1 inline-flex items-center justify-center gap-1 bg-gray-300 text-gray-500 rounded py-1.5 text-[11px] font-medium cursor-not-allowed"
+                <CardButton
+                    color="purple"
+                    disabled={!vehicleEnabled}
+                    onClick={() => onOpen(agent, 'vehicle')}
+                    icon={<Car size={13} />}
                 >
-                    <Car size={13} />
                     Vehicle
-                </button>
+                </CardButton>
             </div>
         </div>
     );
 }
 
-function CounterModal({
+function Modal({
     activeTab,
     setActiveTab,
-    selectedAgent,
-    form,
+    agent,
+    customerForm,
+    paymentForm,
     saveCustomer,
-    createdCustomerId,
+    customerId,
     invoicePath,
     setInvoicePath,
     vehicles,
+    setVehicleEnabledAgentId,
     onClose,
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-7xl max-h-[92vh] overflow-y-auto">
-                <div className="flex justify-between items-center border-b px-6 py-4">
+                <div className="flex justify-between border-b px-6 py-4">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-800">
-                            Customer Processing
-                        </h2>
-
+                        <h2 className="text-xl font-bold">Customer Processing</h2>
                         <p className="text-sm text-gray-500">
-                            {selectedAgent?.name} · {selectedAgent?.passenger_count ?? 0} Pax · {selectedAgent?.luggage_count ?? 0} Luggage · {selectedAgent?.dropoff_location ?? '-'}
+                            {agent.name} · {agent.passenger_count ?? 0} Pax · {agent.dropoff_location ?? '-'}
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-red-600 font-semibold hover:text-red-800"
-                    >
+                    <button onClick={onClose} className="text-red-600 font-semibold">
                         Close
                     </button>
                 </div>
 
                 <div className="flex border-b">
-                    <TabButton
-                        active={activeTab === 'customer'}
-                        onClick={() => setActiveTab('customer')}
-                    >
+                    <TabButton active={activeTab === 'customer'} onClick={() => setActiveTab('customer')}>
                         Customer
                     </TabButton>
 
                     <TabButton
                         active={activeTab === 'payment'}
+                        disabled={!customerId}
                         onClick={() => setActiveTab('payment')}
                     >
                         Payment
@@ -281,6 +254,7 @@ function CounterModal({
 
                     <TabButton
                         active={activeTab === 'vehicle'}
+                        disabled={!invoicePath}
                         onClick={() => setActiveTab('vehicle')}
                     >
                         Vehicle
@@ -289,27 +263,27 @@ function CounterModal({
 
                 <div className="p-6 min-h-[500px]">
                     {activeTab === 'customer' && (
-                        <CustomerTab
-                            agent={selectedAgent}
-                            form={form}
-                            saveCustomer={saveCustomer}
-                        />
+                        <CustomerTab agent={agent} form={customerForm} onSubmit={saveCustomer} />
                     )}
 
                     {activeTab === 'payment' && (
                         <PaymentTab
-                            agent={selectedAgent}
-                            customerId={createdCustomerId}
-                            setActiveTab={setActiveTab}
+                            agent={agent}
+                            customerId={customerId}
+                            form={paymentForm}
                             invoicePath={invoicePath}
                             setInvoicePath={setInvoicePath}
+                            setActiveTab={setActiveTab}
+                            setVehicleEnabledAgentId={setVehicleEnabledAgentId}
                         />
                     )}
 
                     {activeTab === 'vehicle' && (
                         <VehicleTab
-                            agent={selectedAgent}
                             vehicles={vehicles}
+                            customerId={customerId}
+                            agent={agent}
+                            onClose={onClose}
                         />
                     )}
                 </div>
@@ -318,122 +292,56 @@ function CounterModal({
     );
 }
 
-function CustomerTab({ agent, form, saveCustomer }) {
+function CustomerTab({ agent, form, onSubmit }) {
     return (
-        <form onSubmit={saveCustomer} className="space-y-5">
+        <form onSubmit={onSubmit} className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
-                <AgentPassport path={agent.customer_passport} />
-
-                <div>
-                    <p className="text-sm text-black-900 font-bold">
-                        Agent : {agent.user?.name ?? '-'}
-                    </p>
-
-                    <p className="text-sm text-red-900 font-bold">
+                <ImageBox path={agent.customer_passport} className="w-32 h-24" />
+                <div className="text-sm">
+                    <p className="font-bold">Agent : {agent.user?.name ?? '-'}</p>
+                    <p className="font-bold text-red-900">
                         Price : {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
                     </p>
-
-                    <p className="text-sm text-gray-500">
-                        Dropoff : {agent.dropoff_location ?? '-'}
-                    </p>
-
-                    <p className="text-sm text-gray-500">
-                        Remarks : {agent.remarks ?? '-'}
-                    </p>
+                    <p className="text-gray-500">Dropoff : {agent.dropoff_location ?? '-'}</p>
+                    <p className="text-gray-500">Remarks : {agent.remarks ?? '-'}</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <Field
-                    label="Customer Name"
-                    value={form.data.name}
-                    onChange={(e) => form.setData('name', e.target.value)}
-                    error={form.errors.name}
-                    required
-                />
-
-                <Field
-                    label="Email"
-                    type="email"
-                    value={form.data.email}
-                    onChange={(e) => form.setData('email', e.target.value)}
-                    error={form.errors.email}
-                    required
-                />
-
-                <Field
-                    label="WhatsApp Number"
-                    value={form.data.whatsapp_number}
-                    onChange={(e) => form.setData('whatsapp_number', e.target.value)}
-                    error={form.errors.whatsapp_number}
-                    required
-                />
-
-                <Field
-                    label="Country"
-                    value={form.data.country}
-                    onChange={(e) => form.setData('country', e.target.value)}
-                    error={form.errors.country}
-                    required
-                />
-
-                <Field
-                    label="Passenger Count"
-                    type="number"
-                    value={form.data.passenger_count}
-                    onChange={(e) => form.setData('passenger_count', e.target.value)}
-                    error={form.errors.passenger_count}
-                    required
-                />
-
-                <Field
-                    label="Dropoff Location"
-                    value={form.data.dropoff_location}
-                    onChange={(e) => form.setData('dropoff_location', e.target.value)}
-                    error={form.errors.dropoff_location}
-                    required
-                />
+                <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
+                <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
+                <Field label="WhatsApp" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
+                <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
+                <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                 <div>
-                    <label className="label">Language Preference</label>
+                    <label className="label">Language</label>
                     <select
+                        className="input"
                         value={form.data.language_preference}
                         onChange={(e) => form.setData('language_preference', e.target.value)}
-                        className="input"
                     >
-                        <option value="">Select Language</option>
-                        <option>English</option>
-                        <option>Sinhala</option>
-                        <option>Tamil</option>
-                        <option>Arabic</option>
-                        <option>Chinese</option>
-                        <option>Russian</option>
-                        <option>German</option>
-                        <option>French</option>
+                        <option value="">Select</option>
+                        {['English', 'Sinhala', 'Tamil', 'Arabic', 'Chinese', 'Russian', 'German', 'French'].map((x) => (
+                            <option key={x}>{x}</option>
+                        ))}
                     </select>
-
-                    <Error message={form.errors.language_preference} />
                 </div>
             </div>
+
             <div>
                 <label className="label">Remarks</label>
-
                 <textarea
+                    className="input"
+                    rows="2"
                     value={form.data.remarks}
                     onChange={(e) => form.setData('remarks', e.target.value)}
-                    rows="2"
-                    className="input"
                 />
-
-                <Error message={form.errors.remarks} />
             </div>
 
-            <div className="flex justify-end gap-2 border-t pt-4">
-                <button
-                    type="submit"
-                    disabled={form.processing}
-                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-800 disabled:opacity-50"
-                >
+            <div className="flex justify-end border-t pt-4">
+                <button disabled={form.processing} className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
                     {form.processing ? 'Saving...' : 'Save Customer & Continue'}
                 </button>
             </div>
@@ -441,107 +349,65 @@ function CustomerTab({ agent, form, saveCustomer }) {
     );
 }
 
-function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePath,}) {
-    const currencies = [
-        'LKR', 'USD', 'EUR', 'GBP', 'AUD',
-        'CAD', 'INR', 'AED', 'CNY', 'JPY'
-    ];
+function PaymentTab({
+    agent,
+    customerId,
+    form,
+    invoicePath,
+    setInvoicePath,
+    setActiveTab,
+    setVehicleEnabledAgentId,
+}) {
+    const total = form.data.payment_notes.reduce(
+        (sum, n) => sum + Number(n.amount || 0) * Number(n.count || 0),
+        0
+    );
 
-    const paymentForm = useForm({
-        currency: agent?.new_currency ?? agent?.currency ?? 'LKR',
-        price: agent?.new_price ?? agent?.price ?? 0,
-        payment_method: 'Cash',
-        transaction_id: '',
-        card_number: '',
-        payment_notes: [
-            { amount: '', count: '' },
-        ],
-    });
+    const isCash = form.data.payment_method === 'Cash';
+    const canSubmit = !form.processing && (!isCash || Number(total) === Number(form.data.price));
 
-    const total = paymentForm.data.payment_notes.reduce((sum, item) => {
-        return sum + Number(item.amount || 0) * Number(item.count || 0);
-    }, 0);
-
-    const updateNote = (index, field, value) => {
-        const notes = [...paymentForm.data.payment_notes];
-        notes[index][field] = value;
-        paymentForm.setData('payment_notes', notes);
-    };
-
-    const addNoteRow = () => {
-        const notes = [...paymentForm.data.payment_notes];
-        notes.push({ amount: '', count: '' });
-        paymentForm.setData('payment_notes', notes);
-    };
-
-    const removeNoteRow = (index) => {
-        if (paymentForm.data.payment_notes.length > 1) {
-            const notes = paymentForm.data.payment_notes.filter((_, i) => i !== index);
-            paymentForm.setData('payment_notes', notes);
-        }
+    const updateNote = (i, key, value) => {
+        const notes = [...form.data.payment_notes];
+        notes[i][key] = value;
+        form.setData('payment_notes', notes);
     };
 
     const savePayment = (e) => {
         e.preventDefault();
 
-        console.log('========== PAYMENT DEBUG ==========');
-        console.log('customerId:', customerId);
-        console.log('customerId type:', typeof customerId);
-        console.log('selectedAgent:', agent);
-        console.log('paymentForm:', paymentForm.data);
-
         if (!customerId) {
-            console.error('customerId is NULL or UNDEFINED');
-            alert('Please save customer details first.');
+            alert('Please save customer first.');
             return;
         }
 
-        // Validate based on payment method
-        if (paymentForm.data.payment_method === 'Cash') {
-            console.log('Required Price:', paymentForm.data.price);
-            console.log('Entered Total:', total);
-
-            if (Number(total) !== Number(paymentForm.data.price)) {
-                console.error('Amount mismatch');
-                alert('Entered cash notes total must match the price.');
-                return;
-            }
-        } else if (paymentForm.data.payment_method === 'POS') {
-            if (!paymentForm.data.transaction_id) {
-                alert('Please enter transaction ID.');
-                return;
-            }
-
-            if (!paymentForm.data.card_number) {
-                alert('Please enter card number.');
-                return;
-            }
+        if (isCash && Number(total) !== Number(form.data.price)) {
+            alert('Cash total must match price.');
+            return;
         }
 
-        console.log('Posting to:', `/customers/${customerId}/payment`);
+        // move instantly
+        setVehicleEnabledAgentId(agent.id);
+        setActiveTab('vehicle');
 
-        paymentForm.post(`/customers/${customerId}/payment`, {
+        // save in backend after moving
+        form.post(`/customers/${customerId}/payment`, {
             preserveScroll: true,
-
-            onBefore: () => {
-                console.log('Payment request starting...');
-            },
+            preserveState: true,
 
             onSuccess: (page) => {
-                const path = page.props.invoicePath;
+                const path =
+                    page.props.invoicePath ??
+                    page.props.flash?.invoice_path ??
+                    null;
 
                 if (path) {
                     setInvoicePath(path);
                 }
             },
 
-            onError: (errors) => {
-                console.error('Payment Save Error');
-                console.error(errors);
-            },
-
-            onFinish: () => {
-                console.log('Payment Request Finished');
+            onError: () => {
+                alert('Payment save failed. Please check again.');
+                setActiveTab('payment');
             },
         });
     };
@@ -549,392 +415,246 @@ function PaymentTab({ agent, customerId, setActiveTab, invoicePath, setInvoicePa
     return (
         <form onSubmit={savePayment} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label className="label">Currency</label>
-                    <select
-                        value={paymentForm.data.currency}
-                        onChange={(e) => paymentForm.setData('currency', e.target.value)}
-                        className="input"
-                    >
-                        {currencies.map((currency) => (
-                            <option key={currency} value={currency}>
-                                {currency}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="label">Price</label>
-                    <input
-                        type="number"
-                        value={paymentForm.data.price}
-                        onChange={(e) => paymentForm.setData('price', e.target.value)}
-                        className="input"
-                    />
-                </div>
-
-                <div>
-                    <label className="label">Payment Method</label>
-                    <select
-                        value={paymentForm.data.payment_method}
-                        onChange={(e) => paymentForm.setData('payment_method', e.target.value)}
-                        className="input"
-                    >
-                        <option value="Cash">Cash</option>
-                        <option value="POS">POS</option>
-                    </select>
-                </div>
+                <Select label="Currency" value={form.data.currency} onChange={(e) => form.setData('currency', e.target.value)} options={['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY']} />
+                <Field label="Price" type="number" value={form.data.price} onChange={(e) => form.setData('price', e.target.value)} />
+                <Select label="Payment Method" value={form.data.payment_method} onChange={(e) => form.setData('payment_method', e.target.value)} options={['Cash', 'POS']} />
             </div>
 
-            {paymentForm.data.payment_method === 'POS' && (
-                <div className="border rounded-xl p-4 bg-gray-50">
-                    <h3 className="font-bold mb-3">
-                        POS Payment Details
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="label">Transaction ID</label>
-                            <input
-                                type="text"
-                                value={paymentForm.data.transaction_id}
-                                onChange={(e) => paymentForm.setData('transaction_id', e.target.value)}
-                                placeholder="Enter transaction ID"
-                                className="input"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label className="label">Card Number</label>
-                            <input
-                                type="text"
-                                value={paymentForm.data.card_number}
-                                onChange={(e) => paymentForm.setData('card_number', e.target.value)}
-                                placeholder="Enter card number"
-                                className="input"
-                                required
-                            />
-                        </div>
-                    </div>
+            {form.data.payment_method === 'POS' && (
+                <div className="border rounded-xl p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field label="Transaction ID" value={form.data.transaction_id} onChange={(e) => form.setData('transaction_id', e.target.value)} />
+                    <Field label="Card Number" value={form.data.card_number} onChange={(e) => form.setData('card_number', e.target.value)} />
                 </div>
             )}
 
-            {paymentForm.data.payment_method === 'Cash' && (
-                <div className="border rounded-xl p-4 bg-gray-50">
-                    <h3 className="font-bold mb-3">
-                        Cash Notes Received
-                    </h3>
+            {isCash && (
+                <div className="border rounded-xl p-4 bg-gray-50 space-y-3">
+                    <h3 className="font-bold">Cash Notes Received</h3>
 
-                    <div className="space-y-3">
-                        {paymentForm.data.payment_notes.map((note, index) => (
-                            <div
-                                key={index}
-                                className="grid grid-cols-12 gap-2 items-end"
-                            >
-                                <div className="col-span-5">
-                                    <label className="label">
-                                        Note Value
-                                    </label>
-
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={note.amount}
-                                        onChange={(e) =>
-                                            updateNote(index, 'amount', e.target.value)
-                                        }
-                                        className="input"
-                                        placeholder="1000"
-                                    />
-                                </div>
-
-                                <div className="col-span-5">
-                                    <label className="label">
-                                        Quantity
-                                    </label>
-
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={note.count}
-                                        onChange={(e) =>
-                                            updateNote(index, 'count', e.target.value)
-                                        }
-                                        className="input"
-                                        placeholder="2"
-                                    />
-                                </div>
-
-                                <div className="col-span-2">
-                                  <button
-                                        type="button"
-                                        onClick={() => removeNoteRow(index)}
-                                        disabled={paymentForm.data.payment_notes.length === 1}
-                                        className="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
+                    {form.data.payment_notes.map((note, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                            <div className="col-span-5">
+                                <Field label="Note Value" type="number" value={note.amount} onChange={(e) => updateNote(i, 'amount', e.target.value)} />
                             </div>
-                        ))}
 
-                        <button
-                            type="button"
-                            onClick={addNoteRow}
-                            className="bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800"
-                        >
-                            + Add Note
-                        </button>
-                    </div>
+                            <div className="col-span-5">
+                                <Field label="Quantity" type="number" value={note.count} onChange={(e) => updateNote(i, 'count', e.target.value)} />
+                            </div>
 
-                    <div className="mt-4 flex justify-between border-t pt-3">
-                        <p className="font-semibold">
-                            Required: {paymentForm.data.currency} {Number(paymentForm.data.price).toLocaleString()}
-                        </p>
+                            <button
+                                type="button"
+                                disabled={form.data.payment_notes.length === 1}
+                                onClick={() => form.setData('payment_notes', form.data.payment_notes.filter((_, x) => x !== i))}
+                                className="col-span-2 h-10 bg-red-600 text-white rounded disabled:bg-gray-300"
+                            >
+                                <Trash2 size={14} className="mx-auto" />
+                            </button>
+                        </div>
+                    ))}
 
-                        <p className={`font-bold ${
-                            Number(total) === Number(paymentForm.data.price)
-                                ? 'text-green-700'
-                                : 'text-red-600'
-                        }`}>
-                            Entered: {paymentForm.data.currency} {Number(total).toLocaleString()}
-                        </p>
+                    <button
+                        type="button"
+                        onClick={() => form.setData('payment_notes', [...form.data.payment_notes, { amount: '', count: '' }])}
+                        className="bg-blue-700 text-white px-4 py-2 rounded-lg"
+                    >
+                        + Add Note
+                    </button>
+
+                    <div className="flex justify-between border-t pt-3 font-bold">
+                        <span>Required: {form.data.currency} {Number(form.data.price).toLocaleString()}</span>
+                        <span className={Number(total) === Number(form.data.price) ? 'text-green-700' : 'text-red-600'}>
+                            Entered: {form.data.currency} {Number(total).toLocaleString()}
+                        </span>
                     </div>
                 </div>
             )}
 
-            {paymentForm.errors.payment_notes && (
-                <p className="text-red-600 text-sm">
-                    {paymentForm.errors.payment_notes}
-                </p>
-            )}
+            {form.errors.payment_notes && <p className="text-red-600 text-sm">{form.errors.payment_notes}</p>}
 
             {invoicePath && (
-                <div className="mt-5 border rounded-xl p-4 bg-green-50">
-                    <h3 className="font-bold text-green-800 mb-3">
-                        Invoice Generated
-                    </h3>
-
-                    <iframe
-                        src={`/storage/${invoicePath}`}
-                        className="w-full h-[500px] border rounded-lg bg-white"
-                    />
-
-                    <a
-                        href={`/storage/${invoicePath}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block mt-3 bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800"
-                    >
-                        Open Invoice
-                    </a>
-                </div>
+                <a
+                    href={`/storage/${invoicePath}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block bg-green-700 text-white px-4 py-2 rounded-lg"
+                >
+                    Open Invoice
+                </a>
             )}
 
             <div className="flex justify-end">
                 <button
-                    type="submit"
-                    disabled={paymentForm.processing || (paymentForm.data.payment_method === 'Cash' && Number(total) !== Number(paymentForm.data.price))}
-                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50"
+                    disabled={!canSubmit}
+                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
                 >
-                    {paymentForm.processing ? 'Saving...' : 'Save Payment & Continue'}
+                    Continue to Vehicle
                 </button>
             </div>
         </form>
     );
 }
 
-function VehicleTab({ vehicles = [] }) {
+function VehicleTab({ vehicles, customerId, agent,onClose, }) {
+    const assignForm = useForm({
+        driver_id: '',
+        agent_id: agent.id,
+        remarks: '',
+    });
+
+    const assignTrip = (vehicle) => {
+        const driverId = vehicle.driver_id ?? vehicle.driver?.id;
+
+        if (!customerId) {
+            alert('Customer not found.');
+            return;
+        }
+
+        if (!driverId) {
+            alert('Driver not found for this vehicle.');
+            return;
+        }
+
+        assignForm.setData({
+            driver_id: driverId,
+            agent_id: agent.id,
+            remarks: '',
+        });
+
+        assignForm.post(`/customers/${customerId}/assign-trip`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                onClose();
+
+                router.reload({
+                    only: ['pendingAgents', 'vehicles'],
+                });
+            },
+        });
+    };
+
     return (
         <div>
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg">
-                    Select Vehicle
-                </h3>
-
-                <span className="text-sm text-gray-500">
-                    {vehicles.length} Vehicle(s) Available
-                </span>
+            <div className="flex justify-between mb-3">
+                <h3 className="font-bold text-lg">Select Vehicle</h3>
+                <span className="text-sm text-gray-500">{vehicles.length} Vehicle(s)</span>
             </div>
 
-            {vehicles.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2">
-                    {vehicles.map((vehicle, index) => (
-                        <VehicleSelectionCard
-                            key={vehicle.id}
-                            vehicle={vehicle}
-                            index={index}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-10 text-gray-500 border rounded-xl">
-                    No vehicles available.
-                </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[600px] overflow-y-auto">
+                {vehicles.map((vehicle, i) => (
+                    <VehicleSelectCard
+                        key={vehicle.id}
+                        vehicle={vehicle}
+                        index={i}
+                        assigning={assignForm.processing}
+                        onAssign={() => assignTrip(vehicle)}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
 
 function VehicleCard({ vehicle }) {
-    const image =
-        vehicle.pictures?.front_view ??
-        vehicle.front_view ??
-        null;
-
-    const languages =
-        vehicle.driver?.languages
-            ?.map((lang) => lang.language_name)
-            .join(', ') || '-';
+    const languages = vehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-';
 
     return (
-        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm hover:shadow-md transition">
-            <div className="flex gap-3">
-                <VehicleImage path={image} />
-
-                <div className="flex-1">
-                    <h3 className="font-semibold text-sm text-gray-800 truncate">
-                        {vehicle.driver?.full_name ?? 'Driver'} : {vehicle.driver?.mobile_number ?? '-'}
-                    </h3>
-
-                    <p className="text-sm font-medium text-red-800 truncate mt-1">
-                        {vehicle.registration_number ?? '-'}
-                    </p>
-
-                    <p className="text-xs text-gray-600 truncate mt-1">
-                        {vehicle.vehicle_type ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}
-                    </p>
-
-                    <p className="text-xs font-bold text-gray-700 mt-1 truncate" title={languages}>
-                        🌐 {languages}
-                    </p>
-                </div>
+        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3">
+            <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-32 h-24" />
+            <div>
+                <h3 className="font-semibold text-sm">{vehicle.driver?.full_name ?? 'Driver'} : {vehicle.driver?.mobile_number ?? '-'}</h3>
+                <p className="text-sm font-medium text-red-800">{vehicle.registration_number ?? '-'}</p>
+                <p className="text-xs text-gray-600">{vehicle.vehicle_type ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}</p>
+                <p className="text-xs font-bold">🌐 {languages}</p>
             </div>
         </div>
     );
 }
 
-function VehicleSelectionCard({ vehicle, index }) {
-    const image =
-        vehicle.pictures?.front_view ??
-        vehicle.front_view ??
-        null;
-
-    const languages =
-        vehicle.driver?.languages
-            ?.map((lang) => lang.language_name)
-            .join(', ') || '-';
+function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
+    const languages = vehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-';
 
     return (
-        <div className="relative w-[180px] border rounded-lg bg-gray-50 p-2 hover:shadow-md transition">
-
-            {/* Vehicle Number */}
-            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-700 text-white flex items-center justify-center text-[10px] font-bold">
+        <div className="relative border rounded-lg bg-gray-50 p-3 text-center">
+            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] flex items-center justify-center">
                 {index + 1}
             </div>
 
-            <div className="flex flex-col items-center text-center">
+            <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-20 h-20 mx-auto" />
 
-                <VehicleImageSmall path={image} />
+            <h3 className="mt-2 font-semibold text-xs truncate">
+                {vehicle.driver?.full_name ?? 'Driver'}
+            </h3>
 
-                <h3 className="mt-2 font-semibold text-xs text-gray-800 truncate w-full">
-                    {vehicle.driver?.full_name ?? 'Driver'}
-                </h3>
+            <p className="text-[10px] text-gray-500">
+                {vehicle.driver?.mobile_number ?? '-'}
+            </p>
 
-                <p className="text-[10px] text-gray-500 truncate w-full">
-                    {vehicle.driver?.mobile_number ?? '-'}
-                </p>
+            <p className="text-xs font-bold text-red-700">
+                {vehicle.registration_number ?? '-'}
+            </p>
 
-                <p className="text-xs font-bold text-red-700 mt-1">
-                    {vehicle.registration_number ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}
-                </p>
+            <p className="text-[11px] font-bold text-red-900 truncate">
+                🌐 {languages}
+            </p>
 
-                <p
-                    className="text-[12px] text-red-900 font-bold truncate w-full"
-                    title={languages}
-                >
-                    🌐 {languages}
-                </p>
-
-                <button
-                    type="button"
-                    className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px] font-medium hover:bg-blue-800"
-                >
-                    Assign
-                </button>
-
-            </div>
+            <button
+                type="button"
+                disabled={assigning}
+                onClick={onAssign}
+                className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px] disabled:opacity-50"
+            >
+                {assigning ? 'Assigning...' : 'Assign'}
+            </button>
         </div>
     );
 }
 
-function VehicleImageSmall({ path }) {
-    if (!path) {
-        return (
-            <div className="w-20 h-20 rounded-md bg-gray-100 border flex items-center justify-center text-[9px] text-gray-400">
-                No Image
-            </div>
-        );
-    }
-
+function Section({ title, icon, children }) {
     return (
-        <img
-            src={`/storage/${path}`}
-            className="w-20 h-20 rounded-md object-cover border"
-            alt=""
-        />
+        <section className="bg-white rounded-xl shadow p-5 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+                {icon}
+                <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+            </div>
+            {children}
+        </section>
     );
 }
 
-function VehicleImage({ path }) {
-    if (!path) {
-        return (
-            <div className="w-32 h-24 rounded-lg bg-gray-100 border flex items-center justify-center text-xs text-gray-400">
-                No Image
-            </div>
-        );
-    }
+function CardButton({ children, icon, onClick, disabled, color }) {
+    const colors = {
+        blue: 'bg-blue-700 hover:bg-blue-800',
+        green: 'bg-green-700 hover:bg-green-800',
+        purple: 'bg-purple-700 hover:bg-purple-800',
+    };
 
-    return (
-        <a href={`/storage/${path}`} target="_blank" rel="noreferrer">
-            <img
-                src={`/storage/${path}`}
-                className="w-32 h-24 rounded-lg object-cover border"
-            />
-        </a>
-    );
-}
-
-function AgentPassport({ path }) {
-    if (!path) {
-        return (
-            <div className="w-32 h-24 rounded bg-gray-100 border flex items-center justify-center text-xs text-gray-400">
-                No Image
-            </div>
-        );
-    }
-
-    return (
-        <a href={`/storage/${path}`} target="_blank" rel="noreferrer">
-            <img
-                src={`/storage/${path}`}
-                className="w-32 h-24 object-cover rounded border"
-            />
-        </a>
-    );
-}
-
-function TabButton({ active, children, onClick }) {
     return (
         <button
             type="button"
+            disabled={disabled}
+            onClick={onClick}
+            className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${
+                disabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : `${colors[color]} text-white`
+            }`}
+        >
+            {icon}
+            {children}
+        </button>
+    );
+}
+
+function TabButton({ active, disabled, children, onClick }) {
+    return (
+        <button
+            type="button"
+            disabled={disabled}
             onClick={onClick}
             className={`px-6 py-3 font-medium transition ${
-                active
-                    ? 'border-b-2 border-blue-700 text-blue-700'
-                    : 'text-gray-500 hover:text-gray-800'
+                disabled
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : active
+                        ? 'border-b-2 border-blue-700 text-blue-700'
+                        : 'text-gray-500 hover:text-gray-800'
             }`}
         >
             {children}
@@ -946,21 +666,45 @@ function Field({ label, value, onChange, error, type = 'text' }) {
     return (
         <div>
             <label className="label">{label}</label>
-
-            <input
-                type={type}
-                value={value ?? ''}
-                onChange={onChange}
-                className="input"
-            />
-
-            <Error message={error} />
+            <input type={type} value={value ?? ''} onChange={onChange} className="input" />
+            {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>
     );
 }
 
-function Error({ message }) {
-    return message ? (
-        <p className="text-red-600 text-sm mt-1">{message}</p>
-    ) : null;
+function Select({ label, value, onChange, options }) {
+    return (
+        <div>
+            <label className="label">{label}</label>
+            <select value={value} onChange={onChange} className="input">
+                {options.map((x) => (
+                    <option key={x} value={x}>{x}</option>
+                ))}
+            </select>
+        </div>
+    );
+}
+
+function ImageBox({ path, className }) {
+    if (!path) {
+        return (
+            <div className={`${className} rounded bg-gray-100 border flex items-center justify-center text-xs text-gray-400`}>
+                No Image
+            </div>
+        );
+    }
+
+    return (
+        <a href={`/storage/${path}`} target="_blank" rel="noreferrer">
+            <img src={`/storage/${path}`} className={`${className} rounded object-cover border`} alt="" />
+        </a>
+    );
+}
+
+function Empty({ text }) {
+    return (
+        <div className="h-[180px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
+            {text}
+        </div>
+    );
 }

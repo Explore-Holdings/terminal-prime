@@ -2,14 +2,20 @@
 
 namespace App\Mail;
 
+use App\Models\Customer;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Queue\SerializesModels;
 
-class CustomerInvoiceMail extends Mailable
+class CustomerInvoiceMail extends Mailable implements ShouldQueue
 {
+    use Queueable, SerializesModels;
+
     public $customer;
     public $invoiceNumber;
 
-    public function __construct($customer, $invoiceNumber)
+    public function __construct(Customer $customer, string $invoiceNumber)
     {
         $this->customer = $customer;
         $this->invoiceNumber = $invoiceNumber;
@@ -17,14 +23,8 @@ class CustomerInvoiceMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Airport Counter Invoice')
+        return $this->subject('Customer Invoice - ' . $this->invoiceNumber)
             ->view('emails.customer-invoice')
-            ->attach(
-                storage_path('app/public/' . $this->customer->invoice_path),
-                [
-                    'as' => $this->invoiceNumber . '.pdf',
-                    'mime' => 'application/pdf',
-                ]
-            );
+            ->attachFromStorageDisk('public', $this->customer->invoice_path);
     }
 }
