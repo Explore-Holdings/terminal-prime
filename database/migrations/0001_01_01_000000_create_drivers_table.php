@@ -46,6 +46,7 @@ return new class extends Migration
             $table->text('traffic_violation_history')->nullable();
 
             $table->enum('driver_status', ['Active', 'Inactive', 'Suspended', 'Rejected'])->default('Inactive');
+            $table->enum('status', ['Off Duty','On Duty'])->default('Off Duty'); 
 
             $table->timestamps();
         });
