@@ -40,7 +40,7 @@ export default function Index({ customers = [] }) {
                                     <th className="border px-3 py-2 text-left">Code</th>
                                     <th className="border px-3 py-2 text-left">Name</th>
                                     <th className="border px-3 py-2 text-left">Email</th>
-                                    <th className="border px-3 py-2 text-left">WhatsApp</th>
+                                    {/* <th className="border px-3 py-2 text-left">WhatsApp</th> */}
                                     <th className="border px-3 py-2 text-left">Country</th>
                                     <th className="border px-3 py-2 text-left">Dropoff</th>
                                     <th className="border px-3 py-2 text-left">Agent</th>
@@ -66,9 +66,9 @@ export default function Index({ customers = [] }) {
                                                 {customer.email ?? '-'}
                                             </td>
 
-                                            <td className="border px-3 py-2">
+                                            {/* <td className="border px-3 py-2">
                                                 {customer.whatsapp_number ?? '-'}
-                                            </td>
+                                            </td> */}
 
                                             <td className="border px-3 py-2">
                                                 {customer.country ?? '-'}
