@@ -150,28 +150,28 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section
-                    title="Ongoing Trips"
-                    icon={<Car className="text-orange-700" size={22} />}
-                    actions={
-                        <button
-                            type="button"
-                            className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            View Trips
-                        </button>
-                    }
-                >
-                    {ongoingTrips.length ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                            {ongoingTrips.map((trip) => (
-                                <TripCard key={trip.id} trip={trip} />
-                            ))}
-                        </div>
-                    ) : (
-                        <Empty text="No ongoing trips found." />
-                    )}
-                </Section>
+           <Section
+                title="Ongoing Trips"
+                icon={<Car className="text-orange-700" size={22} />}
+                actions={
+                    <Link
+                        href="/trips"
+                        className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    >
+                        View Trips
+                    </Link>
+                }
+            >
+                {ongoingTrips.length ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {ongoingTrips.map((trip) => (
+                            <TripCard key={trip.id} trip={trip} />
+                        ))}
+                    </div>
+                ) : (
+                    <Empty text="No ongoing trips found." />
+                )}
+            </Section>
 
             </div>
 

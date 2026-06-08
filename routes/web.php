@@ -11,6 +11,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CounterController;
+use App\Http\Controllers\TripController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -94,5 +95,8 @@ Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePa
 
 Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'assignTrip'])
     ->name('customers.assign-trip');
+
+Route::get('/trips', [TripController::class, 'index'])
+    ->name('trips.index');
 
 require __DIR__.'/auth.php';
