@@ -17,6 +17,12 @@ class CounterController extends Controller
                 ->get(),
 
             'vehicles' => Vehicle::with(['driver.languages', 'pictures'])
+                ->whereHas('driver', fn ($q) =>
+                    $q->where('status', 'On Duty')
+                    ->whereDoesntHave('trips', fn ($t) =>
+                        $t->where('status', '==', 'Completed')
+                    )
+                )
                 ->latest()
                 ->get(),
 

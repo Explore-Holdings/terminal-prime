@@ -102,4 +102,9 @@ class Driver extends Model
         return $this->hasOne(Vehicle::class);
     }
 
+    public function trips()
+    {
+        return $this->hasMany(Trip::class);
+    }
+
 }
