@@ -11,7 +11,7 @@
 
         body {
             font-family: Cambria, DejaVu Serif, serif;
-            font-size: 12px;
+            font-size: 10px;
             color: #1f2937;
             margin: 0;
         }
@@ -203,7 +203,7 @@
                 </td>
                 <td class="right">
                     <strong>Date:</strong>
-                    {{ now()->format('d M Y, h:i A') }}
+                    {{ now('Asia/Colombo')->format('d/m/Y h:i A') }}
                 </td>
             </tr>
         </table>

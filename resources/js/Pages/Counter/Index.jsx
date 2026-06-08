@@ -53,6 +53,7 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
             country: '',
             dropoff_location: agent.dropoff_location ?? '',
             passenger_count: agent.passenger_count ?? 1,
+            luggage_count: agent.luggage_count ?? 0,
             language_preference: '',
             status: 'New',
             remarks: agent.remarks ?? '',
@@ -313,6 +314,7 @@ function CustomerTab({ agent, form, onSubmit }) {
                 <Field label="WhatsApp" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
                 <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
                 <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                 <div>
