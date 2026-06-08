@@ -4,12 +4,14 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DriverController;
+use App\Models\Customer;
 use App\Models\Driver;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CounterController;
+use App\Http\Controllers\TripController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -49,6 +51,15 @@ Route::get('/dashboard', function () {
                 'registration_status',
                 'created_at',
             ]),
+
+        'recentCustomers' => Customer::latest()
+            ->take(5)
+            ->get([
+                'id',
+                'name',
+                'whatsapp_number',
+                'status',
+            ]),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -84,5 +95,8 @@ Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePa
 
 Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'assignTrip'])
     ->name('customers.assign-trip');
+
+Route::get('/trips', [TripController::class, 'index'])
+    ->name('trips.index');
 
 require __DIR__.'/auth.php';

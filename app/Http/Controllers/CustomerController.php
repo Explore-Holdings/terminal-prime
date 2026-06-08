@@ -68,7 +68,7 @@ class CustomerController extends Controller
             'price' => 'required|numeric|min:0',
             'payment_method' => 'required|in:Cash,POS',
             'transaction_id' => 'nullable|string|max:100',
-            'card_number' => 'nullable|string|max:50',
+            'card_number' => 'nullable|string|max:100',
         ];
 
         if ($request->payment_method === 'Cash') {
@@ -79,7 +79,7 @@ class CustomerController extends Controller
 
         if ($request->payment_method === 'POS') {
             $rules['transaction_id'] = 'required|string|max:100';
-            $rules['card_number'] = 'required|string|max:50';
+            $rules['card_number'] = 'nullable|string|max:100';
         }
 
         $data = $request->validate($rules);
