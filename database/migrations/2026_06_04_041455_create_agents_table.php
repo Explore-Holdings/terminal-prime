@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->string('dropoff_location')->nullable();
             $table->integer('passenger_count')->nullable();
+            $table->integer('luggage_count')->nullable();
             $table->string('currency')->nullable();
             $table->decimal('price', 12, 2)->default(0);
             $table->text('remarks')->nullable();
