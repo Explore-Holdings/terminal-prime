@@ -210,20 +210,9 @@ export default function Create({ serviceCategories = [] }) {
         availability: [
             { field: 'working_shift', message: 'Working Shift is required' },
         ],
-
         technology: [
             { field: 'device_type', message: 'Device Type is required' },
         ],
-
-        features: [
-            { field: 'air_conditioned', message: 'Air Conditioned selection is required' },
-            { field: 'wifi_available', message: 'WiFi Available selection is required' },
-            { field: 'gps_enabled', message: 'GPS Enabled selection is required' },
-            { field: 'child_seat_available', message: 'Child Seat Available selection is required' },
-            { field: 'wheelchair_accessible', message: 'Wheelchair Accessible selection is required' },
-            { field: 'pet_friendly', message: 'Pet Friendly selection is required' },
-        ],
-
         vehicleDocs: [
             { field: 'registration_book', message: 'Registration Book is required' },
             { field: 'insurance_certificate', message: 'Insurance Certificate is required' },
@@ -234,7 +223,6 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'revenue_license_expiry_date', message: 'Revenue License Expiry Date is required' },
             { field: 'emission_test_expiry_date', message: 'Emission Test Expiry Date is required' },
         ],
-
         vehiclePics: [
             { field: 'front_view', message: 'Front View image is required' },
             { field: 'rear_view', message: 'Rear View image is required' },
@@ -245,14 +233,12 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'dashboard_view', message: 'Dashboard View image is required' },
             { field: 'luggage_compartment_view', message: 'Luggage Compartment View image is required' },
         ],
-
         bank: [
             { field: 'bank_name', message: 'Bank Name is required' },
             { field: 'branch_name', message: 'Branch Name is required' },
             { field: 'account_holder_name', message: 'Account Holder Name is required' },
             { field: 'account_number', message: 'Account Number is required' },
         ],
-
         driverDocs: [
             { field: 'nic_copy', message: 'NIC Copy is required' },
             { field: 'passport_copy', message: 'Passport Copy is required' },
@@ -274,6 +260,39 @@ export default function Create({ serviceCategories = [] }) {
     const isLastTab = currentTabIndex === tabs.length - 1;
 
     const fieldProps = { data, setData, errors, isRequired };
+    const fileProps = { setData, toWebp };
+
+    function toWebp(file, name, quality = 0.75, maxWidth = 1200) {
+        return new Promise((resolve) => {
+            if (!file || !file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+
+            img.onload = () => {
+                const scale = Math.min(1, maxWidth / img.width);
+                const canvas = document.createElement('canvas');
+
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        resolve(new File([blob], `${name}.webp`, { type: 'image/webp' }));
+                    },
+                    'image/webp',
+                    quality
+                );
+            };
+
+            img.onerror = () => resolve(file);
+        });
+    }
 
     const getDetailsFromNIC = (nic) => {
         const cleanNic = nic.trim();
@@ -341,41 +360,16 @@ export default function Create({ serviceCategories = [] }) {
             for (let i = 0; i < data.driver_languages.length; i++) {
                 const language = data.driver_languages[i];
 
-                if (!language.language_name) {
-                    toast.error(`Language name is required in row ${i + 1}`);
-                    return false;
-                }
-
-                if (!language.speaking_level) {
-                    toast.error(`Speaking level is required in row ${i + 1}`);
-                    return false;
-                }
-
-                if (!language.reading_level) {
-                    toast.error(`Reading level is required in row ${i + 1}`);
-                    return false;
-                }
-
-                if (!language.writing_level) {
-                    toast.error(`Writing level is required in row ${i + 1}`);
+                if (!language.language_name || !language.speaking_level || !language.reading_level || !language.writing_level) {
+                    toast.error(`Please complete language row ${i + 1}`);
                     return false;
                 }
             }
         }
 
         if (activeTab === 'license' && data.tourist_license_available === '1') {
-            if (!data.tourist_license_number) {
-                toast.error('Tourist License Number is required');
-                return false;
-            }
-
-            if (!data.tourist_issue_date) {
-                toast.error('Tourist License Issue Date is required');
-                return false;
-            }
-
-            if (!data.tourist_expiry_date) {
-                toast.error('Tourist License Expiry Date is required');
+            if (!data.tourist_license_number || !data.tourist_issue_date || !data.tourist_expiry_date) {
+                toast.error('Please complete tourist license details');
                 return false;
             }
         }
@@ -404,15 +398,14 @@ export default function Create({ serviceCategories = [] }) {
 
         const submitData = {
             ...data,
-            current_address: data.same_as_permanent
-                ? data.permanent_address
-                : data.current_address,
+            current_address: data.same_as_permanent ? data.permanent_address : data.current_address,
         };
 
         setData(submitData);
 
         post('/drivers', {
             forceFormData: true,
+            preserveScroll: true,
             onSuccess: () => toast.success('Driver created successfully'),
             onError: () => toast.error('Please check the form errors'),
         });
@@ -430,12 +423,7 @@ export default function Create({ serviceCategories = [] }) {
     const addLanguage = () => {
         setData('driver_languages', [
             ...data.driver_languages,
-            {
-                language_name: '',
-                speaking_level: '',
-                reading_level: '',
-                writing_level: '',
-            },
+            { language_name: '', speaking_level: '', reading_level: '', writing_level: '' },
         ]);
     };
 
@@ -446,10 +434,7 @@ export default function Create({ serviceCategories = [] }) {
     };
 
     const removeLanguage = (index) => {
-        setData(
-            'driver_languages',
-            data.driver_languages.filter((_, i) => i !== index)
-        );
+        setData('driver_languages', data.driver_languages.filter((_, i) => i !== index));
     };
 
     return (
@@ -473,9 +458,7 @@ export default function Create({ serviceCategories = [] }) {
                                 type="button"
                                 onClick={() => setActiveTab(key)}
                                 className={`px-4 py-2 rounded text-sm font-semibold ${
-                                    activeTab === key
-                                        ? 'bg-blue-700 text-white'
-                                        : 'bg-gray-200 text-gray-700'
+                                    activeTab === key ? 'bg-blue-700 text-white' : 'bg-gray-200 text-gray-700'
                                 }`}
                             >
                                 {label}
@@ -520,7 +503,7 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="Email" name="email" type="email" />
                                 <Input {...fieldProps} label="City" name="city" />
 
-                                <DriverPhotoInput data={data} setData={setData} />
+                                <DriverPhotoInput setData={setData} toWebp={toWebp} />
 
                                 <TextArea {...fieldProps} label="Permanent Address" name="permanent_address" />
 
@@ -546,12 +529,7 @@ export default function Create({ serviceCategories = [] }) {
                                 </div>
 
                                 {!data.same_as_permanent && (
-                                    <TextArea
-                                        {...fieldProps}
-                                        label="Current Address"
-                                        name="current_address"
-                                        required
-                                    />
+                                    <TextArea {...fieldProps} label="Current Address" name="current_address" required />
                                 )}
                             </Section>
                         )}
@@ -703,9 +681,9 @@ export default function Create({ serviceCategories = [] }) {
                             <Section title="Tourism & Regulatory Compliance">
                                 <Input {...fieldProps} label="Tourism Registration Number" name="tourism_registration_number" />
                                 <Checkbox {...fieldProps} label="SLTDA Registered Driver" name="sltda_registered_driver" />
-                                <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy_file" setData={setData} />
-                                <FileInput label="Tourism Authority Permit Copy" name="tourism_authority_permit_copy" setData={setData} />
-                                <FileInput label="Airport Access Permit" name="airport_access_permit" setData={setData} />
+                                <FileInput {...fileProps} label="Tourist Driving License Copy" name="tourist_driving_license_copy_file" />
+                                <FileInput {...fileProps} label="Tourism Authority Permit Copy" name="tourism_authority_permit_copy" />
+                                <FileInput {...fileProps} label="Airport Access Permit" name="airport_access_permit" />
                             </Section>
                         )}
 
@@ -739,7 +717,7 @@ export default function Create({ serviceCategories = [] }) {
                                     <option>Personally Owned</option>
                                 </Select>
 
-                                <FileInput label="Ownership Confirmation Letter" name="ownership_confirmation_letter" setData={setData} />
+                                <FileInput {...fileProps} label="Ownership Confirmation Letter" name="ownership_confirmation_letter" required={false} />
                             </Section>
                         )}
 
@@ -756,11 +734,12 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'vehicleDocs' && (
                             <Section title="Vehicle Documents">
-                                <FileInput label="Registration Book" name="registration_book" setData={setData} />
-                                <FileInput label="Insurance Certificate" name="insurance_certificate" setData={setData} />
-                                <FileInput label="Revenue License" name="revenue_license" setData={setData} />
-                                <FileInput label="Emission Test Certificate" name="emission_test_certificate" setData={setData} />
-                                <FileInput label="Driving License Copy" name="vehicle_driving_license_copy" setData={setData} />
+                                <FileInput {...fileProps} label="Registration Book" name="registration_book" />
+                                <FileInput {...fileProps} label="Insurance Certificate" name="insurance_certificate" />
+                                <FileInput {...fileProps} label="Revenue License" name="revenue_license" />
+                                <FileInput {...fileProps} label="Emission Test Certificate" name="emission_test_certificate" />
+                                <FileInput {...fileProps} label="Driving License Copy" name="vehicle_driving_license_copy" />
+
                                 <Input {...fieldProps} label="Insurance Expiry Date" name="insurance_expiry_date" type="date" />
                                 <Input {...fieldProps} label="Revenue License Expiry Date" name="revenue_license_expiry_date" type="date" />
                                 <Input {...fieldProps} label="Emission Test Expiry Date" name="emission_test_expiry_date" type="date" />
@@ -769,14 +748,14 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'vehiclePics' && (
                             <Section title="Vehicle Pictures">
-                                <FileInput label="Front View" name="front_view" setData={setData} />
-                                <FileInput label="Rear View" name="rear_view" setData={setData} />
-                                <FileInput label="Left Side View" name="left_side_view" setData={setData} />
-                                <FileInput label="Right Side View" name="right_side_view" setData={setData} />
-                                <FileInput label="Front Interior View" name="front_interior_view" setData={setData} />
-                                <FileInput label="Passenger Seating Area" name="passenger_seating_area" setData={setData} />
-                                <FileInput label="Dashboard View" name="dashboard_view" setData={setData} />
-                                <FileInput label="Luggage Compartment View" name="luggage_compartment_view" setData={setData} />
+                                <FileInput {...fileProps} label="Front View" name="front_view" />
+                                <FileInput {...fileProps} label="Rear View" name="rear_view" />
+                                <FileInput {...fileProps} label="Left Side View" name="left_side_view" />
+                                <FileInput {...fileProps} label="Right Side View" name="right_side_view" />
+                                <FileInput {...fileProps} label="Front Interior View" name="front_interior_view" />
+                                <FileInput {...fileProps} label="Passenger Seating Area" name="passenger_seating_area" />
+                                <FileInput {...fileProps} label="Dashboard View" name="dashboard_view" />
+                                <FileInput {...fileProps} label="Luggage Compartment View" name="luggage_compartment_view" />
                             </Section>
                         )}
 
@@ -792,15 +771,15 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'driverDocs' && (
                             <Section title="Driver Documents">
-                                <FileInput label="NIC Copy" name="nic_copy" setData={setData} />
-                                <FileInput label="Passport Copy" name="passport_copy" setData={setData} />
-                                <FileInput label="Driving License Copy" name="driving_license_copy" setData={setData} />
-                                <FileInput label="Tourist Driving License Copy" name="tourist_driving_license_copy" setData={setData} />
-                                <FileInput label="No Objection Letter" name="no_objection_letter" setData={setData} />
-                                <FileInput label="Police Clearance Certificate" name="police_clearance_certificate" setData={setData} />
-                                <FileInput label="Medical Fitness Certificate" name="medical_fitness_certificate" setData={setData} />
-                                <FileInput label="Tourism Authority Registration" name="tourism_authority_registration" setData={setData} />
-                                <FileInput label="Airport Permit" name="airport_permit" setData={setData} />
+                                <FileInput {...fileProps} label="NIC Copy" name="nic_copy" />
+                                <FileInput {...fileProps} label="Passport Copy" name="passport_copy" />
+                                <FileInput {...fileProps} label="Driving License Copy" name="driving_license_copy" />
+                                <FileInput {...fileProps} label="Tourist Driving License Copy" name="tourist_driving_license_copy" />
+                                <FileInput {...fileProps} label="No Objection Letter" name="no_objection_letter" />
+                                <FileInput {...fileProps} label="Police Clearance Certificate" name="police_clearance_certificate" />
+                                <FileInput {...fileProps} label="Medical Fitness Certificate" name="medical_fitness_certificate" />
+                                <FileInput {...fileProps} label="Tourism Authority Registration" name="tourism_authority_registration" />
+                                <FileInput {...fileProps} label="Airport Permit" name="airport_permit" />
                             </Section>
                         )}
 
@@ -819,17 +798,8 @@ export default function Create({ serviceCategories = [] }) {
 
                                 <TextArea {...fieldProps} label="Remarks" name="remarks" />
 
-                                <ReadOnlyInput
-                                    label="Approved By"
-                                    value={data.approved_by_name}
-                                />
-
-                                <Input
-                                    {...fieldProps}
-                                    label="Approval Date"
-                                    name="approval_date"
-                                    type="date"
-                                />
+                                <ReadOnlyInput label="Approved By" value={data.approved_by_name} />
+                                <Input {...fieldProps} label="Approval Date" name="approval_date" type="date" />
 
                                 <Select {...fieldProps} label="Driver Status" name="driver_status">
                                     <option>Inactive</option>
@@ -999,29 +969,37 @@ function TextArea({ label, name, data, setData, errors, isRequired, required = f
     );
 }
 
-function FileInput({ label, name, setData, required = true }) {
+function FileInput({ label, name, setData, toWebp, required = true }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
     const [cameraOpen, setCameraOpen] = useState(false);
     const [stream, setStream] = useState(null);
     const [preview, setPreview] = useState(null);
+    const [fileType, setFileType] = useState(null);
 
-    const uploadFile = (e) => {
+    const uploadFile = async (e) => {
         const file = e.target.files[0];
 
-        if (file) {
-            setData(name, file);
-            setPreview(URL.createObjectURL(file));
+        if (!file) return;
+
+        let finalFile = file;
+
+        if (file.type.startsWith('image/') && typeof toWebp === 'function') {
+            finalFile = await toWebp(file, name);
         }
+
+        setData(name, finalFile);
+        setFileType(finalFile.type);
+        setPreview(URL.createObjectURL(finalFile));
+
+        toast.success(`${label} selected`);
     };
 
     const openScanner = async () => {
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                },
+                video: { facingMode: 'environment' },
             });
 
             setStream(mediaStream);
@@ -1032,7 +1010,7 @@ function FileInput({ label, name, setData, required = true }) {
                     videoRef.current.srcObject = mediaStream;
                 }
             }, 100);
-        } catch (error) {
+        } catch {
             toast.error('Camera access denied or not available');
         }
     };
@@ -1054,20 +1032,25 @@ function FileInput({ label, name, setData, required = true }) {
         canvas.height = video.videoHeight;
 
         const context = canvas.getContext('2d');
-
-        // No mirror flip for document scans
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob((blob) => {
-            const file = new File([blob], `${name}-scan.jpg`, {
-                type: 'image/jpeg',
-            });
+        canvas.toBlob(
+            (blob) => {
+                const file = new File([blob], `${name}.webp`, {
+                    type: 'image/webp',
+                });
 
-            setData(name, file);
-            setPreview(URL.createObjectURL(file));
-            closeScanner();
-        }, 'image/jpeg', 0.9);
+                setData(name, file);
+                setFileType(file.type);
+                setPreview(URL.createObjectURL(file));
+                closeScanner();
+
+                toast.success(`${label} scanned`);
+            },
+            'image/webp',
+            0.75
+        );
     };
 
     return (
@@ -1096,15 +1079,19 @@ function FileInput({ label, name, setData, required = true }) {
 
             {preview && (
                 <div className="mt-3">
-                    <p className="text-xs text-gray-500 mb-1">
-                        Selected Preview
-                    </p>
+                    <p className="text-xs text-gray-500 mb-1">Selected File</p>
 
-                    <img
-                        src={preview}
-                        alt={label}
-                        className="w-40 h-28 object-cover rounded border"
-                    />
+                    {fileType === 'application/pdf' ? (
+                        <p className="text-sm font-semibold text-green-700">
+                            PDF selected successfully
+                        </p>
+                    ) : (
+                        <img
+                            src={preview}
+                            alt={label}
+                            className="w-40 h-28 object-cover rounded border"
+                        />
+                    )}
                 </div>
             )}
 
@@ -1112,15 +1099,9 @@ function FileInput({ label, name, setData, required = true }) {
                 <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-5">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">
-                                Scan {label}
-                            </h2>
+                            <h2 className="text-xl font-bold">Scan {label}</h2>
 
-                            <button
-                                type="button"
-                                onClick={closeScanner}
-                                className="text-red-600 font-bold"
-                            >
+                            <button type="button" onClick={closeScanner} className="text-red-600 font-bold">
                                 ✕
                             </button>
                         </div>
@@ -1132,28 +1113,19 @@ function FileInput({ label, name, setData, required = true }) {
                                 playsInline
                                 className="w-full rounded-lg"
                                 style={{ transform: 'scaleX(-1)' }}
-
                             />
 
-                            <div className="absolute inset-8 border-4 border-blue-400 rounded-lg pointer-events-none"></div>
+                            <div className="absolute inset-8 border-4 border-blue-400 rounded-lg pointer-events-none" />
                         </div>
 
                         <canvas ref={canvasRef} className="hidden" />
 
                         <div className="flex justify-end gap-3 mt-4">
-                            <button
-                                type="button"
-                                onClick={closeScanner}
-                                className="bg-gray-500 text-white px-4 py-2 rounded"
-                            >
+                            <button type="button" onClick={closeScanner} className="bg-gray-500 text-white px-4 py-2 rounded">
                                 Cancel
                             </button>
 
-                            <button
-                                type="button"
-                                onClick={scanDocument}
-                                className="bg-green-700 text-white px-4 py-2 rounded"
-                            >
+                            <button type="button" onClick={scanDocument} className="bg-green-700 text-white px-4 py-2 rounded">
                                 Capture Scan
                             </button>
                         </div>
@@ -1219,7 +1191,7 @@ function LanguageSelect({ label, value, onChange }) {
     );
 }
 
-function DriverPhotoInput({ data, setData }) {
+function DriverPhotoInput({ setData, toWebp }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -1228,18 +1200,22 @@ function DriverPhotoInput({ data, setData }) {
     const [stream, setStream] = useState(null);
 
     const openCamera = async () => {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-        });
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+            });
 
-        setStream(mediaStream);
-        setCameraOpen(true);
+            setStream(mediaStream);
+            setCameraOpen(true);
 
-        setTimeout(() => {
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-            }
-        }, 100);
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = mediaStream;
+                }
+            }, 100);
+        } catch {
+            toast.error('Camera access denied or not available');
+        }
     };
 
     const closeCamera = () => {
@@ -1263,24 +1239,34 @@ function DriverPhotoInput({ data, setData }) {
         context.scale(-1, 1);
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        canvas.toBlob((blob) => {
-            const file = new File([blob], 'driver-photo.jpg', {
-                type: 'image/jpeg',
-            });
+        canvas.toBlob(
+            (blob) => {
+                const file = new File([blob], 'driver-photo.webp', {
+                    type: 'image/webp',
+                });
 
-            setData('driver_photo', file);
-            setPreview(URL.createObjectURL(file));
-            closeCamera();
-        }, 'image/jpeg');
+                setData('driver_photo', file);
+                setPreview(URL.createObjectURL(file));
+                closeCamera();
+
+                toast.success('Driver photo captured');
+            },
+            'image/webp',
+            0.75
+        );
     };
 
-    const uploadFile = (e) => {
+    const uploadFile = async (e) => {
         const file = e.target.files[0];
 
-        if (file) {
-            setData('driver_photo', file);
-            setPreview(URL.createObjectURL(file));
-        }
+        if (!file) return;
+
+        const finalFile = await toWebp(file, 'driver-photo');
+
+        setData('driver_photo', finalFile);
+        setPreview(URL.createObjectURL(finalFile));
+
+        toast.success('Driver photo selected');
     };
 
     return (

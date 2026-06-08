@@ -22,6 +22,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 
 class DriverController extends Controller
 {
@@ -310,10 +311,22 @@ class DriverController extends Controller
             return null;
         }
 
-        return $request->file($field)->store(
-            "drivers/{$registrationNumber}/{$folder}",
-            'public'
-        );
+        $file = $request->file($field);
+
+        $driverCode = strtolower($registrationNumber);
+        $docName = $this->cleanDocName($field);
+
+        $path = "drivers/{$registrationNumber}/{$folder}";
+
+        if (str_starts_with($file->getMimeType(), 'image/')) {
+            $fileName = "{$driverCode}-{$docName}.webp";
+            return $this->saveAsWebp($file, $path, $fileName);
+        }
+
+        $extension = $file->getClientOriginalExtension();
+        $fileName = "{$driverCode}-{$docName}.{$extension}";
+
+        return $file->storeAs($path, $fileName, 'public');
     }
 
     public function show(Driver $driver)
@@ -595,19 +608,70 @@ class DriverController extends Controller
             ->with('success', 'Driver updated successfully.');
     }
 
-    private function replaceUpload(Request $request, string $field, ?string $oldPath, string $registrationNumber, string $folder): ?string
-    {
-        if (!$request->hasFile($field)) {
-            return $oldPath;
-        }
+    private function replaceUpload(
+        Request $request,
+        string $field,
+        ?string $oldPath,
+        string $registrationNumber,
+        string $folder
+        ): ?string {
+            if (!$request->hasFile($field)) {
+                return $oldPath;
+            }
 
         if ($oldPath && Storage::disk('public')->exists($oldPath)) {
             Storage::disk('public')->delete($oldPath);
         }
 
-        return $request->file($field)->store(
-            "drivers/{$registrationNumber}/{$folder}",
-            'public'
+        return $this->upload($request, $field, $registrationNumber, $folder);
+    }
+
+    private function cleanDocName(string $field): string
+    {
+        return str_replace(
+            ['_copy_file', '_copy', '_file', '_certificate'],
+            '',
+            str_replace('_', '-', $field)
         );
+    }
+
+    private function saveAsWebp($file, string $path, string $fileName): string
+    {
+        $fullDir = storage_path("app/public/{$path}");
+
+        if (!File::exists($fullDir)) {
+            File::makeDirectory($fullDir, 0755, true);
+        }
+
+        $source = match ($file->getMimeType()) {
+            'image/jpeg', 'image/jpg' => imagecreatefromjpeg($file->getRealPath()),
+            'image/png' => imagecreatefrompng($file->getRealPath()),
+            'image/webp' => imagecreatefromwebp($file->getRealPath()),
+            default => null,
+        };
+
+        if (!$source) {
+            return $file->storeAs($path, $fileName, 'public');
+        }
+
+        $maxWidth = 1200;
+        $width = imagesx($source);
+        $height = imagesy($source);
+
+        if ($width > $maxWidth) {
+            $newWidth = $maxWidth;
+            $newHeight = intval(($height / $width) * $newWidth);
+
+            $resized = imagecreatetruecolor($newWidth, $newHeight);
+            imagecopyresampled($resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+            imagedestroy($source);
+            $source = $resized;
+        }
+
+        imagewebp($source, "{$fullDir}/{$fileName}", 75);
+        imagedestroy($source);
+
+        return "{$path}/{$fileName}";
     }
 }
