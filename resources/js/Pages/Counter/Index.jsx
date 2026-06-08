@@ -11,7 +11,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], vehicles = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
@@ -149,6 +149,19 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
                         <Empty text="No vehicles found." />
                     )}
                 </Section>
+
+                <Section title="Ongoing Trips" icon={<Car className="text-orange-700" size={22} />}>
+                    {ongoingTrips.length ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            {ongoingTrips.map((trip) => (
+                                <TripCard key={trip.id} trip={trip} />
+                            ))}
+                        </div>
+                    ) : (
+                        <Empty text="No ongoing trips found." />
+                    )}
+                </Section>
+
             </div>
 
             {showModal && selectedAgent && (
@@ -528,7 +541,7 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
                 onClose();
 
                 router.reload({
-                    only: ['pendingAgents', 'vehicles'],
+                    only: ['pendingAgents', 'vehicles', 'ongoingTrips'],
                 });
             },
         });
@@ -551,6 +564,43 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
                         onAssign={() => assignTrip(vehicle)}
                     />
                 ))}
+            </div>
+        </div>
+    );
+}
+
+function TripCard({ trip }) {
+    return (
+        <div className="border rounded-lg bg-gray-50 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <h3 className="font-semibold text-sm">{trip.driver?.full_name ?? 'Driver'}</h3>
+                    <p className="text-xs text-gray-500">{trip.driver?.mobile_number ?? '-'}</p>
+                </div>
+                <span className="text-[11px] uppercase tracking-wide text-orange-700 font-bold">{trip.status ?? 'Unknown'}</span>
+            </div>
+
+            <div className="space-y-2 text-sm text-gray-700">
+                <div>
+                    <span className="font-semibold">Customer:</span> {trip.customer?.name ?? '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Agent:</span> {trip.agent?.user?.name ?? trip.agent?.name ?? '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Assigned:</span> {trip.trip_assigned_at ? new Date(trip.trip_assigned_at).toLocaleString() : '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Started:</span> {trip.trip_started_at ? new Date(trip.trip_started_at).toLocaleString() : '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Ended:</span> {trip.trip_ended_at ? new Date(trip.trip_ended_at).toLocaleString() : '-'}
+                </div>
+                {trip.remarks && (
+                    <div>
+                        <span className="font-semibold">Notes:</span> {trip.remarks}
+                    </div>
+                )}
             </div>
         </div>
     );
