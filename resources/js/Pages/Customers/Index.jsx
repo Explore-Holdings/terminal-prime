@@ -1,7 +1,29 @@
 import { Head, Link } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ customers = [] }) {
+    const [search, setSearch] = useState('');
+
+    const filteredCustomers = useMemo(() => {
+        return customers.filter((customer) => {
+            const text = [
+                customer.customer_code,
+                customer.name,
+                customer.email,
+                customer.country,
+                customer.dropoff_location,
+                customer.agent?.user?.name,
+                customer.payment_status,
+                customer.status,
+                customer.invoice_number,
+            ].join(' ').toLowerCase();
+
+            return text.includes(search.toLowerCase());
+        });
+    }, [customers, search]);
+
     const badge = (status) => {
         const colors = {
             New: 'bg-blue-100 text-blue-700',
@@ -14,16 +36,132 @@ export default function Index({ customers = [] }) {
         return colors[status] ?? 'bg-slate-100 text-slate-700';
     };
 
+    const columns = [
+        {
+            name: 'Code',
+            selector: row => row.customer_code ?? '-',
+            sortable: true,
+            width: '130px',
+            cell: row => (
+                <span className="font-semibold">
+                    {row.customer_code ?? '-'}
+                </span>
+            ),
+        },
+        {
+            name: 'Customer',
+            selector: row => row.name ?? '-',
+            sortable: true,
+            wrap: true,
+            cell: row => (
+                <div>
+                    <div className="font-medium">{row.name ?? '-'}</div>
+                    <div className="text-xs text-gray-500">{row.email ?? '-'}</div>
+                </div>
+            ),
+        },
+        {
+            name: 'Country',
+            selector: row => row.country ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Dropoff',
+            selector: row => row.dropoff_location ?? '-',
+            sortable: true,
+            wrap: true,
+        },
+        {
+            name: 'Agent',
+            selector: row => row.agent?.user?.name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Payment',
+            selector: row => row.payment_status ?? 'Unpaid',
+            sortable: true,
+            cell: row => (
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                    row.payment_status === 'Paid'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                }`}>
+                    {row.payment_status ?? 'Unpaid'}
+                </span>
+            ),
+        },
+        {
+            name: 'Status',
+            selector: row => row.status ?? 'New',
+            sortable: true,
+            cell: row => (
+                <span className={`px-2 py-1 rounded text-xs font-bold ${badge(row.status)}`}>
+                    {row.status ?? 'New'}
+                </span>
+            ),
+        },
+        {
+            name: 'Invoice',
+            selector: row => row.invoice_number ?? '-',
+            sortable: true,
+            cell: row => (
+                row.invoice_path ? (
+                    <a
+                        href={`/storage/${row.invoice_path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-blue-700 text-white px-3 py-1 rounded text-xs hover:bg-blue-800"
+                    >
+                        View Invoice
+                    </a>
+                ) : (
+                    <span className="text-gray-400 text-xs">No Invoice</span>
+                )
+            ),
+        },
+        {
+            name: 'Created',
+            selector: row => row.created_at ?? '',
+            sortable: true,
+            cell: row =>
+                row.created_at
+                    ? new Date(row.created_at).toLocaleDateString()
+                    : '-',
+        },
+    ];
+
+    const customStyles = {
+        headCells: {
+            style: {
+                fontWeight: 700,
+                backgroundColor: '#f3f4f6',
+                color: '#111827',
+                fontSize: '13px',
+            },
+        },
+        rows: {
+            style: {
+                minHeight: '58px',
+            },
+        },
+    };
+
     return (
         <AppSidebarLayout title="Customers">
             <Head title="Customers" />
 
             <div className="min-h-screen bg-gray-100 p-0">
-                <div className="bg-white rounded-xl shadow p-6">
-                    <div className="flex justify-between items-center mb-5">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                            Customers
-                        </h1>
+                <div className="bg-white rounded-xl shadow overflow-hidden">
+                    <div className="flex justify-between items-center p-6 border-b">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800">
+                                Customers
+                            </h1>
+
+                            <p className="text-sm text-gray-500 mt-1">
+                                View all customers and invoice details
+                            </p>
+                        </div>
 
                         <Link
                             href="/counter"
@@ -33,82 +171,37 @@ export default function Index({ customers = [] }) {
                         </Link>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full border text-sm">
-                            <thead className="bg-gray-100">
-                                <tr>
-                                    <th className="border px-3 py-2 text-left">Code</th>
-                                    <th className="border px-3 py-2 text-left">Name</th>
-                                    <th className="border px-3 py-2 text-left">Email</th>
-                                    {/* <th className="border px-3 py-2 text-left">WhatsApp</th> */}
-                                    <th className="border px-3 py-2 text-left">Country</th>
-                                    <th className="border px-3 py-2 text-left">Dropoff</th>
-                                    <th className="border px-3 py-2 text-left">Agent</th>
-                                    <th className="border px-3 py-2 text-left">Payment</th>
-                                    <th className="border px-3 py-2 text-left">Status</th>
-                                    <th className="border px-3 py-2 text-left">Created</th>
-                                </tr>
-                            </thead>
+                    <div className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <input
+                            type="text"
+                            placeholder="Search customers..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full md:w-96 border border-gray-300 rounded px-4 py-2"
+                        />
 
-                            <tbody>
-                                {customers.length > 0 ? (
-                                    customers.map((customer) => (
-                                        <tr key={customer.id} className="hover:bg-gray-50">
-                                            <td className="border px-3 py-2 font-semibold">
-                                                {customer.customer_code ?? '-'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.name ?? '-'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.email ?? '-'}
-                                            </td>
-
-                                            {/* <td className="border px-3 py-2">
-                                                {customer.whatsapp_number ?? '-'}
-                                            </td> */}
-
-                                            <td className="border px-3 py-2">
-                                                {customer.country ?? '-'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.dropoff_location ?? '-'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.agent?.user?.name ?? '-'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.payment_status ?? 'Unpaid'}
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                <span className={`px-2 py-1 rounded text-xs font-bold ${badge(customer.status)}`}>
-                                                    {customer.status ?? 'New'}
-                                                </span>
-                                            </td>
-
-                                            <td className="border px-3 py-2">
-                                                {customer.created_at
-                                                    ? new Date(customer.created_at).toLocaleDateString()
-                                                    : '-'}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="10" className="text-center py-8 text-gray-500">
-                                            No customers found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <div className="text-sm text-gray-600">
+                            Total Customers: <strong>{filteredCustomers.length}</strong>
+                        </div>
                     </div>
+
+                    <DataTable
+                        columns={columns}
+                        data={filteredCustomers}
+                        pagination
+                        paginationPerPage={10}
+                        paginationRowsPerPageOptions={[10, 25, 50, 100]}
+                        highlightOnHover
+                        striped
+                        responsive
+                        persistTableHead
+                        customStyles={customStyles}
+                        noDataComponent={
+                            <div className="p-6 text-gray-500">
+                                No customers found.
+                            </div>
+                        }
+                    />
                 </div>
             </div>
         </AppSidebarLayout>
