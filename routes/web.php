@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DriverController;
+use App\Models\Customer;
 use App\Models\Driver;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
@@ -48,6 +49,15 @@ Route::get('/dashboard', function () {
                 'driver_status',
                 'registration_status',
                 'created_at',
+            ]),
+
+        'recentCustomers' => Customer::latest()
+            ->take(5)
+            ->get([
+                'id',
+                'name',
+                'whatsapp_number',
+                'status',
             ]),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
