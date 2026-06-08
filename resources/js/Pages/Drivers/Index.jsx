@@ -107,10 +107,10 @@ export default function Index({ drivers = [] }) {
 
     return (
         <AppSidebarLayout title="Drivers">
-            <div className="min-h-screen bg-gray-100 p-8">
+            <div className="min-h-screen bg-gray-100 p-0">
                 <div className="max-w-7xl mx-auto bg-white p-6 rounded shadow">
 
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">
                             Drivers

@@ -11,7 +11,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], vehicles = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
@@ -53,6 +53,7 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
             country: '',
             dropoff_location: agent.dropoff_location ?? '',
             passenger_count: agent.passenger_count ?? 1,
+            luggage_count: agent.luggage_count ?? 0,
             language_preference: '',
             status: 'New',
             remarks: agent.remarks ?? '',
@@ -148,6 +149,30 @@ export default function Index({ pendingAgents = [], vehicles = [] }) {
                         <Empty text="No vehicles found." />
                     )}
                 </Section>
+
+           <Section
+                title="Ongoing Trips"
+                icon={<Car className="text-orange-700" size={22} />}
+                actions={
+                    <Link
+                        href="/trips"
+                        className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                    >
+                        View Trips
+                    </Link>
+                }
+            >
+                {ongoingTrips.length ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {ongoingTrips.map((trip) => (
+                            <TripCard key={trip.id} trip={trip} />
+                        ))}
+                    </div>
+                ) : (
+                    <Empty text="No ongoing trips found." />
+                )}
+            </Section>
+
             </div>
 
             {showModal && selectedAgent && (
@@ -313,6 +338,7 @@ function CustomerTab({ agent, form, onSubmit }) {
                 <Field label="WhatsApp" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
                 <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
                 <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                 <div>
@@ -526,7 +552,7 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
                 onClose();
 
                 router.reload({
-                    only: ['pendingAgents', 'vehicles'],
+                    only: ['pendingAgents', 'vehicles', 'ongoingTrips'],
                 });
             },
         });
@@ -549,6 +575,43 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
                         onAssign={() => assignTrip(vehicle)}
                     />
                 ))}
+            </div>
+        </div>
+    );
+}
+
+function TripCard({ trip }) {
+    return (
+        <div className="border rounded-lg bg-gray-50 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                    <h3 className="font-semibold text-sm">{trip.driver?.full_name ?? 'Driver'}</h3>
+                    <p className="text-xs text-gray-500">{trip.driver?.mobile_number ?? '-'}</p>
+                </div>
+                <span className="text-[11px] uppercase tracking-wide text-orange-700 font-bold">{trip.status ?? 'Unknown'}</span>
+            </div>
+
+            <div className="space-y-2 text-sm text-gray-700">
+                <div>
+                    <span className="font-semibold">Customer:</span> {trip.customer?.name ?? '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Agent:</span> {trip.agent?.user?.name ?? trip.agent?.name ?? '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Assigned:</span> {trip.trip_assigned_at ? new Date(trip.trip_assigned_at).toLocaleString() : '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Started:</span> {trip.trip_started_at ? new Date(trip.trip_started_at).toLocaleString() : '-'}
+                </div>
+                <div>
+                    <span className="font-semibold">Ended:</span> {trip.trip_ended_at ? new Date(trip.trip_ended_at).toLocaleString() : '-'}
+                </div>
+                {trip.remarks && (
+                    <div>
+                        <span className="font-semibold">Notes:</span> {trip.remarks}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -609,12 +672,16 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
     );
 }
 
-function Section({ title, icon, children }) {
+function Section({ title, icon, children, actions }) {
     return (
         <section className="bg-white rounded-xl shadow p-5 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-                {icon}
-                <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+            <div className="flex items-center gap-2 mb-4 justify-between">
+                <div className="flex items-center gap-2">
+                    {icon}
+                    <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+                </div>
+
+                {actions && <div>{actions}</div>}
             </div>
             {children}
         </section>

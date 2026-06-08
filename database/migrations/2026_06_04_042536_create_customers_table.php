@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('mobile_number')->nullable();
             $table->string('whatsapp_number')->nullable();
             $table->string('country')->nullable();
+            $table->string('dropoff_location')->nullable();
             $table->string('passport_image')->nullable();
             $table->enum('status', ['New','Contacted','Quoted','Confirmed','Cancelled'])->default('New');
             $table->text('remarks')->nullable();
