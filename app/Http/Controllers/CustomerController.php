@@ -12,9 +12,20 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Trip;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
+
+    public function index()
+    {
+        return Inertia::render('Customers/Index', [
+            'customers' => Customer::with(['agent.user'])
+                ->latest()
+                ->get(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
