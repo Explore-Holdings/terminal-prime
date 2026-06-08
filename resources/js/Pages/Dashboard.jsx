@@ -102,7 +102,7 @@ function DashboardCard({ title, value, subtitle, href, buttonText, color, bg, ic
                         </p>
                     </div>
 
-                    <span className="bg-slate-900 text-white px-3 py-1 rounded-md text-xs font-medium group-hover:bg-blue-600 transition whitespace-nowrap">
+                    <span className="bg-slate-900 text-white px-3 py-1 text-xs font-medium group-hover:bg-blue-600 transition whitespace-nowrap">
                         {buttonText}
                     </span>
                 </div>
@@ -126,7 +126,7 @@ function RecentCard({ title, href, headers, rows, emptyText }) {
 
                 <Link
                     href={href}
-                    className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-600 hover:text-white text-xs font-semibold transition"
+                    className="bg-blue-50 text-blue-700 px-3 py-1.5 hover:bg-blue-600 hover:text-white text-xs font-semibold transition"
                 >
                     View All
                 </Link>
