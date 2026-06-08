@@ -150,7 +150,18 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title="Ongoing Trips" icon={<Car className="text-orange-700" size={22} />}>
+                <Section
+                    title="Ongoing Trips"
+                    icon={<Car className="text-orange-700" size={22} />}
+                    actions={
+                        <button
+                            type="button"
+                            className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            View Trips
+                        </button>
+                    }
+                >
                     {ongoingTrips.length ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                             {ongoingTrips.map((trip) => (
@@ -661,12 +672,16 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
     );
 }
 
-function Section({ title, icon, children }) {
+function Section({ title, icon, children, actions }) {
     return (
         <section className="bg-white rounded-xl shadow p-5 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-                {icon}
-                <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+            <div className="flex items-center gap-2 mb-4 justify-between">
+                <div className="flex items-center gap-2">
+                    {icon}
+                    <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+                </div>
+
+                {actions && <div>{actions}</div>}
             </div>
             {children}
         </section>
