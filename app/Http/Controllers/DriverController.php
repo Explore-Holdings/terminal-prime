@@ -345,6 +345,7 @@ class DriverController extends Controller
             'bankDetail',
             'documents',
             'adminVerification',
+            'adminVerification.approvedByUser',
         ]);
 
         return Inertia::render('Drivers/Show', [

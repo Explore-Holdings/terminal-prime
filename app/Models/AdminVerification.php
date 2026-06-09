@@ -27,4 +27,9 @@ class AdminVerification extends Model
     {
         return $this->belongsTo(Driver::class);
     }
+
+        public function approvedByUser()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
 }

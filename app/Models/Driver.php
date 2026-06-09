@@ -114,4 +114,6 @@ class Driver extends Model
         return $this->hasMany(Incentive::class);
     }
 
+
+
 }
