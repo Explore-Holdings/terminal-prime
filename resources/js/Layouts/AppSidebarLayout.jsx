@@ -50,11 +50,15 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                         </Link>
 
                         <Link href="/trips" className={menuClass('/trips')}>
-                            Ongoing Trips
+                            Trips
                         </Link>
 
                         <Link href="/drivers" className={menuClass('/drivers')}>
                             Drivers
+                        </Link>
+
+                        <Link href="/finance" className={menuClass('/finance')}>
+                            Finance
                         </Link>
 
                         <Link href="/users" className={menuClass('/users')}>

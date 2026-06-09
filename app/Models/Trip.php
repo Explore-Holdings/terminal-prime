@@ -37,4 +37,9 @@ class Trip extends Model
     {
         return $this->belongsTo(Agent::class);
     }
+
+    public function finance()
+    {
+        return $this->hasOne(Finance::class);
+    }
 }
