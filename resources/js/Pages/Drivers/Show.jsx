@@ -306,7 +306,13 @@ export default function Show({ driver }) {
                     <Info label="Tourism Registration Verified" value={yesNo(driver.admin_verification.tourism_registration_verified)} />
                     <Info label="Driver Approved" value={yesNo(driver.admin_verification.driver_approved)} />
                     <Info label="Remarks" value={driver.admin_verification.remarks} wide />
-                    <Info label="Approved By" value={driver.admin_verification.approved_by} />
+                    <Info
+    label="Approved By"
+    value={
+        driver.admin_verification?.approved_by_name ??
+        driver.admin_verification?.approved_by_user?.name
+    }
+/>
                     <Info label="Approval Date" value={driver.admin_verification.approval_date} />
                 </Card>
             )}

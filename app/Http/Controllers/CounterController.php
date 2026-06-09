@@ -23,13 +23,13 @@ class CounterController extends Controller
                 ->get(),
 
             'vehicles' => Vehicle::with(['driver.languages', 'pictures'])
-                ->whereHas('driver', fn ($q) =>
-                    $q->where('status', 'On Duty')
-                      ->whereDoesntHave('trips', fn ($t) =>
-                          $t->where('status', '!=', 'Completed')
-                      )
+                ->select('vehicles.*')
+                ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
+                ->where('drivers.duty_status', 'on_duty')
+                ->whereDoesntHave('driver.trips', fn ($t) =>
+                    $t->where('status', '!=', 'Completed')
                 )
-                ->latest()
+                ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
 
             'createdCustomerId' => session()->pull('created_customer_id'),

@@ -12,18 +12,17 @@ return new class extends Migration
     public function up(): void
     {
        Schema::create('vehicle_features', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
+            $table->id();
+            $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
+            $table->boolean('air_conditioned')->default(false);
+            $table->boolean('wifi_available')->default(false);
+            $table->boolean('gps_enabled')->default(false);
+            $table->boolean('child_seat_available')->default(false);
+            $table->boolean('wheelchair_accessible')->default(false);
+            $table->boolean('pet_friendly')->default(false);
 
-    $table->boolean('air_conditioned')->default(false);
-    $table->boolean('wifi_available')->default(false);
-    $table->boolean('gps_enabled')->default(false);
-    $table->boolean('child_seat_available')->default(false);
-    $table->boolean('wheelchair_accessible')->default(false);
-    $table->boolean('pet_friendly')->default(false);
-
-    $table->timestamps();
-});
+            $table->timestamps();
+        });
     }
 
     /**
