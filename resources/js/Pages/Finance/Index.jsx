@@ -1,84 +1,198 @@
 import { Head, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ trips = [] }) {
     const [selectedTrip, setSelectedTrip] = useState(null);
+    const [search, setSearch] = useState('');
+
+    const filteredTrips = useMemo(() => {
+        return trips.filter((trip) => {
+            const text = [
+                trip.id,
+                trip.customer?.name,
+                trip.customer?.customer_code,
+                trip.agent?.user?.name,
+                trip.driver?.full_name,
+                trip.finance?.status ?? 'Pending',
+            ].join(' ').toLowerCase();
+
+            return text.includes(search.toLowerCase());
+        });
+    }, [trips, search]);
+
+    const money = (value) => Number(value ?? 0).toLocaleString();
+
+    const currencyOf = (trip) =>
+        trip.customer?.agent?.new_currency ??
+        trip.customer?.agent?.currency ??
+        'LKR';
+
+    const tripAmount = (trip) => Number(trip.customer?.paid_amount ?? 0);
+
+    const columns = [
+        {
+            name: 'Trip',
+            selector: row => row.id,
+            sortable: true,
+            width: '90px',
+            cell: row => <strong>#{row.id}</strong>,
+        },
+        {
+            name: 'Customer',
+            selector: row => row.customer?.name ?? '-',
+            sortable: true,
+            wrap: true,
+            cell: row => (
+                <div>
+                    <div className="font-semibold">{row.customer?.name ?? '-'}</div>
+                    <div className="text-xs text-gray-500">{row.customer?.customer_code ?? '-'}</div>
+                </div>
+            ),
+        },
+        {
+            name: 'Agent',
+            selector: row => row.agent?.user?.name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Driver',
+            selector: row => row.driver?.full_name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Trip Amount',
+            selector: row => tripAmount(row),
+            sortable: true,
+            right: true,
+            cell: row => (
+                <strong>
+                    {currencyOf(row)} {money(tripAmount(row))}
+                </strong>
+            ),
+        },
+        {
+            name: 'Driver',
+            selector: row => Number(row.finance?.driver_amount ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => `${currencyOf(row)} ${money(row.finance?.driver_amount)}`,
+        },
+        {
+            name: 'Agent',
+            selector: row => Number(row.finance?.agent_amount ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => `${currencyOf(row)} ${money(row.finance?.agent_amount)}`,
+        },
+        {
+            name: 'Company',
+            selector: row => Number(row.finance?.company_amount ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => `${currencyOf(row)} ${money(row.finance?.company_amount)}`,
+        },
+        {
+            name: 'Status',
+            selector: row => row.finance?.status ?? 'Pending',
+            sortable: true,
+            cell: row => {
+                const settled = row.finance?.status === 'Settled';
+
+                return (
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        settled
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                        {settled ? 'Settled' : 'Pending'}
+                    </span>
+                );
+            },
+        },
+        {
+            name: 'Action',
+            width: '120px',
+            cell: row => {
+                const settled = row.finance?.status === 'Settled';
+
+                return (
+                    <button
+                        type="button"
+                        onClick={() => setSelectedTrip(row)}
+                        className={`px-3 py-1 rounded text-xs font-bold text-white ${
+                            settled
+                                ? 'bg-slate-700 hover:bg-slate-800'
+                                : 'bg-blue-700 hover:bg-blue-800'
+                        }`}
+                    >
+                        {settled ? 'Edit' : 'Settle'}
+                    </button>
+                );
+            },
+        },
+    ];
+
+    const customStyles = {
+        headCells: {
+            style: {
+                fontWeight: 700,
+                backgroundColor: '#f3f4f6',
+                color: '#111827',
+                fontSize: '13px',
+            },
+        },
+        rows: {
+            style: {
+                minHeight: '58px',
+            },
+        },
+    };
 
     return (
         <AppSidebarLayout title="Finance">
             <Head title="Finance" />
 
-            <div className="bg-white rounded-xl shadow p-6">
-                <h1 className="text-2xl font-bold mb-5">Finance Settlements</h1>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full border text-sm">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="border p-2">Trip</th>
-                                <th className="border p-2">Customer</th>
-                                <th className="border p-2">Agent</th>
-                                <th className="border p-2">Driver</th>
-                                <th className="border p-2">Trip Amount</th>
-                                <th className="border p-2">Driver Share</th>
-                                <th className="border p-2">Agent Share</th>
-                                <th className="border p-2">Company Share</th>
-                                <th className="border p-2">Status</th>
-                                <th className="border p-2">Action</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {trips.map((trip) => {
-                                const amount = trip.customer?.paid_amount ?? 0;
-                                const currency =
-                                    trip.customer?.agent?.new_currency ??
-                                    trip.customer?.agent?.currency ??
-                                    'LKR';
-
-                                return (
-                                    <tr key={trip.id}>
-                                        <td className="border p-2">#{trip.id}</td>
-                                        <td className="border p-2">{trip.customer?.name ?? '-'}</td>
-                                        <td className="border p-2">{trip.agent?.user?.name ?? '-'}</td>
-                                        <td className="border p-2">{trip.driver?.full_name ?? '-'}</td>
-
-                                        <td className="border p-2 font-bold">
-                                            {currency} {Number(amount).toLocaleString()}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {currency} {Number(trip.finance?.driver_amount ?? 0).toLocaleString()}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {currency} {Number(trip.finance?.agent_amount ?? 0).toLocaleString()}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {currency} {Number(trip.finance?.company_amount ?? 0).toLocaleString()}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            {trip.finance?.status ?? 'Pending'}
-                                        </td>
-
-                                        <td className="border p-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedTrip(trip)}
-                                                className="bg-blue-700 text-white px-3 py-1 rounded"
-                                            >
-                                                Settle
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+            <div className="bg-white rounded-xl shadow overflow-hidden">
+                <div className="p-6 border-b">
+                    <h1 className="text-2xl font-bold">Finance Settlements</h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Split each trip amount between driver, agent, company and expenses.
+                    </p>
                 </div>
+
+                <div className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <input
+                        type="text"
+                        placeholder="Search finance records..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full md:w-96 border border-gray-300 rounded px-4 py-2"
+                    />
+
+                    <div className="text-sm text-gray-600">
+                        Records: <strong>{filteredTrips.length}</strong>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={filteredTrips}
+                    pagination
+                    paginationPerPage={10}
+                    paginationRowsPerPageOptions={[10, 25, 50, 100]}
+                    highlightOnHover
+                    striped
+                    responsive
+                    persistTableHead
+                    customStyles={customStyles}
+                    noDataComponent={
+                        <div className="p-6 text-gray-500">
+                            No finance records found.
+                        </div>
+                    }
+                />
             </div>
 
             {selectedTrip && (
@@ -112,10 +226,12 @@ function SettlementModal({ trip, onClose }) {
         Number(form.data.company_amount || 0) +
         Number(form.data.expense_amount || 0);
 
+    const balance = amount - totalShared;
+
     const submit = (e) => {
         e.preventDefault();
 
-        if (totalShared !== amount) {
+        if (Number(totalShared.toFixed(2)) !== Number(amount.toFixed(2))) {
             alert('Driver + Agent + Company + Expenses must equal trip amount.');
             return;
         }
@@ -128,46 +244,65 @@ function SettlementModal({ trip, onClose }) {
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-                <div className="flex justify-between border-b p-5">
-                    <h2 className="text-xl font-bold">Settle Trip #{trip.id}</h2>
-
-                    <button onClick={onClose} className="text-red-600 font-bold">
-                        Close
-                    </button>
-                </div>
-
-                <form onSubmit={submit} className="p-5 space-y-4">
-                    <div className="bg-gray-100 rounded p-3">
-                        <p><strong>Customer:</strong> {trip.customer?.name}</p>
-                        <p><strong>Agent:</strong> {trip.agent?.user?.name}</p>
-                        <p><strong>Driver:</strong> {trip.driver?.full_name}</p>
-                        <p>
-                            <strong>Trip Amount:</strong> {currency} {amount.toLocaleString()}
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                <div className="flex justify-between items-center border-b px-4 py-3">
+                    <div>
+                        <h2 className="text-lg font-bold">
+                            {trip.finance?.status === 'Settled' ? 'Edit Settlement' : 'Settle Trip'} #{trip.id}
+                        </h2>
+                        <p className="text-xs text-gray-500">
+                            {trip.customer?.name ?? '-'} · Driver : {trip.driver?.full_name ?? '-'}
                         </p>
                     </div>
 
-                    <Input label="Driver Share" value={form.data.driver_amount} onChange={(e) => form.setData('driver_amount', e.target.value)} />
-                    <Input label="Agent Share" value={form.data.agent_amount} onChange={(e) => form.setData('agent_amount', e.target.value)} />
-                    <Input label="Company Share" value={form.data.company_amount} onChange={(e) => form.setData('company_amount', e.target.value)} />
-                    <Input label="Extra Expenses" value={form.data.expense_amount} onChange={(e) => form.setData('expense_amount', e.target.value)} />
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-red-600 font-bold"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <form onSubmit={submit} className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 rounded p-3">
+                        <div>
+                            <p className="text-gray-500 text-xs">Agent</p>
+                            <p className="font-semibold truncate">{trip.agent?.user?.name ?? '-'}</p>
+                        </div>
+
+                        <div>
+                            <p className="text-gray-500 text-xs">Trip Amount</p>
+                            <p className="font-bold">
+                                {currency} {amount.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <Input label="Driver" value={form.data.driver_amount} onChange={(e) => form.setData('driver_amount', e.target.value)} />
+                        <Input label="Agent" value={form.data.agent_amount} onChange={(e) => form.setData('agent_amount', e.target.value)} />
+                        <Input label="Company" value={form.data.company_amount} onChange={(e) => form.setData('company_amount', e.target.value)} />
+                        <Input label="Expenses" value={form.data.expense_amount} onChange={(e) => form.setData('expense_amount', e.target.value)} />
+                    </div>
 
                     <div>
                         <label className="label">Remarks</label>
                         <textarea
                             className="input"
-                            rows="3"
+                            rows="2"
                             value={form.data.remarks}
                             onChange={(e) => form.setData('remarks', e.target.value)}
                         />
                     </div>
 
-                    <div className={`p-3 rounded font-bold ${
-                        totalShared === amount
+                    <div className={`p-2 rounded text-sm font-bold flex justify-between ${
+                        balance === 0
                             ? 'bg-green-100 text-green-700'
                             : 'bg-red-100 text-red-700'
                     }`}>
-                        Total Shared: {currency} {totalShared.toLocaleString()}
+                        <span>Total: {currency} {totalShared.toLocaleString()}</span>
+                        <span>Balance: {currency} {balance.toLocaleString()}</span>
                     </div>
 
                     <button
@@ -185,12 +320,14 @@ function SettlementModal({ trip, onClose }) {
 function Input({ label, value, onChange }) {
     return (
         <div>
-            <label className="label">{label}</label>
+            <label className="label text-xs">{label}</label>
             <input
                 type="number"
+                min="0"
+                step="0.01"
                 value={value}
                 onChange={onChange}
-                className="input"
+                className="input text-sm"
             />
         </div>
     );
