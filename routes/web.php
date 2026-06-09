@@ -100,10 +100,8 @@ Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'as
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
-Route::get('/finance', [FinanceController::class, 'index'])
-    ->name('finance.index');
-
-Route::post('/finance/{trip}', [FinanceController::class, 'store'])
-    ->name('finance.store');
+Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
+Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
+Route::post('/finance/incentives/store', [FinanceController::class, 'storeIncentive'])->name('finance.incentives.store');
 
 require __DIR__.'/auth.php';
