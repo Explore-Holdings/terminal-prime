@@ -316,8 +316,6 @@ function IncentivesTab({ drivers, agents, incentives }) {
                             }
                         >
                             <option value="LKR">LKR</option>
-                            <option value="USD">USD</option>
-                            <option value="EUR">EUR</option>
                         </select>
                     </div>
 

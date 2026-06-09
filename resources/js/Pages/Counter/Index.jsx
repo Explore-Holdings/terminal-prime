@@ -141,8 +141,12 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section title="Vehicles Checked In" icon={<CarFront className="text-green-700" size={22} />}>
                     {vehicles.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
-                            {vehicles.map((vehicle) => (
-                                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                            {vehicles.map((vehicle, index) => (
+                                <VehicleCard
+                                    key={vehicle.id}
+                                    vehicle={vehicle}
+                                    number={index + 1}
+                                />
                             ))}
                         </div>
                     ) : (
@@ -596,7 +600,7 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
                 <span className="text-sm text-gray-500">{vehicles.length} Vehicle(s)</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[600px] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[600px] overflow-y-auto">
                 {vehicles.map((vehicle, i) => (
                     <VehicleSelectCard
                         key={vehicle.id}
@@ -721,57 +725,102 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleCard({ vehicle }) {
-    const languages = vehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-';
+function VehicleCard({ vehicle, number }) {
+    const languages =
+        vehicle.driver?.languages
+            ?.map((l) => l.language_name)
+            .join(', ') || '-';
 
     return (
-        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3">
-            <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-32 h-24" />
+        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
+
+            <div className="absolute top-2 left-2 bg-blue-700 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+                {number}
+            </div>
+
+            <ImageBox
+                path={vehicle.pictures?.front_view ?? vehicle.front_view}
+                className="w-32 h-24"
+            />
+
             <div>
-                <h3 className="font-semibold text-sm">{vehicle.driver?.full_name ?? 'Driver'} : {vehicle.driver?.mobile_number ?? '-'}</h3>
-                <p className="text-sm font-medium text-red-800">{vehicle.registration_number ?? '-'}</p>
-                <p className="text-xs text-gray-600">{vehicle.vehicle_type ?? '-'} : {vehicle.brand ?? '-'} {vehicle.model ?? ''}</p>
-                <p className="text-xs font-bold">🌐 {languages}</p>
+                <h3 className="font-semibold text-sm">
+                    {vehicle.driver?.full_name ?? 'Driver'}
+                </h3>
+
+                <p className="text-sm font-medium text-black-800">
+                    {vehicle.driver?.mobile_number ?? '-'}
+                </p>
+
+                <p className="text-sm font-medium text-red-800">
+                    {vehicle.registration_number ?? '-'}
+                </p>
+
+                <p className="text-xs text-gray-600">
+                    {vehicle.vehicle_type ?? '-'} :{' '}
+                    {vehicle.brand ?? '-'} {vehicle.model ?? ''}
+                </p>
+
+                <p className="text-xs font-bold">
+                    🌐 {languages}
+                </p>
             </div>
         </div>
     );
 }
 
 function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
-    const languages = vehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-';
+    const languages =
+        vehicle.driver?.languages
+            ?.map((l) => l.language_name)
+            .join(', ') || '-';
 
     return (
-        <div className="relative border rounded-lg bg-gray-50 p-3 text-center">
-            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] flex items-center justify-center">
+        <div className="relative border rounded-lg bg-gray-50 p-2 shadow-sm">
+
+            <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-blue-700 text-white text-[10px] flex items-center justify-center font-bold">
                 {index + 1}
             </div>
 
-            <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-20 h-20 mx-auto" />
+            <div className="flex gap-2">
+                <ImageBox
+                    path={vehicle.pictures?.front_view ?? vehicle.front_view}
+                    className="w-16 h-16 flex-shrink-0 rounded"
+                />
 
-            <h3 className="mt-2 font-semibold text-xs truncate">
-                {vehicle.driver?.full_name ?? 'Driver'}
-            </h3>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-xs truncate">
+                        {vehicle.driver?.full_name ?? 'Driver'}
+                    </h3>
 
-            <p className="text-[10px] text-gray-500">
-                {vehicle.driver?.mobile_number ?? '-'}
-            </p>
+                    <p className="text-[10px] text-gray-500 truncate">
+                        {vehicle.driver?.mobile_number ?? '-'}
+                    </p>
 
-            <p className="text-xs font-bold text-red-700">
-                {vehicle.registration_number ?? '-'}
-            </p>
+                    <p className="text-[11px] font-bold text-red-700 truncate">
+                        {vehicle.registration_number ?? '-'}
+                    </p>
 
-            <p className="text-[11px] font-bold text-red-900 truncate">
-                🌐 {languages}
-            </p>
+                    <p className="text-[10px] text-gray-600 truncate">
+                        {vehicle.brand ?? '-'} {vehicle.model ?? ''}
+                    </p>
 
-            <button
-                type="button"
-                disabled={assigning}
-                onClick={onAssign}
-                className="mt-2 px-3 py-1 bg-blue-700 text-white rounded text-[10px] disabled:opacity-50"
-            >
-                {assigning ? 'Assigning...' : 'Assign'}
-            </button>
+                    <p className="text-[10px] text-blue-700 truncate">
+                        🌐 {languages}
+                    </p>
+                </div>
+            </div>
+
+           <div className="mt-2 flex justify-end">
+                <button
+                    type="button"
+                    disabled={assigning}
+                    onClick={onAssign}
+                    className="px-3 py-1 bg-blue-700 text-white rounded text-[11px] font-medium hover:bg-blue-800 disabled:opacity-50"
+                >
+                    {assigning ? 'Assigning...' : 'Assign'}
+                </button>
+            </div>
         </div>
     );
 }

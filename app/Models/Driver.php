@@ -32,7 +32,9 @@ class Driver extends Model
         'accident_history',
         'traffic_violation_history',
         'driver_status',
-        'status',
+        'duty_status',
+        'checked_in_at',
+        'checked_out_at',
     ];
 
     public function emergencyContact()
@@ -111,5 +113,7 @@ class Driver extends Model
     {
         return $this->hasMany(Incentive::class);
     }
+
+
 
 }

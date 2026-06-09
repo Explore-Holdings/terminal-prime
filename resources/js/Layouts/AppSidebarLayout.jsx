@@ -28,7 +28,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
             <div className="min-h-screen bg-gray-100 flex">
 
                 {/* Fixed Sidebar */}
-                <aside className={`fixed left-0 top-0 w-64 bg-slate-900 text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <aside className={`fixed left-0 top-0 w-50 bg-slate-900 text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
                     <div className="p-6 border-b border-slate-700">
                         <h2 className="text-2xl font-bold">
@@ -72,13 +72,6 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                             {user?.name ?? 'User'}
                         </div>
 
-                        {/* <Link
-                            href="/profile"
-                            className="block px-4 py-3 rounded hover:bg-slate-700 text-gray-200"
-                        >
-                            View Profile
-                        </Link> */}
-
                         <Link
                             href={route('logout')}
                             method="post"
@@ -91,7 +84,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                 </aside>
 
                 {/* Content */}
-                <main className={`flex-1 p-6 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
+                <main className={`flex-1 p-4 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
                     <div className="mb-6">
                         <button
                             type="button"

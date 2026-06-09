@@ -1,4 +1,4 @@
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
@@ -18,6 +18,8 @@ export default function Edit({ driver, serviceCategories = [] }) {
     const bank = driver.bank_detail ?? {};
     const admin = driver.admin_verification ?? {};
     const driverDocs = driver.documents ?? {};
+    const { props } = usePage();
+    const loggedUser = props.auth?.user;
 
     const { data, setData, post, processing, errors } = useForm({
         _method: 'PUT',
@@ -163,7 +165,9 @@ export default function Edit({ driver, serviceCategories = [] }) {
         tourism_registration_verified: !!admin.tourism_registration_verified,
         driver_approved: !!admin.driver_approved,
         remarks: admin.remarks ?? '',
-        approved_by: admin.approved_by ?? '',
+        approved_by: loggedUser?.id ?? '',
+        approved_by_name: loggedUser?.name ?? '',
+        
         approval_date: admin.approval_date ?? '',
         driver_status: driver.driver_status ?? 'Inactive',
     });
@@ -547,7 +551,7 @@ export default function Edit({ driver, serviceCategories = [] }) {
                                 <Checkbox label="Driver Approved" name="driver_approved" data={data} setData={setData} />
 
                                 <TextArea label="Remarks" name="remarks" data={data} setData={setData} errors={errors} />
-                                <Input label="Approved By" name="approved_by" type="number" data={data} setData={setData} errors={errors} />
+                                <Input label="Approved By" name="approved_by_name" type="text" data={data} setData={setData} errors={errors} />
                                 <Input label="Approval Date" name="approval_date" type="date" data={data} setData={setData} errors={errors} />
 
                                 <Select label="Driver Status" name="driver_status" data={data} setData={setData} errors={errors}>
