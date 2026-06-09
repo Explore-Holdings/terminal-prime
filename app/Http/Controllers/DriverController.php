@@ -293,7 +293,7 @@ class DriverController extends Controller
             ]);
 
             $user = User::create([
-                'role_id' => 1,
+                'role_id' => 4,
                 'name' => $driver->full_name,
                 'driver_id' => $driver->id,
                 'email' => $driver->email,

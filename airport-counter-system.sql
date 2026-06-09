@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3307
--- Generation Time: Jun 07, 2026 at 12:52 PM
+-- Generation Time: Jun 09, 2026 at 08:58 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -60,6 +60,8 @@ CREATE TABLE `agents` (
   `name` varchar(255) DEFAULT NULL,
   `dropoff_location` varchar(255) DEFAULT NULL,
   `passenger_count` int(11) DEFAULT NULL,
+  `luggage_count` int(11) DEFAULT NULL,
+  `distance_km` decimal(10,2) DEFAULT NULL,
   `currency` varchar(255) DEFAULT NULL,
   `price` decimal(12,2) NOT NULL DEFAULT 0.00,
   `remarks` text DEFAULT NULL,
@@ -129,6 +131,7 @@ CREATE TABLE `customers` (
   `mobile_number` varchar(255) DEFAULT NULL,
   `whatsapp_number` varchar(255) DEFAULT NULL,
   `country` varchar(255) DEFAULT NULL,
+  `dropoff_location` varchar(255) DEFAULT NULL,
   `passport_image` varchar(255) DEFAULT NULL,
   `status` enum('New','Contacted','Quoted','Confirmed','Cancelled') NOT NULL DEFAULT 'New',
   `remarks` text DEFAULT NULL,
@@ -325,6 +328,50 @@ CREATE TABLE `failed_jobs` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `finances`
+--
+
+CREATE TABLE `finances` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `trip_id` bigint(20) UNSIGNED NOT NULL,
+  `customer_id` bigint(20) UNSIGNED NOT NULL,
+  `agent_id` bigint(20) UNSIGNED NOT NULL,
+  `driver_id` bigint(20) UNSIGNED NOT NULL,
+  `currency` varchar(255) NOT NULL DEFAULT 'LKR',
+  `trip_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `driver_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `agent_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `company_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `expense_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `status` varchar(255) NOT NULL DEFAULT 'Pending',
+  `remarks` text DEFAULT NULL,
+  `created_by` bigint(20) UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `incentives`
+--
+
+CREATE TABLE `incentives` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `driver_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `agent_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `person_type` enum('Driver','Agent') NOT NULL,
+  `amount` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `currency` varchar(255) NOT NULL DEFAULT 'LKR',
+  `remarks` text DEFAULT NULL,
+  `created_by` bigint(20) UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `jobs`
 --
 
@@ -374,36 +421,38 @@ CREATE TABLE `migrations` (
 --
 
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
-(23, '0001_01_01_000000_create_drivers_table', 1),
-(24, '0001_01_01_000000_create_roles_table', 1),
-(25, '0001_01_01_000000_create_users_table', 1),
-(26, '0001_01_01_000001_create_cache_table', 1),
-(27, '0001_01_01_000002_create_jobs_table', 1),
-(28, '2026_06_01_054520_create_emergency_contacts_table', 1),
-(29, '2026_06_01_054525_create_driving_licenses_table', 1),
-(30, '2026_06_01_054531_create_vehicles_table', 1),
-(31, '2026_06_01_054537_create_vehicle_features_table', 1),
-(32, '2026_06_01_054542_create_vehicle_documents_table', 1),
-(33, '2026_06_01_054547_create_vehicle_pictures_table', 1),
-(34, '2026_06_01_054552_create_bank_details_table', 1),
-(35, '2026_06_01_054558_create_driver_documents_table', 1),
-(36, '2026_06_01_054606_create_admin_verifications_table', 1),
-(37, '2026_06_01_082734_create_driver_languages_table', 1),
-(38, '2026_06_01_083627_create_service_categories_table', 1),
-(39, '2026_06_01_083720_create_driver_service_categories_table', 1),
-(40, '2026_06_01_084459_create_driver_availability_table', 1),
-(41, '2026_06_01_084509_create_technology_info_table', 1),
-(42, '2026_06_01_085351_create_tourism_compliance_table', 1),
-(43, '2026_06_03_075949_add_role_id_to_users_table', 1),
-(44, '2026_06_04_041455_create_agents_table', 1),
-(45, '2026_06_04_042536_create_customers_table', 1),
-(46, '2026_06_05_000000_add_created_by_to_customers_table', 1),
-(47, '2026_06_05_000001_add_pos_payment_fields_to_customers_table', 1),
-(48, '2026_06_05_065217_add_payment_fields_to_customers_table', 1),
-(49, '2026_06_05_065225_add_updated_currency_fields_to_agents_table', 1),
-(50, '2026_06_05_102504_add_invoice_fields_to_customers_table', 1),
-(51, '2026_06_07_100636_create_trips_table', 1),
-(52, '2026_06_07_104045_add_status_to_drivers_table', 1);
+(1, '0001_01_01_000000_create_drivers_table', 1),
+(2, '0001_01_01_000000_create_roles_table', 1),
+(3, '0001_01_01_000000_create_users_table', 1),
+(4, '0001_01_01_000001_create_cache_table', 1),
+(5, '0001_01_01_000002_create_jobs_table', 1),
+(6, '2026_06_01_054520_create_emergency_contacts_table', 1),
+(7, '2026_06_01_054525_create_driving_licenses_table', 1),
+(8, '2026_06_01_054531_create_vehicles_table', 1),
+(9, '2026_06_01_054537_create_vehicle_features_table', 1),
+(10, '2026_06_01_054542_create_vehicle_documents_table', 1),
+(11, '2026_06_01_054547_create_vehicle_pictures_table', 1),
+(12, '2026_06_01_054552_create_bank_details_table', 1),
+(13, '2026_06_01_054558_create_driver_documents_table', 1),
+(14, '2026_06_01_054606_create_admin_verifications_table', 1),
+(15, '2026_06_01_082734_create_driver_languages_table', 1),
+(16, '2026_06_01_083627_create_service_categories_table', 1),
+(17, '2026_06_01_083720_create_driver_service_categories_table', 1),
+(18, '2026_06_01_084459_create_driver_availability_table', 1),
+(19, '2026_06_01_084509_create_technology_info_table', 1),
+(20, '2026_06_01_085351_create_tourism_compliance_table', 1),
+(21, '2026_06_03_075949_add_role_id_to_users_table', 1),
+(22, '2026_06_04_041455_create_agents_table', 1),
+(23, '2026_06_04_042536_create_customers_table', 1),
+(24, '2026_06_05_000000_add_created_by_to_customers_table', 1),
+(25, '2026_06_05_000001_add_pos_payment_fields_to_customers_table', 1),
+(26, '2026_06_05_065217_add_payment_fields_to_customers_table', 1),
+(27, '2026_06_05_065225_add_updated_currency_fields_to_agents_table', 1),
+(28, '2026_06_05_102504_add_invoice_fields_to_customers_table', 1),
+(29, '2026_06_07_100636_create_trips_table', 1),
+(30, '2026_06_07_104045_add_status_to_drivers_table', 1),
+(31, '2026_06_09_053344_create_finances_table', 1),
+(32, '2026_06_09_062441_create_incentives_table', 1);
 
 -- --------------------------------------------------------
 
@@ -430,6 +479,16 @@ CREATE TABLE `roles` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `roles`
+--
+
+INSERT INTO `roles` (`id`, `name`, `created_at`, `updated_at`) VALUES
+(1, 'admin', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(2, 'agent', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(3, 'staff', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(4, 'driver', '2026-06-09 01:26:40', '2026-06-09 01:26:40');
+
 -- --------------------------------------------------------
 
 --
@@ -448,16 +507,16 @@ CREATE TABLE `service_categories` (
 --
 
 INSERT INTO `service_categories` (`id`, `name`, `created_at`, `updated_at`) VALUES
-(1, 'Airport Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(2, 'Hotel Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(3, 'Point-to-Point Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(4, 'Corporate Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(5, 'City Tours', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(6, 'Day Tours', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(7, 'Multi-Day Tours', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(8, 'Chauffeur Services', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(9, 'VIP Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06'),
-(10, 'Cruise Passenger Transfers', '2026-06-07 05:22:06', '2026-06-07 05:22:06');
+(1, 'Airport Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(2, 'Hotel Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(3, 'Point-to-Point Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(4, 'Corporate Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(5, 'City Tours', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(6, 'Day Tours', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(7, 'Multi-Day Tours', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(8, 'Chauffeur Services', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(9, 'VIP Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(10, 'Cruise Passenger Transfers', '2026-06-09 01:26:40', '2026-06-09 01:26:40');
 
 -- --------------------------------------------------------
 
@@ -473,6 +532,13 @@ CREATE TABLE `sessions` (
   `payload` longtext NOT NULL,
   `last_activity` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `sessions`
+--
+
+INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
+('q1CgPAdrlpAvrH9iyMGFCDHFdKyt8BVLD0lsAEuR', 2, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiV0EzWmNqVENJR0dRVEN1S2I5Q251ckFOdWdvNmpjRm1WRzJxR1NTaCI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2NvdW50ZXIiO31zOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czozMDoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL3JlZ2lzdGVyIjtzOjU6InJvdXRlIjtzOjg6InJlZ2lzdGVyIjt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6Mjt9', 1780988264);
 
 -- --------------------------------------------------------
 
@@ -555,7 +621,8 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `role_id`, `driver_id`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, NULL, NULL, 'Test User', 'test@example.com', '2026-06-07 05:22:05', '$2y$12$CvIp02KUWQL61ILyvo1aAepsLCQvDnrBFpuCqVQXYDKMg.VNxb7xu', 'gi4BiHmGCP', '2026-06-07 05:22:05', '2026-06-07 05:22:05');
+(1, NULL, NULL, 'Test User', 'test@example.com', '2026-06-09 01:26:40', '$2y$12$K8U.ymIETBFhRjmVb7jSVeBZkSgj/fJJHSHXXjLc8rBqRtuCUTVEa', 'iWLZKW75Hz', '2026-06-09 01:26:40', '2026-06-09 01:26:40'),
+(2, NULL, NULL, 'Admin', 'admin@example.com', NULL, '$2y$12$ws8I7RMu0eeQuD99eHZCfOmjj7CyJxeTONtfObSCtLEj71rFqQp9.', NULL, '2026-06-09 01:27:43', '2026-06-09 01:27:43');
 
 -- --------------------------------------------------------
 
@@ -750,6 +817,26 @@ ALTER TABLE `failed_jobs`
   ADD UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`);
 
 --
+-- Indexes for table `finances`
+--
+ALTER TABLE `finances`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `finances_trip_id_foreign` (`trip_id`),
+  ADD KEY `finances_customer_id_foreign` (`customer_id`),
+  ADD KEY `finances_agent_id_foreign` (`agent_id`),
+  ADD KEY `finances_driver_id_foreign` (`driver_id`),
+  ADD KEY `finances_created_by_foreign` (`created_by`);
+
+--
+-- Indexes for table `incentives`
+--
+ALTER TABLE `incentives`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `incentives_driver_id_foreign` (`driver_id`),
+  ADD KEY `incentives_agent_id_foreign` (`agent_id`),
+  ADD KEY `incentives_created_by_foreign` (`created_by`);
+
+--
 -- Indexes for table `jobs`
 --
 ALTER TABLE `jobs`
@@ -933,6 +1020,18 @@ ALTER TABLE `failed_jobs`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `finances`
+--
+ALTER TABLE `finances`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `incentives`
+--
+ALTER TABLE `incentives`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `jobs`
 --
 ALTER TABLE `jobs`
@@ -942,13 +1041,13 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=53;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `service_categories`
@@ -978,7 +1077,7 @@ ALTER TABLE `trips`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `vehicles`
@@ -1070,6 +1169,24 @@ ALTER TABLE `driving_licenses`
 --
 ALTER TABLE `emergency_contacts`
   ADD CONSTRAINT `emergency_contacts_driver_id_foreign` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `finances`
+--
+ALTER TABLE `finances`
+  ADD CONSTRAINT `finances_agent_id_foreign` FOREIGN KEY (`agent_id`) REFERENCES `agents` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `finances_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `finances_customer_id_foreign` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `finances_driver_id_foreign` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `finances_trip_id_foreign` FOREIGN KEY (`trip_id`) REFERENCES `trips` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `incentives`
+--
+ALTER TABLE `incentives`
+  ADD CONSTRAINT `incentives_agent_id_foreign` FOREIGN KEY (`agent_id`) REFERENCES `agents` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `incentives_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `incentives_driver_id_foreign` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `technology_info`
