@@ -150,28 +150,59 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-           <Section
-                title="Ongoing Trips"
-                icon={<Car className="text-orange-700" size={22} />}
-                actions={
-                    <Link
-                        href="/trips"
-                        className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
-                    >
-                        View Trips
-                    </Link>
-                }
-            >
-                {ongoingTrips.length ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                        {ongoingTrips.map((trip) => (
-                            <TripCard key={trip.id} trip={trip} />
-                        ))}
-                    </div>
-                ) : (
-                    <Empty text="No ongoing trips found." />
-                )}
-            </Section>
+                <Section
+                    title={
+                        <div className="flex flex-wrap items-center gap-3">
+                            <span>Ongoing Trips</span>
+
+                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                                <div className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                                    <span>Assigned</span>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                                    <span>Accepted</span>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                                    <span>In Progress</span>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                                    <span>Completed</span>
+                                </div>
+
+                                {/* <div className="flex items-center gap-1">
+                                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                                    <span>Released</span>
+                                </div> */}
+                            </div>
+                        </div>
+                    }
+                    icon={<Car className="text-orange-700" size={22} />}
+                    actions={
+                        <Link
+                            href="/trips"
+                            className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
+                        >
+                            View Trips
+                        </Link>
+                    }
+                >
+                    {ongoingTrips.length ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                            {ongoingTrips.map((trip) => (
+                                <TripCard key={trip.id} trip={trip} />
+                            ))}
+                        </div>
+                    ) : (
+                        <Empty text="No ongoing trips found." />
+                    )}
+                </Section>
 
             </div>
 
@@ -581,35 +612,108 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
 }
 
 function TripCard({ trip }) {
+    const status = trip.status ?? 'Unknown';
+
+    const cardColor = {
+        Assigned: 'bg-red-50 border-red-500',
+        Accepted: 'bg-yellow-50 border-yellow-500',
+        'In_Progress': 'bg-blue-50 border-blue-500',
+        'Completed': 'bg-green-50 border-green-500',
+        // Released: 'bg-green-50 border-green-500',
+    };
+
+    const badgeColor = {
+        Assigned: 'bg-red-600 text-white',
+        Accepted: 'bg-yellow-500 text-white',
+        'In_Progress': 'bg-blue-600 text-white',
+        'Completed': 'bg-green-600 text-white',
+        // Released: 'bg-green-600 text-white',
+    };
+
     return (
-        <div className="border rounded-lg bg-gray-50 p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3 mb-3">
-                <div>
-                    <h3 className="font-semibold text-sm">{trip.driver?.full_name ?? 'Driver'}</h3>
-                    <p className="text-xs text-gray-500">{trip.driver?.mobile_number ?? '-'}</p>
+        <div
+            className={`border-l-4 rounded-lg shadow-sm p-2 ${
+                cardColor[status] ?? 'bg-gray-50 border-gray-300'
+            }`}
+        >
+            <div className="flex items-start justify-between mb-2">
+                <div className="min-w-0">
+                    <h3 className="font-semibold text-xs truncate">
+                        {trip.driver?.full_name ?? 'Driver'}
+                    </h3>
+
+                    <p className="text-[10px] text-gray-500 truncate">
+                        {trip.driver?.mobile_number ?? '-'}
+                    </p>
                 </div>
-                <span className="text-[11px] uppercase tracking-wide text-orange-700 font-bold">{trip.status ?? 'Unknown'}</span>
+
+                <span
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
+                        badgeColor[status] ??
+                        'bg-gray-500 text-white'
+                    }`}
+                >
+                    {status}
+                </span>
             </div>
 
-            <div className="space-y-2 text-sm text-gray-700">
-                <div>
-                    <span className="font-semibold">Customer:</span> {trip.customer?.name ?? '-'}
+            <div className="space-y-1 text-[11px] text-gray-700">
+                <div className="truncate">
+                    <span className="font-semibold">Customer:</span>{' '}
+                    {trip.customer?.name ?? '-'}
                 </div>
-                <div>
-                    <span className="font-semibold">Agent:</span> {trip.agent?.user?.name ?? trip.agent?.name ?? '-'}
+
+                <div className="truncate">
+                    <span className="font-semibold">Agent:</span>{' '}
+                    {trip.agent?.user?.name ??
+                        trip.agent?.name ??
+                        '-'}
                 </div>
+
                 <div>
-                    <span className="font-semibold">Assigned:</span> {trip.trip_assigned_at ? new Date(trip.trip_assigned_at).toLocaleString() : '-'}
+                    <span className="font-semibold">Assigned:</span>
+                    <br />
+                    <span className="text-[10px]">
+                        {trip.trip_assigned_at
+                            ? new Date(
+                                  trip.trip_assigned_at
+                              ).toLocaleDateString()
+                            : '-'}
+                    </span>
                 </div>
-                <div>
-                    <span className="font-semibold">Started:</span> {trip.trip_started_at ? new Date(trip.trip_started_at).toLocaleString() : '-'}
-                </div>
-                <div>
-                    <span className="font-semibold">Ended:</span> {trip.trip_ended_at ? new Date(trip.trip_ended_at).toLocaleString() : '-'}
-                </div>
-                {trip.remarks && (
+
+                {trip.trip_started_at && (
                     <div>
-                        <span className="font-semibold">Notes:</span> {trip.remarks}
+                        <span className="font-semibold">
+                            Started:
+                        </span>{' '}
+                        <span className="text-[10px]">
+                            {new Date(
+                                trip.trip_started_at
+                            ).toLocaleDateString()}
+                        </span>
+                    </div>
+                )}
+
+                {trip.trip_ended_at && (
+                    <div>
+                        <span className="font-semibold">
+                            Ended:
+                        </span>{' '}
+                        <span className="text-[10px]">
+                            {new Date(
+                                trip.trip_ended_at
+                            ).toLocaleDateString()}
+                        </span>
+                    </div>
+                )}
+
+                {trip.remarks && (
+                    <div className="text-[10px] text-gray-600 truncate">
+                        <span className="font-semibold">
+                            Notes:
+                        </span>{' '}
+                        {trip.remarks}
                     </div>
                 )}
             </div>
