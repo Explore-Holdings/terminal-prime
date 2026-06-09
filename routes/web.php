@@ -12,6 +12,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CounterController;
 use App\Http\Controllers\TripController;
+use App\Http\Controllers\FinanceController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -98,5 +99,11 @@ Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'as
 
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
+
+Route::get('/finance', [FinanceController::class, 'index'])
+    ->name('finance.index');
+
+Route::post('/finance/{trip}', [FinanceController::class, 'store'])
+    ->name('finance.store');
 
 require __DIR__.'/auth.php';
