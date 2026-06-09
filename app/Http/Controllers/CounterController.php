@@ -24,7 +24,7 @@ class CounterController extends Controller
 
             'vehicles' => Vehicle::with(['driver.languages', 'pictures'])
                 ->whereHas('driver', fn ($q) =>
-                    $q->where('status', 'On Duty')
+                    $q->where('duty_status', 'on_duty')
                       ->whereDoesntHave('trips', fn ($t) =>
                           $t->where('status', '!=', 'Completed')
                       )
