@@ -805,13 +805,17 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
                         {vehicle.brand ?? '-'} {vehicle.model ?? ''}
                     </p>
 
+                    <p className="text-[10px] text-gray-600 truncate">
+                        Pax : {vehicle.seating_capacity ?? '-'} | Luggage : {vehicle.luggage_capacity ?? ''}
+                    </p>
+
                     <p className="text-[10px] text-blue-700 truncate">
                         🌐 {languages}
                     </p>
                 </div>
             </div>
 
-           <div className="mt-2 flex justify-end">
+            <div className="mt-0 flex justify-end">
                 <button
                     type="button"
                     disabled={assigning}
