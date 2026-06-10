@@ -183,7 +183,7 @@ export default function Show({ driver }) {
                 </Card>
             )}
 
-            {driver.tourism_compliance && (
+            {/* {driver.tourism_compliance && (
                 <Card title="Tourism & Regulatory Compliance">
                     <Info
                         label="Tourism Registration Number"
@@ -210,7 +210,7 @@ export default function Show({ driver }) {
                         path={driver.tourism_compliance.airport_access_permit}
                     />
                 </Card>
-            )}
+            )} */}
 
             {vehicle && (
                 <>
@@ -307,12 +307,12 @@ export default function Show({ driver }) {
                     <Info label="Driver Approved" value={yesNo(driver.admin_verification.driver_approved)} />
                     <Info label="Remarks" value={driver.admin_verification.remarks} wide />
                     <Info
-    label="Approved By"
-    value={
-        driver.admin_verification?.approved_by_name ??
-        driver.admin_verification?.approved_by_user?.name
-    }
-/>
+                            label="Approved By"
+                            value={
+                                driver.admin_verification?.approved_by_name ??
+                                driver.admin_verification?.approved_by_user?.name
+                            }
+                        />
                     <Info label="Approval Date" value={driver.admin_verification.approval_date} />
                 </Card>
             )}
@@ -327,7 +327,7 @@ function Card({ title, children }) {
                 {title}
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {children}
             </div>
         </div>
