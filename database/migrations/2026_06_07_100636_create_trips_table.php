@@ -24,6 +24,7 @@ return new class extends Migration
 
             $table->text('remarks')->nullable();
             $table->string('status')->default('Pending');
+            $table->timestamp('survey_sent_at')->nullable()->after('status');
 
             $table->timestamps();
         });
