@@ -13,6 +13,8 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CounterController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\CustomerSurveyController;
+use App\Http\Controllers\CustomerSurveyAdminController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -103,5 +105,14 @@ Route::get('/trips', [TripController::class, 'index'])
 Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 Route::post('/finance/incentives/store', [FinanceController::class, 'storeIncentive'])->name('finance.incentives.store');
+
+Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
+    ->name('survey.show');
+
+Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
+    ->name('survey.store');
+
+Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
+    ->name('customer-surveys.index');
 
 require __DIR__.'/auth.php';
