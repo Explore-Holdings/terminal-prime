@@ -159,7 +159,7 @@ export default function Create({ serviceCategories = [] }) {
         ['services', 'Services'],
         ['availability', 'Availability'],
         ['technology', 'Technology'],
-        ['tourism', 'Tourism'],
+        // ['tourism', 'Tourism'],
         ['vehicle', 'Vehicle'],
         ['features', 'Features'],
         ['vehicleDocs', 'Vehicle Docs'],
@@ -677,7 +677,7 @@ export default function Create({ serviceCategories = [] }) {
                             </Section>
                         )}
 
-                        {activeTab === 'tourism' && (
+                        {/* {activeTab === 'tourism' && (
                             <Section title="Tourism & Regulatory Compliance">
                                 <Input {...fieldProps} label="Tourism Registration Number" name="tourism_registration_number" />
                                 <Checkbox {...fieldProps} label="SLTDA Registered Driver" name="sltda_registered_driver" />
@@ -685,7 +685,7 @@ export default function Create({ serviceCategories = [] }) {
                                 <FileInput {...fileProps} label="Tourism Authority Permit Copy" name="tourism_authority_permit_copy" />
                                 <FileInput {...fileProps} label="Airport Access Permit" name="airport_access_permit" />
                             </Section>
-                        )}
+                        )} */}
 
                         {activeTab === 'vehicle' && (
                             <Section title="Vehicle Information">
@@ -717,7 +717,7 @@ export default function Create({ serviceCategories = [] }) {
                                     <option>Personally Owned</option>
                                 </Select>
 
-                                <FileInput {...fileProps} label="Ownership Confirmation Letter" name="ownership_confirmation_letter" required={false} />
+                                {/* <FileInput {...fileProps} label="Ownership Confirmation Letter" name="ownership_confirmation_letter" required={false} /> */}
                             </Section>
                         )}
 
