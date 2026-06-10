@@ -14,6 +14,7 @@ use App\Http\Controllers\CounterController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CustomerSurveyController;
+use App\Http\Controllers\CustomerSurveyAdminController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -110,5 +111,8 @@ Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
 
 Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
     ->name('survey.store');
+
+Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
+    ->name('customer-surveys.index');
 
 require __DIR__.'/auth.php';

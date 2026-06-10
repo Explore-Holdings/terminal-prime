@@ -19,4 +19,20 @@ class CustomerSurvey extends Model
         'felt_safe',
         'comments',
     ];
+
+    public function trip()
+    {
+        return $this->belongsTo(Trip::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(Driver::class);
+    }
 }
+
