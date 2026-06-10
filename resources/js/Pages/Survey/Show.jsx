@@ -23,7 +23,7 @@ export default function Show({ trip, alreadySubmitted = false }) {
     if (alreadySubmitted) {
         return (
             <Page>
-                <div className="bg-white rounded-2xl shadow p-8 text-center max-w-xl w-full">
+                <div className="bg-white shadow p-8 text-center max-w-xl w-full">
                     <h1 className="text-2xl font-bold text-green-700">
                         Thank you!
                     </h1>
@@ -41,7 +41,7 @@ export default function Show({ trip, alreadySubmitted = false }) {
 
             <form
                 onSubmit={submit}
-                className="bg-white rounded-2xl shadow-xl p-6 max-w-4xl w-full"
+                className="bg-white shadow-xl p-6 max-w-4xl w-full"
             >
                 <div className="text-center border-b pb-5 mb-5">
                     <h1 className="text-3xl font-bold text-gray-900">
@@ -57,7 +57,7 @@ export default function Show({ trip, alreadySubmitted = false }) {
                     </p>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-5 text-sm text-gray-700">
+                <div className="bg-yellow-50 border border-yellow-200 p-3 mb-5 text-sm text-gray-700">
                     <strong>Rating Guide:</strong> 1 = Fair, 2 = Average, 3 = Good, 4 = Very Good, 5 = Excellent
                 </div>
 
@@ -133,12 +133,11 @@ export default function Show({ trip, alreadySubmitted = false }) {
                     />
                 </Question>
 
-                <button
-                    disabled={form.processing}
-                    className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50"
-                >
-                    {form.processing ? 'Submitting...' : 'Submit Feedback'}
-                </button>
+               <div className="flex justify-center mt-0">
+                    <button disabled={form.processing} className="w-1/2 bg-slate-900 text-white py-3 font-bold hover:bg-slate-800 disabled:opacity-50" >
+                        {form.processing ? 'Submitting...' : 'Submit Feedback'}
+                    </button>
+                </div>
             </form>
         </Page>
     );
@@ -154,7 +153,7 @@ function Page({ children }) {
 
 function Question({ title, children }) {
     return (
-        <div className="bg-gray-50 border rounded-xl p-4">
+        <div className="bg-gray-50 border p-4">
             <label className="block font-semibold text-gray-800 mb-3">
                 {title}
             </label>
