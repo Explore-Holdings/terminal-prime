@@ -111,10 +111,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         <p className="text-gray-500 mt-1">Airport counter customer handling</p>
                     </div>
 
-                    <Link
-                        href="/dashboard"
-                        className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800"
-                    >
+                    <Link href="/dashboard" className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800" >
                         <ArrowLeft size={18} />
                         Back
                     </Link>
@@ -124,13 +121,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     {pendingAgents.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
                             {pendingAgents.map((agent) => (
-                                <CustomerCard
-                                    key={agent.id}
-                                    agent={agent}
-                                    onOpen={openModal}
-                                    paymentEnabled={paymentEnabledAgentId === agent.id}
-                                    vehicleEnabled={vehicleEnabledAgentId === agent.id}
-                                />
+                                <CustomerCard key={agent.id} agent={agent} onOpen={openModal} paymentEnabled={paymentEnabledAgentId === agent.id} vehicleEnabled={vehicleEnabledAgentId === agent.id} />
                             ))}
                         </div>
                     ) : (
@@ -142,11 +133,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     {vehicles.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
                             {vehicles.map((vehicle, index) => (
-                                <VehicleCard
-                                    key={vehicle.id}
-                                    vehicle={vehicle}
-                                    number={index + 1}
-                                />
+                                <VehicleCard key={vehicle.id} vehicle={vehicle} number={index + 1} />
                             ))}
                         </div>
                     ) : (
@@ -189,10 +176,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     }
                     icon={<Car className="text-orange-700" size={22} />}
                     actions={
-                        <Link
-                            href="/trips"
-                            className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700"
-                        >
+                        <Link href="/trips" className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700" >
                             View Trips
                         </Link>
                     }
@@ -211,20 +195,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    agent={selectedAgent}
-                    customerForm={customerForm}
-                    paymentForm={paymentForm}
-                    saveCustomer={saveCustomer}
-                    customerId={createdCustomerId}
-                    invoicePath={invoicePath}
-                    setInvoicePath={setInvoicePath}
-                    vehicles={vehicles}
-                    setVehicleEnabledAgentId={setVehicleEnabledAgentId}
-                    onClose={() => setShowModal(false)}
-                />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} />
             )}
         </>
     );
@@ -247,21 +218,11 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
                     Customer
                 </CardButton>
 
-                <CardButton
-                    color="green"
-                    disabled={!paymentEnabled}
-                    onClick={() => onOpen(agent, 'payment')}
-                    icon={<CreditCard size={13} />}
-                >
+                <CardButton color="green" disabled={!paymentEnabled} onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />} >
                     Payment
                 </CardButton>
 
-                <CardButton
-                    color="purple"
-                    disabled={!vehicleEnabled}
-                    onClick={() => onOpen(agent, 'vehicle')}
-                    icon={<Car size={13} />}
-                >
+                <CardButton color="purple" disabled={!vehicleEnabled} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
                     Vehicle
                 </CardButton>
             </div>
@@ -304,19 +265,11 @@ function Modal({
                         Customer
                     </TabButton>
 
-                    <TabButton
-                        active={activeTab === 'payment'}
-                        disabled={!customerId}
-                        onClick={() => setActiveTab('payment')}
-                    >
+                    <TabButton active={activeTab === 'payment'} disabled={!customerId} onClick={() => setActiveTab('payment')} >
                         Payment
                     </TabButton>
 
-                    <TabButton
-                        active={activeTab === 'vehicle'}
-                        disabled={!invoicePath}
-                        onClick={() => setActiveTab('vehicle')}
-                    >
+                    <TabButton active={activeTab === 'vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('vehicle')} >
                         Vehicle
                     </TabButton>
                 </div>
@@ -327,24 +280,11 @@ function Modal({
                     )}
 
                     {activeTab === 'payment' && (
-                        <PaymentTab
-                            agent={agent}
-                            customerId={customerId}
-                            form={paymentForm}
-                            invoicePath={invoicePath}
-                            setInvoicePath={setInvoicePath}
-                            setActiveTab={setActiveTab}
-                            setVehicleEnabledAgentId={setVehicleEnabledAgentId}
-                        />
+                        <PaymentTab agent={agent} customerId={customerId} form={paymentForm} invoicePath={invoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} />
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab
-                            vehicles={vehicles}
-                            customerId={customerId}
-                            agent={agent}
-                            onClose={onClose}
-                        />
+                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} />
                     )}
                 </div>
             </div>
@@ -378,27 +318,30 @@ function CustomerTab({ agent, form, onSubmit }) {
 
                 <div>
                     <label className="label">Language</label>
-                    <select
-                        className="input"
-                        value={form.data.language_preference}
-                        onChange={(e) => form.setData('language_preference', e.target.value)}
-                    >
-                        <option value="">Select</option>
-                        {['English', 'Sinhala', 'Tamil', 'Arabic', 'Chinese', 'Russian', 'German', 'French'].map((x) => (
-                            <option key={x}>{x}</option>
-                        ))}
-                    </select>
+
+                    <input type="text" className="input" list="language-list" value={form.data.language_preference}
+                        onChange={(e) =>
+                            form.setData('language_preference', e.target.value)
+                        }
+                        placeholder="Select or type language"
+                    />
+
+                    <datalist id="language-list">
+                        <option value="English" />
+                        <option value="Sinhala" />
+                        <option value="Tamil" />
+                        <option value="Arabic" />
+                        <option value="Chinese" />
+                        <option value="Russian" />
+                        <option value="German" />
+                        <option value="French" />
+                    </datalist>
                 </div>
             </div>
 
             <div>
                 <label className="label">Remarks</label>
-                <textarea
-                    className="input"
-                    rows="2"
-                    value={form.data.remarks}
-                    onChange={(e) => form.setData('remarks', e.target.value)}
-                />
+                <textarea className="input" rows="2" value={form.data.remarks} onChange={(e) => form.setData('remarks', e.target.value)} />
             </div>
 
             <div className="flex justify-end border-t pt-4">
@@ -484,7 +427,7 @@ function PaymentTab({
             {form.data.payment_method === 'POS' && (
                 <div className="border rounded-xl p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="Transaction ID" value={form.data.transaction_id} onChange={(e) => form.setData('transaction_id', e.target.value)} />
-                    <Field label="Card Number" value={form.data.card_number} onChange={(e) => form.setData('card_number', e.target.value)} />
+                    <Field label="Card Number (Optional)" value={form.data.card_number} onChange={(e) => form.setData('card_number', e.target.value)} />
                 </div>
             )}
 
@@ -602,13 +545,7 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[600px] overflow-y-auto">
                 {vehicles.map((vehicle, i) => (
-                    <VehicleSelectCard
-                        key={vehicle.id}
-                        vehicle={vehicle}
-                        index={i}
-                        assigning={assignForm.processing}
-                        onAssign={() => assignTrip(vehicle)}
-                    />
+                    <VehicleSelectCard key={vehicle.id} vehicle={vehicle} index={i} assigning={assignForm.processing} onAssign={() => assignTrip(vehicle)} />
                 ))}
             </div>
         </div>
@@ -783,10 +720,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
             </div>
 
             <div className="flex gap-2">
-                <ImageBox
-                    path={vehicle.pictures?.front_view ?? vehicle.front_view}
-                    className="w-16 h-16 flex-shrink-0 rounded"
-                />
+                <ImageBox path={vehicle.pictures?.front_view ?? vehicle.front_view} className="w-16 h-16 flex-shrink-0 rounded" />
 
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs truncate">
@@ -816,12 +750,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
             </div>
 
             <div className="mt-0 flex justify-end">
-                <button
-                    type="button"
-                    disabled={assigning}
-                    onClick={onAssign}
-                    className="px-3 py-1 bg-blue-700 text-white rounded text-[11px] font-medium hover:bg-blue-800 disabled:opacity-50"
-                >
+                <button type="button" disabled={assigning} onClick={onAssign} className="px-3 py-1 bg-blue-700 text-white rounded text-[11px] font-medium hover:bg-blue-800 disabled:opacity-50" >
                     {assigning ? 'Assigning...' : 'Assign'}
                 </button>
             </div>
