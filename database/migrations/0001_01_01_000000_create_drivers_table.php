@@ -16,7 +16,7 @@ return new class extends Migration
 
             $table->string('registration_number')->unique();
             $table->date('registration_date')->nullable();
-            $table->enum('registration_status', ['Pending', 'Approved', 'Rejected', 'Suspended'])->default('Pending');
+            $table->enum('registration_status', ['Pending', 'Approved', 'Rejected', 'Suspended'])->default('Approved');
 
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();

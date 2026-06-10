@@ -107,7 +107,7 @@ class DriverController extends Controller
             $driver = Driver::create([
                 'registration_number' => $registrationNumber,
                 'registration_date' => now()->toDateString(),
-                'registration_status' => 'Pending',
+                'registration_status' => 'Approved',
 
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
