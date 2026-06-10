@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
 import {
     ArrowLeft,
     UserPlus,
@@ -19,6 +20,18 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [invoicePath, setInvoicePath] = useState(null);
     const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({
+                only: ['pendingAgents', 'vehicles', 'ongoingTrips'],
+                preserveScroll: true,
+                preserveState: true,
+            });
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     const customerForm = useForm({
         agent_id: '',
