@@ -16,6 +16,7 @@ class Trip extends Model
         'trip_ended_at',
         'remarks',
         'status',
+        'survey_sent_at',
     ];
 
     protected $casts = [
