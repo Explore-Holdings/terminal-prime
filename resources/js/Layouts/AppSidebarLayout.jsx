@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 
 export default function AppSidebarLayout({ children, title = 'Airport Counter' }) {
     const { url, props } = usePage();
@@ -87,9 +88,13 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                         <button
                             type="button"
                             onClick={() => setSidebarOpen((open) => !open)}
-                            className="inline-flex items-center justify-center rounded-lg bg-slate-900 p-3 text-white shadow hover:bg-slate-800"
+                            className="inline-flex items-center justify-center rounded-lg bg-slate-900 p-2 text-white shadow hover:bg-slate-800"
                         >
-                            {sidebarOpen ? '‹' : '›'}
+                            {sidebarOpen ? (
+                                <ChevronLeftIcon className="w-5 h-5" />
+                            ) : (
+                                <ChevronRightIcon className="w-5 h-5" />
+                            )}
                         </button>
                     </div>
 

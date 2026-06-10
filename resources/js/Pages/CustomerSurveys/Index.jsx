@@ -120,12 +120,12 @@ export default function Index({ surveys = [] }) {
                         </p>
                     </div>
 
-                    <Link
+                    {/* <Link
                         href="/dashboard"
                         className="bg-slate-700 text-white px-4 py-2 rounded hover:bg-slate-800"
                     >
                         Back
-                    </Link>
+                    </Link> */}
                 </div>
 
                 <div className="p-4 flex justify-between gap-4">
