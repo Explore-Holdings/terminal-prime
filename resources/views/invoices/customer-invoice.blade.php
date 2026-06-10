@@ -6,74 +6,91 @@
     <style>
         @page {
             size: A5;
-            margin: 18mm 14mm;
+            margin: 14mm 12mm;
         }
 
         body {
             font-family: Cambria, DejaVu Serif, serif;
             font-size: 10px;
-            color: #1f2937;
+            color: #111827;
             margin: 0;
+            background: #ffffff;
         }
 
         .receipt {
             width: 100%;
         }
 
-        .top-bar {
-            border-bottom: 3px solid #111827;
-            padding-bottom: 10px;
-            margin-bottom: 18px;
+        .header {
+            background: #111827;
+            color: #ffffff;
+            padding: 18px 18px 14px;
+            border-radius: 10px;
+            margin-bottom: 14px;
         }
 
-        .business-name {
-            font-size: 26px;
+        .brand {
+            font-size: 25px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 1.8px;
             text-transform: uppercase;
-            color: #111827;
             margin: 0;
         }
 
-        .receipt-title {
-            font-size: 13px;
+        .subtitle {
+            font-size: 10px;
             letter-spacing: 2px;
             text-transform: uppercase;
-            color: #6b7280;
+            color: #d1d5db;
             margin-top: 4px;
         }
 
-        .meta {
-            margin-top: 12px;
+        .meta-table {
             width: 100%;
+            margin-top: 14px;
+            border-collapse: collapse;
         }
 
-        .meta td {
+        .meta-table td {
             border: none;
-            padding: 2px 0;
-            font-size: 11px;
+            padding: 0;
+            color: #e5e7eb;
+            font-size: 10px;
         }
 
-        .meta .right {
+        .right {
             text-align: right;
+        }
+
+        .status-pill {
+            display: inline-block;
+            background: #d4af37;
+            color: #111827;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .section {
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            background: #fafafa;
+            border-radius: 10px;
+            padding: 11px 12px;
+            margin-bottom: 10px;
+            background: #fbfbfb;
         }
 
         .section-title {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
             color: #111827;
             margin-bottom: 8px;
-            border-bottom: 1px solid #e5e7eb;
             padding-bottom: 5px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .info-table {
@@ -88,102 +105,89 @@
         }
 
         .label {
+            width: 36%;
             color: #6b7280;
-            width: 35%;
         }
 
         .value {
-            font-weight: bold;
             color: #111827;
+            font-weight: bold;
         }
 
         .items {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 8px;
-            margin-bottom: 14px;
+            margin: 10px 0;
+            border-radius: 8px;
         }
 
         .items th {
-            background: #111827;
-            color: #ffffff;
-            padding: 9px 8px;
-            font-size: 11px;
+            background: #f3f4f6;
+            color: #374151;
+            padding: 8px;
+            font-size: 10px;
             text-transform: uppercase;
-            border: 1px solid #111827;
+            border-bottom: 1px solid #d1d5db;
         }
 
         .items td {
-            padding: 10px 8px;
-            border: 1px solid #e5e7eb;
+            padding: 9px 8px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        .items .right {
+        .amount {
             text-align: right;
+            font-weight: bold;
         }
 
-        .total-box {
-            width: 55%;
+        .summary {
+            width: 58%;
             margin-left: auto;
-            border: 1px solid #111827;
+            border-collapse: collapse;
             margin-top: 8px;
+            border: 1px solid #111827;
+            border-radius: 8px;
         }
 
-        .total-box td {
+        .summary td {
+            padding: 9px;
             border: none;
-            padding: 8px;
         }
 
-        .total-label {
+        .summary-label {
             background: #111827;
             color: #ffffff;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .total-value {
+        .summary-value {
             text-align: right;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
+            color: #111827;
         }
 
-        .payment-status {
-            display: inline-block;
-            padding: 4px 10px;
-            background: #dcfce7;
-            color: #166534;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 11px;
-            text-transform: uppercase;
+        .gold-line {
+            height: 3px;
+            background: #d4af37;
+            margin: 12px 0;
+            border-radius: 10px;
         }
 
         .footer {
-            margin-top: 20px;
+            margin-top: 16px;
             padding-top: 10px;
             border-top: 1px dashed #9ca3af;
             text-align: center;
             color: #6b7280;
-            font-size: 11px;
+            font-size: 10px;
+            line-height: 1.5;
         }
 
-        .signature-row {
-            margin-top: 28px;
-            width: 100%;
-        }
-
-        .signature-row td {
-            border: none;
-            text-align: center;
-            font-size: 11px;
-            color: #374151;
-        }
-
-        .signature-line {
-            border-top: 1px solid #6b7280;
-            padding-top: 5px;
-            width: 150px;
-            margin: 0 auto;
+        .footer strong {
+            color: #111827;
         }
     </style>
 </head>
@@ -191,16 +195,29 @@
 <body>
 <div class="receipt">
 
-    <div class="top-bar">
-        <h1 class="business-name">Terminal Prime</h1>
-        <div class="receipt-title">Cash Receipt</div>
+    <div class="header">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="border: none; padding: 0;">
+                    <h1 class="brand">Terminal Prime</h1>
+                    <div class="subtitle">Airport Counter Receipt</div>
+                </td>
 
-        <table class="meta">
+                <td class="right" style="border: none; padding: 0;">
+                    <span class="status-pill">
+                        {{ $customer->payment_status }}
+                    </span>
+                </td>
+            </tr>
+        </table>
+
+        <table class="meta-table">
             <tr>
                 <td>
                     <strong>Receipt No:</strong>
                     {{ $customer->invoice_number }}
                 </td>
+
                 <td class="right">
                     <strong>Date:</strong>
                     {{ now('Asia/Colombo')->format('d/m/Y h:i A') }}
@@ -210,7 +227,7 @@
     </div>
 
     <div class="section">
-        <div class="section-title">Customer Details</div>
+        <div class="section-title">Customer Information</div>
 
         <table class="info-table">
             <tr>
@@ -226,7 +243,7 @@
                 <td class="value">{{ $customer->country ?? '-' }}</td>
             </tr>
             <tr>
-                <td class="label">Drop-off</td>
+                <td class="label">Drop-off Location</td>
                 <td class="value">{{ $customer->dropoff_location ?? '-' }}</td>
             </tr>
         </table>
@@ -235,7 +252,7 @@
     <table class="items">
         <thead>
             <tr>
-                <th>Description</th>
+                <th style="text-align: left;">Service Description</th>
                 <th class="right">Amount</th>
             </tr>
         </thead>
@@ -243,7 +260,7 @@
         <tbody>
             <tr>
                 <td>Airport Counter Service</td>
-                <td class="right">
+                <td class="amount">
                     {{ $customer->agent->new_currency ?? $customer->agent->currency }}
                     {{ number_format($customer->paid_amount, 2) }}
                 </td>
@@ -251,18 +268,20 @@
         </tbody>
     </table>
 
-    <table class="total-box">
+    <table class="summary">
         <tr>
-            <td class="total-label">Total Paid</td>
-            <td class="total-value">
+            <td class="summary-label">Total Paid</td>
+            <td class="summary-value">
                 {{ $customer->agent->new_currency ?? $customer->agent->currency }}
                 {{ number_format($customer->paid_amount, 2) }}
             </td>
         </tr>
     </table>
 
-    <div class="section" style="margin-top: 14px;">
-        <div class="section-title">Payment Details</div>
+    <div class="gold-line"></div>
+
+    <div class="section">
+        <div class="section-title">Payment Summary</div>
 
         <table class="info-table">
             <tr>
@@ -271,11 +290,7 @@
             </tr>
             <tr>
                 <td class="label">Payment Status</td>
-                <td>
-                    <span class="payment-status">
-                        {{ $customer->payment_status }}
-                    </span>
-                </td>
+                <td class="value">{{ $customer->payment_status }}</td>
             </tr>
             <tr>
                 <td class="label">Paid Amount</td>
@@ -287,20 +302,9 @@
         </table>
     </div>
 
-    <!-- <table class="signature-row">
-        <tr>
-            <td>
-                <div class="signature-line">Authorized Signature</div>
-            </td>
-            <td>
-                <div class="signature-line">Customer Signature</div>
-            </td>
-        </tr>
-    </table> -->
-
     <div class="footer">
-        Thank you for choosing Terminal Prime.<br>
-        This is a computer generated receipt.
+        Thank you for choosing <strong>Terminal Prime</strong>.<br>
+        This is a computer generated premium receipt.
     </div>
 
 </div>

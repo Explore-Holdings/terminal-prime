@@ -1,7 +1,18 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
-export default function Dashboard({ stats = {}, recentCustomers = [], recentDrivers = [] }) {
+export default function Dashboard({
+    stats = {},
+    recentCustomers = [],
+    recentDrivers = [],
+}) {
+    const { props } = usePage();
+    const role = String(props.auth?.user?.role ?? '').toLowerCase();
+
+    const canViewCustomers = ['admin', 'counter staff'].includes(role);
+    const canViewDrivers = role === 'admin';
+    const canViewFinance = ['admin', 'finance'].includes(role);
+
     return (
         <AppSidebarLayout title="Dashboard">
             <div className="mb-5">
@@ -14,64 +25,74 @@ export default function Dashboard({ stats = {}, recentCustomers = [], recentDriv
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <DashboardCard
-                    title="Customers"
-                    value={stats.totalCustomers}
-                    subtitle="Registered customers"
-                    href="/customers"
-                    buttonText="Manage"
-                    icon="👥"
-                    color="text-blue-600"
-                    bg="bg-blue-50"
-                />
+                {canViewCustomers && (
+                    <DashboardCard
+                        title="Customers"
+                        value={stats.totalCustomers}
+                        subtitle="Registered customers"
+                        href="/customers"
+                        buttonText="Manage"
+                        icon="👥"
+                        color="text-blue-600"
+                        bg="bg-blue-50"
+                    />
+                )}
 
-                <DashboardCard
-                    title="Drivers"
-                    value={stats.totalDrivers}
-                    subtitle="Registered drivers"
-                    href="/drivers"
-                    buttonText="Manage"
-                    icon="🚕"
-                    color="text-green-600"
-                    bg="bg-green-50"
-                />
+                {canViewDrivers && (
+                    <DashboardCard
+                        title="Drivers"
+                        value={stats.totalDrivers}
+                        subtitle="Registered drivers"
+                        href="/drivers"
+                        buttonText="Manage"
+                        icon="🚕"
+                        color="text-green-600"
+                        bg="bg-green-50"
+                    />
+                )}
 
-                <DashboardCard
-                    title="Finance"
-                    value={`Rs. ${Number(stats.totalFinance ?? 0).toLocaleString()}`}
-                    subtitle="Total finance"
-                    href="/finance"
-                    buttonText="View"
-                    icon="💰"
-                    color="text-purple-600"
-                    bg="bg-purple-50"
-                />
+                {canViewFinance && (
+                    <DashboardCard
+                        title="Finance"
+                        value={`Rs. ${Number(stats.totalFinance ?? 0).toLocaleString()}`}
+                        subtitle="Total finance"
+                        href="/finance"
+                        buttonText="View"
+                        icon="💰"
+                        color="text-purple-600"
+                        bg="bg-purple-50"
+                    />
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <RecentCard
-                    title="Recent Customers"
-                    href="/customers"
-                    headers={['Name', 'WhatsApp', 'Status']}
-                    rows={recentCustomers.map((customer) => [
-                        customer.name ?? '-',
-                        customer.whatsapp_number ?? '-',
-                        <Badge value={customer.status} />,
-                    ])}
-                    emptyText="No customers found"
-                />
+                {canViewCustomers && (
+                    <RecentCard
+                        title="Recent Customers"
+                        href="/customers"
+                        headers={['Name', 'WhatsApp', 'Status']}
+                        rows={recentCustomers.map((customer) => [
+                            customer.name ?? '-',
+                            customer.whatsapp_number ?? '-',
+                            <Badge key={customer.id} value={customer.status} />,
+                        ])}
+                        emptyText="No customers found"
+                    />
+                )}
 
-                <RecentCard
-                    title="Recent Drivers"
-                    href="/drivers"
-                    headers={['Reg No', 'Name', 'Status']}
-                    rows={recentDrivers.map((driver) => [
-                        driver.registration_number ?? '-',
-                        driver.full_name ?? '-',
-                        <Badge value={driver.driver_status} />,
-                    ])}
-                    emptyText="No drivers found"
-                />
+                {canViewDrivers && (
+                    <RecentCard
+                        title="Recent Drivers"
+                        href="/drivers"
+                        headers={['Reg No', 'Name', 'Status']}
+                        rows={recentDrivers.map((driver) => [
+                            driver.registration_number ?? '-',
+                            driver.full_name ?? '-',
+                            <Badge key={driver.id} value={driver.driver_status} />,
+                        ])}
+                        emptyText="No drivers found"
+                    />
+                )}
             </div>
         </AppSidebarLayout>
     );
