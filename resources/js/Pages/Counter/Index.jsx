@@ -1,16 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-
-import {
-    ArrowLeft,
-    UserPlus,
-    CreditCard,
-    Car,
-    Users,
-    CarFront,
-    Trash2,
-} from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
 
 export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [] }) {
     const [showModal, setShowModal] = useState(false);
@@ -216,7 +207,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
 function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
     return (
-        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm">
+        <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
             <h3 className="flex justify-between font-semibold text-sm">
                 <span className="truncate">{agent.name ?? 'Customer'}</span>
                 <span className="text-red-600 font-bold">{agent.distance_km ?? '-'} KM</span>
@@ -264,12 +255,16 @@ function Modal({
                     <div>
                         <h2 className="text-xl font-bold">Customer Processing</h2>
                         <p className="text-sm text-gray-500">
-                            {agent.name} · {agent.passenger_count ?? 0} Pax · {agent.dropoff_location ?? '-'}
+                            {agent.name} | {agent.passenger_count ?? 0} Pax(s) & {agent.luggage_count ?? 0} Luggage(s) | {agent.dropoff_location ?? '-'}
                         </p>
                     </div>
 
-                    <button onClick={onClose} className="text-red-600 font-semibold">
-                        Close
+                  <button
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
+                    >
+                        <X size={16} />
+                        
                     </button>
                 </div>
 
@@ -682,7 +677,7 @@ function VehicleCard({ vehicle, number }) {
             .join(', ') || '-';
 
     return (
-        <div className="min-w-[300px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
+        <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
 
             <div className="absolute top-2 left-2 bg-blue-700 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
                 {number}
