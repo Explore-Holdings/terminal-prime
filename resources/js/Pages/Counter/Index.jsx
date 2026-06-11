@@ -596,8 +596,8 @@ function TripCard({ trip }) {
                         {trip.driver?.full_name ?? 'Driver'}
                     </h3>
 
-                    <p className="text-[10px] text-gray-500 truncate">
-                        {trip.driver?.mobile_number ?? '-'}
+                    <p className="text-[10px] text-black-800 truncate">
+                        {trip.driver?.mobile_number ?? '-'} | {trip.driver?.vehicle?.registration_number ?? '-'}
                     </p>
                 </div>
 
