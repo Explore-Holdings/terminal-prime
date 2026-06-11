@@ -38,6 +38,7 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard', [
         'stats' => [
             'totalDrivers' => Driver::count(),
+            'totalCustomers' => Customer::count(),
             'activeDrivers' => Driver::where('driver_status', 'Active')->count(),
             'pendingApproval' => Driver::where('registration_status', 'Pending')->count(),
             'suspendedDrivers' => Driver::where('driver_status', 'Suspended')->count(),
