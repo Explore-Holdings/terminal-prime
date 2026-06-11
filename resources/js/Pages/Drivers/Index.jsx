@@ -63,11 +63,11 @@ export default function Index({ drivers = [] }) {
             ),
             sortable: true,
         },
-        {
-            name: 'Registration Status',
-            selector: row => row.registration_status ?? '-',
-            sortable: true,
-        },
+        // {
+        //     name: 'Registration Status',
+        //     selector: row => row.registration_status ?? '-',
+        //     sortable: true,
+        // },
         {
             name: 'Actions',
             cell: row => (
