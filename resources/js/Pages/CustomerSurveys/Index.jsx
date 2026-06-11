@@ -1,10 +1,23 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ surveys = [] }) {
     const [search, setSearch] = useState('');
+    const [driverFilter, setDriverFilter] = useState('');
+
+    const drivers = useMemo(() => {
+        const map = new Map();
+
+        surveys.forEach((survey) => {
+            if (survey.driver?.id) {
+                map.set(survey.driver.id, survey.driver.full_name);
+            }
+        });
+
+        return Array.from(map, ([id, name]) => ({ id, name }));
+    }, [surveys]);
 
     const filtered = useMemo(() => {
         return surveys.filter((survey) => {
@@ -19,11 +32,76 @@ export default function Index({ surveys = [] }) {
                 survey.comments,
             ].join(' ').toLowerCase();
 
-            return text.includes(search.toLowerCase());
+            const matchesSearch = text.includes(search.toLowerCase());
+
+            const matchesDriver = driverFilter
+                ? String(survey.driver?.id) === String(driverFilter)
+                : true;
+
+            return matchesSearch && matchesDriver;
         });
-    }, [surveys, search]);
+    }, [surveys, search, driverFilter]);
 
     const yesNo = (value) => value ? 'Yes' : 'No';
+
+    const exportCsv = () => {
+        const rows = filtered.map((row) => ({
+            Trip: row.trip_id ?? '',
+            Customer: row.customer?.name ?? '',
+            Email: row.customer?.email ?? '',
+            Driver: row.driver?.full_name ?? '',
+            JourneyRating: row.journey_rating ?? '',
+            DriverRating: row.driver_rating ?? '',
+            ExtraCharge: yesNo(row.driver_charged_extra),
+            ExtraAmount: row.extra_amount ?? '',
+            Polite: yesNo(row.driver_was_polite),
+            CleanVehicle: yesNo(row.vehicle_was_clean),
+            Safe: yesNo(row.felt_safe),
+            Comments: row.comments ?? '',
+            Date: row.created_at
+                ? new Date(row.created_at).toLocaleString()
+                : '',
+        }));
+
+        const headers = Object.keys(rows[0] ?? {
+            Trip: '',
+            Customer: '',
+            Email: '',
+            Driver: '',
+            JourneyRating: '',
+            DriverRating: '',
+            ExtraCharge: '',
+            ExtraAmount: '',
+            Polite: '',
+            CleanVehicle: '',
+            Safe: '',
+            Comments: '',
+            Date: '',
+        });
+
+        const csv = [
+            headers.join(','),
+            ...rows.map((row) =>
+                headers.map((header) => {
+                    const value = String(row[header] ?? '').replace(/"/g, '""');
+                    return `"${value}"`;
+                }).join(',')
+            ),
+        ].join('\n');
+
+        const blob = new Blob([csv], {
+            type: 'text/csv;charset=utf-8;',
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = `customer-surveys-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+
+        URL.revokeObjectURL(url);
+    };
 
     const columns = [
         {
@@ -119,27 +197,31 @@ export default function Index({ surveys = [] }) {
                             View customer journey feedback and ratings
                         </p>
                     </div>
-
-                    {/* <Link
-                        href="/dashboard"
-                        className="bg-slate-700 text-white px-4 py-2 rounded hover:bg-slate-800"
-                    >
-                        Back
-                    </Link> */}
                 </div>
 
-                <div className="p-4 flex justify-between gap-4">
-                    <input
-                        type="text"
-                        placeholder="Search surveys..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full md:w-96 border border-gray-300 rounded px-4 py-2"
-                    />
+                <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                    
+                    <input type="text" placeholder="Search surveys..." value={search} onChange={(e) => setSearch(e.target.value)} className="md:col-span-2 w-full border border-gray-300 rounded px-4 py-2" />
 
-                    <div className="text-sm text-gray-600">
-                        Total: <strong>{filtered.length}</strong>
+                    <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-2" >
+                        <option value="">All Drivers</option>
+                        {drivers.map((driver) => (
+                            <option key={driver.id} value={driver.id}>
+                                {driver.name}
+                            </option>
+                        ))}
+                    </select>
+
+                    <div className="flex items-center justify-end gap-3">
+                        <div className="text-sm text-gray-600 whitespace-nowrap">
+                            Total: <strong>{filtered.length}</strong>
+                        </div>
+
+                        <button type="button" onClick={exportCsv} className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 text-sm font-semibold whitespace-nowrap" >
+                            Export CSV
+                        </button>
                     </div>
+
                 </div>
 
                 <DataTable
