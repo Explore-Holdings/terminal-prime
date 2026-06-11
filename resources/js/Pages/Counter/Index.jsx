@@ -157,9 +157,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section
                     title={
                         <div className="flex flex-wrap items-center gap-3">
-                            <span>Ongoing Trips</span>
+                            <span>Trips</span>
 
-                            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                            <div className="flex flex-wrap items-center gap-4 text-[11px]">
                                 <div className="flex items-center gap-1">
                                     <span className="w-3 h-3 rounded-full bg-red-500"></span>
                                     <span>Assigned</span>
@@ -613,20 +613,20 @@ function TripCard({ trip }) {
 
             <div className="space-y-1 text-[11px] text-gray-700">
                 <div className="truncate">
-                    <span className="font-semibold">Customer:</span>{' '}
+                    <span className="font-semibold">Customer :</span>{' '}
                     {trip.customer?.name ?? '-'}
                 </div>
 
                 <div className="truncate">
-                    <span className="font-semibold">Agent:</span>{' '}
-                    {trip.agent?.user?.name ??
+                    <span className="font-semibold">Agent :</span>{' '}
+                     {trip.agent?.user?.name ??
                         trip.agent?.name ??
                         '-'}
                 </div>
 
                 <div>
-                    <span className="font-semibold">Assigned:</span>
-                    <br />
+                    <span className="font-semibold">Assigned :</span>
+                    {/* <br /> */}
                     <span className="text-[10px]">
                         {trip.trip_assigned_at
                             ? new Date(
