@@ -17,7 +17,7 @@ class CounterController extends Controller
                 ->latest()
                 ->get(),
 
-            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent'])
+            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent','driver.vehicle',])
                 ->where('status', '!=', 'Completed')
                 ->latest()
                 ->get(),
