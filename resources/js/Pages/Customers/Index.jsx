@@ -90,16 +90,16 @@ export default function Index({ customers = [] }) {
                 </span>
             ),
         },
-        {
-            name: 'Status',
-            selector: row => row.status ?? 'New',
-            sortable: true,
-            cell: row => (
-                <span className={`px-2 py-1 rounded text-xs font-bold ${badge(row.status)}`}>
-                    {row.status ?? 'New'}
-                </span>
-            ),
-        },
+        // {
+        //     name: 'Status',
+        //     selector: row => row.status ?? 'New',
+        //     sortable: true,
+        //     cell: row => (
+        //         <span className={`px-2 py-1 rounded text-xs font-bold ${badge(row.status)}`}>
+        //             {row.status ?? 'New'}
+        //         </span>
+        //     ),
+        // },
         {
             name: 'Invoice',
             selector: row => row.invoice_number ?? '-',
@@ -152,7 +152,7 @@ export default function Index({ customers = [] }) {
 
             <div className="min-h-screen bg-gray-100 p-0">
                 <div className="bg-white rounded-xl shadow overflow-hidden">
-                    <div className="flex justify-between items-center p-6 border-b">
+                    <div className="flex justify-between items-center p-4 border-b">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-800">
                                 Customers
