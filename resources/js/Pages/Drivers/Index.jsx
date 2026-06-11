@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
+import { Eye, Pencil } from 'lucide-react';
 
 export default function Index({ drivers = [] }) {
     const [search, setSearch] = useState('');
@@ -62,27 +63,27 @@ export default function Index({ drivers = [] }) {
             ),
             sortable: true,
         },
-        {
-            name: 'Registration Status',
-            selector: row => row.registration_status ?? '-',
-            sortable: true,
-        },
+        // {
+        //     name: 'Registration Status',
+        //     selector: row => row.registration_status ?? '-',
+        //     sortable: true,
+        // },
         {
             name: 'Actions',
             cell: row => (
                 <div className="flex gap-2">
                     <Link
                         href={route('drivers.show', row.id)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                        className="inline-flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
                     >
-                        View
+                        <Eye size={14} />
                     </Link>
 
                     <Link
                         href={`/drivers/${row.id}/edit`}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600"
+                        className="inline-flex items-center gap-1 bg-green-800 text-white px-3 py-1 rounded text-xs hover:bg-green-800"
                     >
-                        Edit
+                        <Pencil size={14} />
                     </Link>
                 </div>
             ),
