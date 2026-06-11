@@ -201,19 +201,9 @@ export default function Index({ surveys = [] }) {
 
                 <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
                     
-                    <input
-                        type="text"
-                        placeholder="Search surveys..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="md:col-span-2 w-full border border-gray-300 rounded px-4 py-2"
-                    />
+                    <input type="text" placeholder="Search surveys..." value={search} onChange={(e) => setSearch(e.target.value)} className="md:col-span-2 w-full border border-gray-300 rounded px-4 py-2" />
 
-                    <select
-                        value={driverFilter}
-                        onChange={(e) => setDriverFilter(e.target.value)}
-                        className="w-full border border-gray-300 rounded px-4 py-2"
-                    >
+                    <select value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className="w-full border border-gray-300 rounded px-4 py-2" >
                         <option value="">All Drivers</option>
                         {drivers.map((driver) => (
                             <option key={driver.id} value={driver.id}>
@@ -227,11 +217,7 @@ export default function Index({ surveys = [] }) {
                             Total: <strong>{filtered.length}</strong>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={exportCsv}
-                            className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 text-sm font-semibold whitespace-nowrap"
-                        >
+                        <button type="button" onClick={exportCsv} className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 text-sm font-semibold whitespace-nowrap" >
                             Export CSV
                         </button>
                     </div>
