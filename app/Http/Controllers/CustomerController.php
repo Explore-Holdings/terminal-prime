@@ -137,48 +137,48 @@ class CustomerController extends Controller
             ->with('invoice_path', $invoicePath);
     }
 
-public function assignTrip(Request $request, Customer $customer)
-{
-    $data = $request->validate([
-        'driver_id' => 'required|exists:drivers,id',
-        'agent_id' => 'required|exists:agents,id',
-        'remarks' => 'nullable|string',
-    ]);
-
-    DB::transaction(function () use ($data, $customer) {
-
-        $trip = Trip::create([
-            'driver_id' => $data['driver_id'],
-            'customer_id' => $customer->id,
-            'agent_id' => $data['agent_id'],
-            'trip_assigned_at' => now(),
-            'trip_assigned_by' => auth()->id(),
-            'remarks' => $data['remarks'] ?? null,
-            'status' => 'Assigned',
+    public function assignTrip(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'driver_id' => 'required|exists:drivers,id',
+            'agent_id' => 'required|exists:agents,id',
+            'remarks' => 'nullable|string',
         ]);
 
-        Agent::where('id', $data['agent_id'])->update([
-            'status' => 'Approved',
-        ]);
+        DB::transaction(function () use ($data, $customer) {
 
-        $trip->load('customer');
-
-        if (
-            $trip->status === 'Assigned' &&
-            $trip->customer?->email &&
-            !$trip->survey_sent_at
-        ) {
-            Mail::to($trip->customer->email)
-                ->queue(new CustomerSurveyMail($trip));
-
-            $trip->update([
-                'survey_sent_at' => now(),
+            $trip = Trip::create([
+                'driver_id' => $data['driver_id'],
+                'customer_id' => $customer->id,
+                'agent_id' => $data['agent_id'],
+                'trip_assigned_at' => now(),
+                'trip_assigned_by' => auth()->id(),
+                'remarks' => $data['remarks'] ?? null,
+                'status' => 'Assigned',
             ]);
-        }
-    });
 
-    return back()->with('success', 'Trip assigned successfully.');
-}
+            Agent::where('id', $data['agent_id'])->update([
+                'status' => 'Approved',
+            ]);
+
+            $trip->load('customer');
+
+            if (
+                $trip->status === 'Assigned' &&
+                $trip->customer?->email &&
+                !$trip->survey_sent_at
+            ) {
+                Mail::to($trip->customer->email)
+                    ->queue(new CustomerSurveyMail($trip));
+
+                $trip->update([
+                    'survey_sent_at' => now(),
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Trip assigned successfully.');
+    }
 
     private function generateCustomerCode()
     {

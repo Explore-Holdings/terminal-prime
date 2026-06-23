@@ -3,7 +3,7 @@ import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
@@ -194,7 +194,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} />
             )}
         </>
     );
@@ -242,6 +242,7 @@ function Modal({
     vehicles,
     setVehicleEnabledAgentId,
     onClose,
+    countries,
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -279,7 +280,7 @@ function Modal({
 
                 <div className="p-6 min-h-[500px]">
                     {activeTab === 'customer' && (
-                        <CustomerTab agent={agent} form={customerForm} onSubmit={saveCustomer} />
+                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} />
                     )}
 
                     {activeTab === 'payment' && (
@@ -295,7 +296,7 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit }) {
+function CustomerTab({ agent, form, onSubmit, countries }) {
     return (
         <form onSubmit={onSubmit} className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
@@ -314,7 +315,33 @@ function CustomerTab({ agent, form, onSubmit }) {
                 <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
                 <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
                 <Field label="WhatsApp" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
-                <Field label="Country" value={form.data.country} onChange={(e) => form.setData('country', e.target.value)} error={form.errors.country} />
+                <div>
+                    <label className="label">Country</label>
+
+                    <input
+                        type="text"
+                        list="countries-list"
+                        className="input"
+                        value={form.data.country || ''}
+                        onChange={(e) => form.setData('country', e.target.value)}
+                        placeholder="Search country..."
+                    />
+
+                    <datalist id="countries-list">
+                        {countries.map((country) => (
+                            <option
+                                key={country.id}
+                                value={country.country_name}
+                            />
+                        ))}
+                    </datalist>
+
+                    {form.errors.country && (
+                        <p className="text-red-600 text-sm mt-1">
+                            {form.errors.country}
+                        </p>
+                    )}
+                </div>         
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                 <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
                 <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
