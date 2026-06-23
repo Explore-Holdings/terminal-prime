@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agent;
 use App\Models\Trip;
+use App\Models\Country;
 use App\Models\Vehicle;
 use Inertia\Inertia;
 
@@ -34,6 +35,8 @@ class CounterController extends Controller
 
             'createdCustomerId' => session()->pull('created_customer_id'),
             'invoicePath' => session()->pull('invoice_path'),
+
+            'countries' => Country::orderBy('country_name')->get(),
         ]);
     }
 }
