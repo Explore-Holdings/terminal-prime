@@ -195,7 +195,6 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'license_type', message: 'License Type is required' },
             { field: 'license_number', message: 'License Number is required' },
             { field: 'issue_date', message: 'License Issue Date is required' },
-            { field: 'expiry_date', message: 'License Expiry Date is required' },
             { field: 'years_of_experience', message: 'Years of Experience is required' },
         ],
         services: [
