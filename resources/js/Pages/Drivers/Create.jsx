@@ -240,15 +240,15 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'account_number', message: 'Account Number is required' },
         ],
         driverDocs: [
-            { field: 'nic_copy', message: 'NIC Copy is required' },
-            { field: 'passport_copy', message: 'Passport Copy is required' },
+            // { field: 'nic_copy', message: 'NIC Copy is required' },
+            // { field: 'passport_copy', message: 'Passport Copy is required' },
             { field: 'driving_license_copy', message: 'Driving License Copy is required' },
-            { field: 'tourist_driving_license_copy', message: 'Tourist Driving License Copy is required' },
-            { field: 'no_objection_letter', message: 'No Objection Letter is required' },
-            { field: 'police_clearance_certificate', message: 'Police Clearance Certificate is required' },
-            { field: 'medical_fitness_certificate', message: 'Medical Fitness Certificate is required' },
-            { field: 'tourism_authority_registration', message: 'Tourism Authority Registration is required' },
-            { field: 'airport_permit', message: 'Airport Permit is required' },
+            // { field: 'tourist_driving_license_copy', message: 'Tourist Driving License Copy is required' },
+            // { field: 'no_objection_letter', message: 'No Objection Letter is required' },
+            // { field: 'police_clearance_certificate', message: 'Police Clearance Certificate is required' },
+            // { field: 'medical_fitness_certificate', message: 'Medical Fitness Certificate is required' },
+            // { field: 'tourism_authority_registration', message: 'Tourism Authority Registration is required' },
+            // { field: 'airport_permit', message: 'Airport Permit is required' },
         ],
     };
 
@@ -649,8 +649,8 @@ export default function Create({ serviceCategories = [] }) {
                                 <Checkbox {...fieldProps} label="Available for Airport Pickups" name="airport_pickups" />
                                 <Checkbox {...fieldProps} label="Available for Airport Drop-offs" name="airport_dropoffs" />
                                 <Checkbox {...fieldProps} label="Available for Tours" name="tours" />
-                                <Checkbox {...fieldProps} label="Available for Long Distance Travel" name="long_distance_travel" />
-                                <Checkbox {...fieldProps} label="Available for Overnight Tours" name="overnight_tours" />
+                                {/* <Checkbox {...fieldProps} label="Available for Long Distance Travel" name="long_distance_travel" /> */}
+                                {/* <Checkbox {...fieldProps} label="Available for Overnight Tours" name="overnight_tours" /> */}
 
                                 <Select {...fieldProps} label="Working Shift" name="working_shift">
                                     <option value="">Select Shift</option>
@@ -771,15 +771,15 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'driverDocs' && (
                             <Section title="Driver Documents">
-                                <FileInput {...fileProps} label="NIC Copy" name="nic_copy" />
-                                <FileInput {...fileProps} label="Passport Copy" name="passport_copy" />
-                                <FileInput {...fileProps} label="Driving License Copy" name="driving_license_copy" />
-                                <FileInput {...fileProps} label="Tourist Driving License Copy" name="tourist_driving_license_copy" />
-                                <FileInput {...fileProps} label="No Objection Letter" name="no_objection_letter" />
-                                <FileInput {...fileProps} label="Police Clearance Certificate" name="police_clearance_certificate" />
-                                <FileInput {...fileProps} label="Medical Fitness Certificate" name="medical_fitness_certificate" />
-                                <FileInput {...fileProps} label="Tourism Authority Registration" name="tourism_authority_registration" />
-                                <FileInput {...fileProps} label="Airport Permit" name="airport_permit" />
+                                {/* <FileInput {...fileProps} label="NIC Copy" name="nic_copy" /> */}
+                                {/* <FileInput {...fileProps} label="Passport Copy" name="passport_copy" /> */}
+                                <FileInput {...fileProps} label="Driving License Copy" name="driving_license_copy"  />
+                                <FileInput {...fileProps} label="Tourist Driving License Copy" name="tourist_driving_license_copy"  required={false} />
+                                <FileInput {...fileProps} label="No Objection Letter" name="no_objection_letter"  required={false} />
+                                <FileInput {...fileProps} label="Police Clearance Certificate" name="police_clearance_certificate"  required={false} />
+                                <FileInput {...fileProps} label="Medical Fitness Certificate" name="medical_fitness_certificate"  required={false} />
+                                <FileInput {...fileProps} label="Tourism Authority Registration" name="tourism_authority_registration"  required={false} />
+                                <FileInput {...fileProps} label="Airport Permit" name="airport_permit"  required={false} />
                             </Section>
                         )}
 
