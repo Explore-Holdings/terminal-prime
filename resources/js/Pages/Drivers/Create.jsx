@@ -53,13 +53,13 @@ export default function Create({ serviceCategories = [] }) {
         driver_languages: [{ language_name: '', speaking_level: '', reading_level: '', writing_level: '' }],
         service_category_ids: [],
 
-        monday: false,
-        tuesday: false,
-        wednesday: false,
-        thursday: false,
-        friday: false,
-        saturday: false,
-        sunday: false,
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: true,
+        sunday: true,
         working_shift: '',
         airport_pickups: false,
         airport_dropoffs: false,
@@ -67,11 +67,11 @@ export default function Create({ serviceCategories = [] }) {
         long_distance_travel: false,
         overnight_tours: false,
 
-        smartphone_available: false,
+        smartphone_available: true,
         device_type: '',
-        internet_connection_available: false,
+        internet_connection_available: true,
         gps_tracking_enabled: false,
-        mobile_app_usage_experience: false,
+        mobile_app_usage_experience: true,
 
         tourism_registration_number: '',
         sltda_registered_driver: false,
@@ -92,7 +92,7 @@ export default function Create({ serviceCategories = [] }) {
         ownership_type: '',
         ownership_confirmation_letter: null,
 
-        air_conditioned: false,
+        air_conditioned: true,
         wifi_available: false,
         gps_enabled: false,
         child_seat_available: false,
@@ -195,7 +195,6 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'license_type', message: 'License Type is required' },
             { field: 'license_number', message: 'License Number is required' },
             { field: 'issue_date', message: 'License Issue Date is required' },
-            { field: 'expiry_date', message: 'License Expiry Date is required' },
             { field: 'years_of_experience', message: 'Years of Experience is required' },
         ],
         services: [
@@ -207,21 +206,21 @@ export default function Create({ serviceCategories = [] }) {
             { field: 'brand', message: 'Vehicle Brand is required' },
             { field: 'model', message: 'Vehicle Model is required' },
         ],
-        availability: [
-            { field: 'working_shift', message: 'Working Shift is required' },
-        ],
-        technology: [
-            { field: 'device_type', message: 'Device Type is required' },
-        ],
+        // availability: [
+        //     { field: 'working_shift', message: 'Working Shift is required' },
+        // ],
+        // technology: [
+        //     { field: 'device_type', message: 'Device Type is required' },
+        // ],
         vehicleDocs: [
             { field: 'registration_book', message: 'Registration Book is required' },
             { field: 'insurance_certificate', message: 'Insurance Certificate is required' },
             { field: 'revenue_license', message: 'Revenue License is required' },
-            { field: 'emission_test_certificate', message: 'Emission Test Certificate is required' },
-            { field: 'vehicle_driving_license_copy', message: 'Vehicle Driving License Copy is required' },
+            // { field: 'emission_test_certificate', message: 'Emission Test Certificate is required' },
+            // { field: 'vehicle_driving_license_copy', message: 'Vehicle Driving License Copy is required' },
             { field: 'insurance_expiry_date', message: 'Insurance Expiry Date is required' },
             { field: 'revenue_license_expiry_date', message: 'Revenue License Expiry Date is required' },
-            { field: 'emission_test_expiry_date', message: 'Emission Test Expiry Date is required' },
+            // { field: 'emission_test_expiry_date', message: 'Emission Test Expiry Date is required' },
         ],
         vehiclePics: [
             { field: 'front_view', message: 'Front View image is required' },
@@ -496,8 +495,17 @@ export default function Create({ serviceCategories = [] }) {
                                     <option value="Single">Single</option>
                                     <option value="Married">Married</option>
                                 </Select>
+                                <Input {...fieldProps} label="Mobile Number" name="mobile_number"
+                                    onChange={(e) => {
+                                        const value = e.target.value;
 
-                                <Input {...fieldProps} label="Mobile Number" name="mobile_number" />
+                                        setData({
+                                            ...data,
+                                            mobile_number: value,
+                                            whatsapp_number: value,
+                                        });
+                                    }}
+                                />
                                 <Input {...fieldProps} label="WhatsApp Number" name="whatsapp_number" />
                                 <Input {...fieldProps} label="Alternative Contact Number" name="alternative_contact_number" />
                                 <Input {...fieldProps} label="Email" name="email" type="email" />
@@ -539,8 +547,8 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="Contact Name" name="emergency_contact_name" />
                                 <Input {...fieldProps} label="Relationship" name="relationship" />
                                 <Input {...fieldProps} label="Contact Number" name="emergency_contact_number" />
-                                <Input {...fieldProps} label="Alternative Contact Number" name="emergency_alternative_contact_number" />
-                                <TextArea {...fieldProps} label="Address" name="emergency_address" />
+                                {/* <Input {...fieldProps} label="Alternative Contact Number" name="emergency_alternative_contact_number" />
+                                <TextArea {...fieldProps} label="Address" name="emergency_address" /> */}
                             </Section>
                         )}
 
@@ -642,21 +650,50 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'availability' && (
                             <Section title="Driver Availability">
-                                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                                    <Checkbox key={day} {...fieldProps} label={day.toUpperCase()} name={day} />
-                                ))}
+                                <Checkbox
+                                    label="Available All 7 Days"
+                                    name="all_days"
+                                    data={{
+                                        all_days:
+                                            data.monday &&
+                                            data.tuesday &&
+                                            data.wednesday &&
+                                            data.thursday &&
+                                            data.friday &&
+                                            data.saturday &&
+                                            data.sunday,
+                                    }}
+                                    setData={() => {
+                                        const checked = !(
+                                            data.monday &&
+                                            data.tuesday &&
+                                            data.wednesday &&
+                                            data.thursday &&
+                                            data.friday &&
+                                            data.saturday &&
+                                            data.sunday
+                                        );
+
+                                        setData({
+                                            ...data,
+                                            monday: checked,
+                                            tuesday: checked,
+                                            wednesday: checked,
+                                            thursday: checked,
+                                            friday: checked,
+                                            saturday: checked,
+                                            sunday: checked,
+                                        });
+                                    }}
+                                />
 
                                 <Checkbox {...fieldProps} label="Available for Airport Pickups" name="airport_pickups" />
                                 <Checkbox {...fieldProps} label="Available for Airport Drop-offs" name="airport_dropoffs" />
                                 <Checkbox {...fieldProps} label="Available for Tours" name="tours" />
-                                {/* <Checkbox {...fieldProps} label="Available for Long Distance Travel" name="long_distance_travel" /> */}
-                                {/* <Checkbox {...fieldProps} label="Available for Overnight Tours" name="overnight_tours" /> */}
-
                                 <Select {...fieldProps} label="Working Shift" name="working_shift">
-                                    <option value="">Select Shift</option>
+                                    <option>Both</option>
                                     <option>Day Shift</option>
                                     <option>Night Shift</option>
-                                    <option>Both</option>
                                 </Select>
                             </Section>
                         )}
@@ -666,7 +703,6 @@ export default function Create({ serviceCategories = [] }) {
                                 <Checkbox {...fieldProps} label="Smartphone Available" name="smartphone_available" />
 
                                 <Select {...fieldProps} label="Device Type" name="device_type">
-                                    <option value="">Select Device</option>
                                     <option>Android</option>
                                     <option>iPhone</option>
                                 </Select>
@@ -705,18 +741,18 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="Brand" name="brand" />
                                 <Input {...fieldProps} label="Model" name="model" />
                                 <Input {...fieldProps} label="Vehicle Year" name="vehicle_year" type="number" />
-                                <Input {...fieldProps} label="Color" name="color" />
+                                {/* <Input {...fieldProps} label="Color" name="color" /> */}
                                 <Input {...fieldProps} label="Seating Capacity" name="seating_capacity" type="number" />
                                 <Input {...fieldProps} label="Luggage Capacity" name="luggage_capacity" type="number" />
-                                <Input {...fieldProps} label="Fuel Type" name="fuel_type" />
-                                <Input {...fieldProps} label="Transmission Type" name="transmission_type" />
+                                {/* <Input {...fieldProps} label="Fuel Type" name="fuel_type" /> */}
+                                {/* <Input {...fieldProps} label="Transmission Type" name="transmission_type" /> */}
 
-                                <Select {...fieldProps} label="Ownership Type" name="ownership_type">
+                                {/* <Select {...fieldProps} label="Ownership Type" name="ownership_type">
                                     <option value="">Select Ownership</option>
                                     <option>Company-Owned</option>
                                     <option>Outsourced Vehicle</option>
                                     <option>Personally Owned</option>
-                                </Select>
+                                </Select> */}
 
                                 {/* <FileInput {...fileProps} label="Ownership Confirmation Letter" name="ownership_confirmation_letter" required={false} /> */}
                             </Section>
@@ -738,8 +774,8 @@ export default function Create({ serviceCategories = [] }) {
                                 <FileInput {...fileProps} label="Registration Book" name="registration_book" />
                                 <FileInput {...fileProps} label="Insurance Certificate" name="insurance_certificate" />
                                 <FileInput {...fileProps} label="Revenue License" name="revenue_license" />
-                                <FileInput {...fileProps} label="Emission Test Certificate" name="emission_test_certificate" />
-                                <FileInput {...fileProps} label="Driving License Copy" name="vehicle_driving_license_copy" />
+                                <FileInput {...fileProps} label="Emission Test Certificate" name="emission_test_certificate" required={false} />
+                                {/* <FileInput {...fileProps} label="Driving License Copy" name="vehicle_driving_license_copy" /> */}
 
                                 <Input {...fieldProps} label="Insurance Expiry Date" name="insurance_expiry_date" type="date" />
                                 <Input {...fieldProps} label="Revenue License Expiry Date" name="revenue_license_expiry_date" type="date" />
@@ -762,11 +798,44 @@ export default function Create({ serviceCategories = [] }) {
 
                         {activeTab === 'bank' && (
                             <Section title="Banking Information">
-                                <Input {...fieldProps} label="Bank Name" name="bank_name" />
+                               <div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Bank Name
+                                        {isRequired('bank_name') && <span className="text-red-600 ml-1">*</span>}
+                                    </label>
+
+                                    <input
+                                        list="bank-list"
+                                        value={data.bank_name || ''}
+                                        onChange={(e) => setData('bank_name', e.target.value)}
+                                        className="mt-1 w-full border-gray-300 rounded-md shadow-sm"
+                                        placeholder="Search or type bank name"
+                                    />
+
+                                    <datalist id="bank-list">
+                                        <option value="Bank of Ceylon (BOC)" />
+                                        <option value="People's Bank" />
+                                        <option value="Commercial Bank" />
+                                        <option value="Hatton National Bank (HNB)" />
+                                        <option value="Sampath Bank" />
+                                        <option value="National Development Bank (NDB)" />
+                                        <option value="Seylan Bank" />
+                                        <option value="DFCC Bank" />
+                                        <option value="Pan Asia Bank" />
+                                        <option value="Nations Trust Bank" />
+                                        <option value="Union Bank" />
+                                        <option value="Cargills Bank" />
+                                        <option value="Regional Development Bank (RDB)" />
+                                        <option value="Sanasa Development Bank" />
+                                        <option value="HSBC" />
+                                        <option value="Standard Chartered Bank" />
+                                        <option value="Citibank" />
+                                        <option value="Other" />
+                                    </datalist>
+                                </div>
                                 <Input {...fieldProps} label="Branch Name" name="branch_name" />
                                 <Input {...fieldProps} label="Account Holder Name" name="account_holder_name" />
                                 <Input {...fieldProps} label="Account Number" name="account_number" />
-                                <Input {...fieldProps} label="Swift Code" name="swift_code" />
                             </Section>
                         )}
 
@@ -854,7 +923,7 @@ function Section({ title, children }) {
     );
 }
 
-function Input({ label, name, type = 'text', data, setData, errors, isRequired, required = false }) {
+function Input({ label, name, type = 'text', data, setData, errors, isRequired, required = false, onChange, }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -865,7 +934,11 @@ function Input({ label, name, type = 'text', data, setData, errors, isRequired, 
             <input
                 type={type}
                 value={data[name] ?? ''}
-                onChange={(e) => setData(name, e.target.value)}
+                onChange={
+                    onChange
+                        ? onChange
+                        : (e) => setData(name, e.target.value)
+                }
                 className="mt-1 w-full border-gray-300 rounded-md shadow-sm"
             />
 
