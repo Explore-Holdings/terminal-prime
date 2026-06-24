@@ -14,6 +14,7 @@ use App\Http\Controllers\CounterController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CustomerSurveyController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\CustomerSurveyAdminController;
 
 Route::get('/', function () {
@@ -115,5 +116,14 @@ Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
 
 Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
     ->name('customer-surveys.index');
+
+Route::prefix('reports')->group(function () {
+    Route::get('/', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/dashboard', [ReportsController::class, 'dashboard'])->name('reports.dashboard');
+    Route::get('/recent-trips', [ReportsController::class, 'recentTrips'])->name('reports.recent-trips');
+    Route::get('/revenue-chart', [ReportsController::class, 'revenueChart'])->name('reports.revenue-chart');
+    Route::get('/top-destinations', [ReportsController::class, 'topDestinations'])->name('reports.top-destinations');
+    Route::get('/trip-status', [ReportsController::class, 'tripStatus'])->name('reports.trip-status');
+});
 
 require __DIR__.'/auth.php';
