@@ -26,6 +26,7 @@
         "@heroicons/react": "^2.2.0",
         "lucide-react": "^1.17.0",
         "react-data-table-component": "^8.3.0",
-        "react-hot-toast": "^2.6.0"
+        "react-hot-toast": "^2.6.0",
+        "recharts": "^3.9.0"
     }
 }
