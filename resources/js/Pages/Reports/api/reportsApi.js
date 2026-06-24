@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Leave VITE_API_BASE_URL empty for same-origin
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 async function get(path, params = {}) {

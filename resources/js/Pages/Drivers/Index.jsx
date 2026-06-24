@@ -30,7 +30,7 @@ export default function Index({ drivers = [] }) {
         },
         {
             name: 'Name',
-            selector: row => row.full_name ?? `${row.first_name ?? ''} ${row.last_name ?? ''}`,
+            selector: row => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
             sortable: true,
             wrap: true,
         },
