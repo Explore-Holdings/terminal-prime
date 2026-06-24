@@ -14,6 +14,7 @@ use App\Http\Controllers\CounterController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CustomerSurveyController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\CustomerSurveyAdminController;
 
 Route::get('/', function () {
@@ -115,5 +116,7 @@ Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
 
 Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
     ->name('customer-surveys.index');
+
+Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
 
 require __DIR__.'/auth.php';
