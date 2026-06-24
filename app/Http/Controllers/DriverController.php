@@ -63,7 +63,7 @@ class DriverController extends Controller
             'license_type' => 'required|string|max:100',
             'license_number' => 'required|string|max:100',
             'issue_date' => 'required|date',
-            'expiry_date' => 'required|date|after:issue_date',
+            'expiry_date' => 'nullable|date|after:issue_date',
             'years_of_experience' => 'required|integer|min:0',
 
             'vehicle_registration_number' => 'required|string|max:50|unique:drivers,vehicle_registration_number',
