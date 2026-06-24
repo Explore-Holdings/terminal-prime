@@ -49,26 +49,25 @@ export default function PageHeader({
                     </div>
 
                     {/* Filters button */}
-                    <button
+                    {/* <button
                         type="button"
                         className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition shadow-sm"
                     >
                         <SlidersHorizontal className="w-4 h-4" />
                         Filters
-                    </button>
+                    </button> */}
 
                     {/* Export button */}
-                    <button
+                    {/* <button
                         type="button"
                         className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
                     >
                         <Download className="w-4 h-4" />
                         Export
-                    </button>
+                    </button> */}
                 </div>
             </div>
 
-            {/* Row 2 (only when custom): date pickers */}
             {activeRange === 'custom' && (
                 <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 w-fit">
                     <span className="text-xs font-semibold text-gray-500 shrink-0">Date range:</span>

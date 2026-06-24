@@ -84,17 +84,17 @@ export default function ReportsIndex() {
         <AppSidebarLayout title="Reports Dashboard">
             {/* Load Inter font for the reports page */}
             <Head>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                {/* <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link
                     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
                     rel="stylesheet"
-                />
+                /> */}
             </Head>
 
             {/* Full-bleed #EBF3FB background */}
             <div
                 className="-mx-4 -mb-4 bg-[#EBF3FB] min-h-screen px-6 pb-10 pt-4"
-                style={{ fontFamily: "'Inter', sans-serif" }}
+                // style={{ fontFamily: "'Inter', sans-serif" }}
             >
                 {/* ── Page Header ────────────────────────────────────── */}
                 <PageHeader
@@ -132,7 +132,7 @@ export default function ReportsIndex() {
                     ))}
                 </div>
 
-                {/* ── Revenue Chart + Status Donut ───────────────────── */}
+                {/* ── Revenue Chart + Status  ───────────────────── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
                     <div className="lg:col-span-2">
                         <RevenueLineChart
