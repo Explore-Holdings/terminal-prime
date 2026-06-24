@@ -496,8 +496,17 @@ export default function Create({ serviceCategories = [] }) {
                                     <option value="Single">Single</option>
                                     <option value="Married">Married</option>
                                 </Select>
+                                <Input {...fieldProps} label="Mobile Number" name="mobile_number"
+                                    onChange={(e) => {
+                                        const value = e.target.value;
 
-                                <Input {...fieldProps} label="Mobile Number" name="mobile_number" />
+                                        setData({
+                                            ...data,
+                                            mobile_number: value,
+                                            whatsapp_number: value,
+                                        });
+                                    }}
+                                />
                                 <Input {...fieldProps} label="WhatsApp Number" name="whatsapp_number" />
                                 <Input {...fieldProps} label="Alternative Contact Number" name="alternative_contact_number" />
                                 <Input {...fieldProps} label="Email" name="email" type="email" />
@@ -854,7 +863,7 @@ function Section({ title, children }) {
     );
 }
 
-function Input({ label, name, type = 'text', data, setData, errors, isRequired, required = false }) {
+function Input({ label, name, type = 'text', data, setData, errors, isRequired, required = false, onChange, }) {
     return (
         <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -865,7 +874,11 @@ function Input({ label, name, type = 'text', data, setData, errors, isRequired, 
             <input
                 type={type}
                 value={data[name] ?? ''}
-                onChange={(e) => setData(name, e.target.value)}
+                onChange={
+                    onChange
+                        ? onChange
+                        : (e) => setData(name, e.target.value)
+                }
                 className="mt-1 w-full border-gray-300 rounded-md shadow-sm"
             />
 
