@@ -548,8 +548,8 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="Contact Name" name="emergency_contact_name" />
                                 <Input {...fieldProps} label="Relationship" name="relationship" />
                                 <Input {...fieldProps} label="Contact Number" name="emergency_contact_number" />
-                                <Input {...fieldProps} label="Alternative Contact Number" name="emergency_alternative_contact_number" />
-                                <TextArea {...fieldProps} label="Address" name="emergency_address" />
+                                {/* <Input {...fieldProps} label="Alternative Contact Number" name="emergency_alternative_contact_number" />
+                                <TextArea {...fieldProps} label="Address" name="emergency_address" /> */}
                             </Section>
                         )}
 
