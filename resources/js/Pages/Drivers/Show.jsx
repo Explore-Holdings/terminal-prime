@@ -81,8 +81,8 @@ export default function Show({ driver }) {
                     <Info label="Contact Name" value={driver.emergency_contact.contact_name} />
                     <Info label="Relationship" value={driver.emergency_contact.relationship} />
                     <Info label="Contact Number" value={driver.emergency_contact.contact_number} />
-                    <Info label="Alternative Contact Number" value={driver.emergency_contact.alternative_contact_number} />
-                    <Info label="Address" value={driver.emergency_contact.address} wide />
+                    {/* <Info label="Alternative Contact Number" value={driver.emergency_contact.alternative_contact_number} />
+                    <Info label="Address" value={driver.emergency_contact.address} wide /> */}
                 </Card>
             )}
 
