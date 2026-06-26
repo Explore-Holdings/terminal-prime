@@ -1,5 +1,5 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect  } from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -259,7 +259,7 @@ export default function Create({ serviceCategories = [] }) {
     const isLastTab = currentTabIndex === tabs.length - 1;
 
     const fieldProps = { data, setData, errors, isRequired };
-    const fileProps = { setData, toWebp };
+    const fileProps = { setData, toWebp, data };
 
     function toWebp(file, name, quality = 0.75, maxWidth = 1200) {
         return new Promise((resolve) => {
@@ -511,7 +511,7 @@ export default function Create({ serviceCategories = [] }) {
                                 <Input {...fieldProps} label="Email" name="email" type="email" />
                                 <Input {...fieldProps} label="City" name="city" />
 
-                                <DriverPhotoInput setData={setData} toWebp={toWebp} />
+                                <DriverPhotoInput setData={setData} toWebp={toWebp} data={data} />
 
                                 <TextArea {...fieldProps} label="Permanent Address" name="permanent_address" />
 
@@ -1043,14 +1043,34 @@ function TextArea({ label, name, data, setData, errors, isRequired, required = f
     );
 }
 
-function FileInput({ label, name, setData, toWebp, required = true }) {
+function FileInput({ label, name, setData, toWebp, required = true, data }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
     const [cameraOpen, setCameraOpen] = useState(false);
-    const [stream, setStream] = useState(null);
     const [preview, setPreview] = useState(null);
     const [fileType, setFileType] = useState(null);
+    const [fileName, setFileName] = useState(null);
+    const [stream, setStream] = useState(null);
+
+    useEffect(() => {
+        if (data?.[name]) {
+            const file = data[name];
+            
+            if (file.type === 'application/pdf' || file.name?.endsWith('.pdf')) {
+                setFileType('application/pdf');
+                setFileName(file.name);
+                setPreview(null);
+            } else if (file.type?.startsWith('image/')) {
+                setFileType(file.type);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPreview(reader.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    }, [data?.[name], name]);
 
     const uploadFile = async (e) => {
         const file = e.target.files[0];
@@ -1065,9 +1085,15 @@ function FileInput({ label, name, setData, toWebp, required = true }) {
 
         setData(name, finalFile);
         setFileType(finalFile.type);
-        setPreview(URL.createObjectURL(finalFile));
+        setFileName(finalFile.name);
 
-        toast.success(`${label} selected`);
+        if (finalFile.type === 'application/pdf' || finalFile.name?.endsWith('.pdf')) {
+            setPreview(null);
+            toast.success(`${label} (PDF) selected`);
+        } else {
+            setPreview(URL.createObjectURL(finalFile));
+            toast.success(`${label} selected`);
+        }
     };
 
     const openScanner = async () => {
@@ -1117,6 +1143,7 @@ function FileInput({ label, name, setData, toWebp, required = true }) {
 
                 setData(name, file);
                 setFileType(file.type);
+                setFileName(file.name);
                 setPreview(URL.createObjectURL(file));
                 closeScanner();
 
@@ -1151,21 +1178,31 @@ function FileInput({ label, name, setData, toWebp, required = true }) {
                 </button>
             </div>
 
-            {preview && (
+            {/* Show preview for images */}
+            {preview && fileType?.startsWith('image/') && (
                 <div className="mt-3">
                     <p className="text-xs text-gray-500 mb-1">Selected File</p>
+                    <img
+                        src={preview}
+                        alt={label}
+                        className="w-40 h-28 object-cover rounded border"
+                    />
+                </div>
+            )}
 
-                    {fileType === 'application/pdf' ? (
-                        <p className="text-sm font-semibold text-green-700">
-                            PDF selected successfully
-                        </p>
-                    ) : (
-                        <img
-                            src={preview}
-                            alt={label}
-                            className="w-40 h-28 object-cover rounded border"
-                        />
-                    )}
+            {fileType === 'application/pdf' && (
+                <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Selected File</p>
+                    <div className="flex items-center gap-3 p-3 bg-red-50 rounded border border-red-200">
+                        <div className="text-red-600 text-2xl">
+                            📄
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-700">PDF Document</p>
+                            <p className="text-xs text-red-600 truncate">{fileName}</p>
+                        </div>
+                        <div className="text-green-600 text-lg">✓</div>
+                    </div>
                 </div>
             )}
 
@@ -1265,13 +1302,23 @@ function LanguageSelect({ label, value, onChange }) {
     );
 }
 
-function DriverPhotoInput({ setData, toWebp }) {
+function DriverPhotoInput({ setData, toWebp, data, }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
     const [cameraOpen, setCameraOpen] = useState(false);
     const [preview, setPreview] = useState(null);
     const [stream, setStream] = useState(null);
+
+    useEffect(() => {
+        if (data?.driver_photo && !preview) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreview(reader.result);
+            };
+            reader.readAsDataURL(data.driver_photo);
+        }
+    }, [data?.driver_photo, preview]);
 
     const openCamera = async () => {
         try {
