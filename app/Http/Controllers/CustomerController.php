@@ -64,63 +64,101 @@ class CustomerController extends Controller
 
     public function savePayment(Request $request, Customer $customer)
     {
-        $rules = [
-            'currency' => 'required|string|max:10',
-            'price' => 'required|numeric|min:0',
-            'payment_method' => 'required|in:Cash,POS',
-            'transaction_id' => 'nullable|string|max:100',
-            'card_number' => 'nullable|string|max:100',
-        ];
+        $data = $request->validate([
+            'currency'                  => 'required|string|max:10',
+            'price'                     => 'required|numeric|min:0',
+            'payments'                  => 'required|array|min:1',
+            'payments.*.method'         => 'required|in:Cash,POS,Bank Transfer,Online',
+            'payments.*.currency'       => 'nullable|string|max:10',
+            'payments.*.amount'         => 'required|numeric|min:0',
+            'payments.*.transaction_id' => 'nullable|string|max:100',
+            'payments.*.card_number'    => 'nullable|string|max:100',
+            'payments.*.notes'          => 'nullable|array',
+            'payments.*.notes.*.currency' => 'nullable|string|max:10',
+            'payments.*.notes.*.amount'   => 'nullable|numeric|min:0.01',
+            'payments.*.notes.*.count'    => 'nullable|integer|min:1',
+        ]);
 
-        if ($request->payment_method === 'Cash') {
-            $rules['payment_notes'] = 'required|array|min:1';
-            $rules['payment_notes.*.amount'] = 'required|numeric|min:0.01';
-            $rules['payment_notes.*.count'] = 'required|integer|min:1';
-        }
+        $payments = collect($data['payments'])->map(function ($p) use ($data) {
+            $payCur = $p['currency'] ?? $data['currency'];
 
-        if ($request->payment_method === 'POS') {
-            $rules['transaction_id'] = 'required|string|max:100';
-            $rules['card_number'] = 'nullable|string|max:100';
-        }
+            if ($p['method'] === 'Cash' && !empty($p['notes'])) {
+                $amount = collect($p['notes'])
+                    ->sum(function ($n) {
+                        return (float) ($n['amount'] ?? 0) * (int) ($n['count'] ?? 0);
+                    });
 
-        $data = $request->validate($rules);
+                $notes = collect($p['notes'])
+                    ->map(fn ($n) => [
+                        'amount'   => $n['amount'] ?? null,
+                        'count'    => $n['count'] ?? null,
+                        'currency' => $n['currency'] ?? $payCur,
+                    ])
+                    ->values()->all();
+            } else {
+                $amount = (float) ($p['amount'] ?? 0);
+                $notes  = null;
+            }
 
-        $paidAmount = $data['payment_method'] === 'Cash'
-            ? collect($data['payment_notes'])->sum(fn ($n) => (float) $n['amount'] * (int) $n['count'])
-            : (float) $data['price'];
+            return [
+                'method'         => $p['method'],
+                'currency'       => $payCur,
+                'amount'         => round($amount, 2),
+                'notes'          => $notes,
+                'transaction_id' => $p['transaction_id'] ?? null,
+                'card_number'    => $p['card_number'] ?? null,
+            ];
+        })->values();
+
+        $paidAmount = $payments->sum('amount');
 
         if (round($paidAmount, 2) !== round((float) $data['price'], 2)) {
             return back()->withErrors([
-                'payment_notes' => 'Cash note total must match the price.',
+                'payments' => 'Total paid (' . number_format($paidAmount, 2) .
+                            ') must match the price (' . number_format($data['price'], 2) . ').',
             ]);
         }
 
+        // Validate cash blocks have at least one note
+        foreach ($payments as $p) {
+            if ($p['method'] === 'Cash' && empty($p['notes'])) {
+                return back()->withErrors([
+                    'payments' => 'Cash payments require at least one note breakdown.',
+                ]);
+            }
+        }
+
+        // Build summary fields from the payments array
+        $methods   = $payments->pluck('method')->unique()->implode(' + ');
+        $firstPos  = $payments->firstWhere('method', 'POS');
+
         $customer->update([
-            'payment_method' => $data['payment_method'],
-            'payment_notes' => $data['payment_method'] === 'Cash' ? $data['payment_notes'] : null,
-            'transaction_id' => $data['payment_method'] === 'POS' ? $data['transaction_id'] : null,
-            'card_number' => $data['payment_method'] === 'POS' ? $data['card_number'] : null,
-            'paid_amount' => $paidAmount,
-            'payment_status' => 'Paid',
+            'payment_method' => $methods,                 
+            'payment_notes'  => $payments->toArray(),     
+            'transaction_id' => $firstPos['transaction_id'] ?? null,
+            'card_number'    => $firstPos['card_number'] ?? null,
+            'paid_amount'    => $paidAmount,
+            'payment_status' => $paidAmount >= (float) $data['price'] ? 'Paid' : 'Partial',
         ]);
 
         $customer->agent()->update([
-            'new_currency' => $data['currency'],
-            'new_price' => $data['price'],
+            'new_currency'        => $data['currency'],
+            'new_price'           => $data['price'],
             'currency_updated_by' => auth()->id(),
         ]);
 
         $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
-        $invoicePath = "invoices/{$invoiceNumber}.pdf";
+        $invoicePath   = "invoices/{$invoiceNumber}.pdf";
 
         $customer->update(['invoice_number' => $invoiceNumber]);
         $customer->refresh()->load('agent.user');
 
         $pdf = Pdf::loadView('invoices.customer-invoice', [
-            'customer' => $customer,
-            'currency' => $data['currency'],
-            'price' => $data['price'],
+            'customer'   => $customer,
+            'currency'   => $data['currency'],
+            'price'      => $data['price'],
             'paidAmount' => $paidAmount,
+            'payments'   => $payments,  
         ]);
 
         Storage::disk('public')->put($invoicePath, $pdf->output());
