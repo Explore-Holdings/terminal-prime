@@ -41,10 +41,12 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const paymentForm = useForm({
         currency: 'LKR',
         price: 0,
-        payment_method: 'Cash',
-        transaction_id: '',
-        card_number: '',
-        payment_notes: [{ amount: '', count: '' }],
+        payments: [{
+            method: 'Cash',
+            currency: 'LKR',
+            amount: 0,
+            notes: [{ amount: '', count: '', currency: 'LKR' }],
+        }],
     });
 
     const resetCustomerForm = (agent) => {
@@ -66,10 +68,12 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         paymentForm.setData({
             currency: agent.new_currency ?? agent.currency ?? 'LKR',
             price: agent.new_price ?? agent.price ?? 0,
-            payment_method: 'Cash',
-            transaction_id: '',
-            card_number: '',
-            payment_notes: [{ amount: '', count: '' }],
+            payments: [{
+                method: 'Cash',
+                currency: agent.new_currency ?? agent.currency ?? 'LKR',
+                amount: 0,
+                notes: [{ amount: '', count: '', currency: agent.new_currency ?? agent.currency ?? 'LKR' }],
+            }],
         });
 
         setCreatedCustomerId(null);
@@ -384,143 +388,230 @@ function CustomerTab({ agent, form, onSubmit, countries }) {
 }
 
 function PaymentTab({
-    agent,
-    customerId,
-    form,
-    invoicePath,
-    setInvoicePath,
-    setActiveTab,
-    setVehicleEnabledAgentId,
+    agent, customerId, form, invoicePath,
+    setInvoicePath, setActiveTab, setVehicleEnabledAgentId,
 }) {
-    const total = form.data.payment_notes.reduce(
-        (sum, n) => sum + Number(n.amount || 0) * Number(n.count || 0),
-        0
-    );
+    const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+    const payments = form.data.payments ?? [];
 
-    const isCash = form.data.payment_method === 'Cash';
-    const canSubmit = !form.processing && (!isCash || Number(total) === Number(form.data.price));
+    // amount counts only notes whose currency matches the payment currency
+    const methodAmount = (p) => {
+        if (p.method !== 'Cash') {
+            return Number(p.amount || 0);
+        }
 
-    const updateNote = (i, key, value) => {
-        const notes = [...form.data.payment_notes];
-        notes[i][key] = value;
-        form.setData('payment_notes', notes);
+        return (p.notes ?? []).reduce((total, note) => {
+            return (
+                total +
+                Number(note.amount || 0) *
+                Number(note.count || 0)
+            );
+        }, 0);
+    };
+
+    const grandTotal = payments.reduce((s, p) => s + methodAmount(p), 0);
+    const price = Number(form.data.price || 0);
+    const balanced = Number(grandTotal) === price;
+    const canSubmit = !form.processing && balanced && payments.length > 0;
+
+    const setPayments = (next) => form.setData('payments', next);
+
+    const updatePayment = (i, key, val) => {
+        const next = [...payments];
+        next[i] = { ...next[i], [key]: val };
+        setPayments(next);
+    };
+
+    const changeMethod = (i, method) => {
+        const next = [...payments];
+        const currency = next[i].currency ?? form.data.currency;
+        next[i] = method === 'Cash'
+            ? { method, currency, amount: 0, notes: [{ amount: '', count: '', currency }] }
+            : { method, currency, amount: '', transaction_id: '', card_number: '' };
+        setPayments(next);
+    };
+
+    const addPayment = () =>
+        setPayments([...payments, {
+            method: 'Cash',
+            currency: form.data.currency,
+            amount: 0,
+            notes: [{ amount: '', count: '', currency: form.data.currency }],
+        }]);
+
+    const removePayment = (i) => setPayments(payments.filter((_, x) => x !== i));
+
+    const updateNote = (pi, ni, key, val) => {
+        const next = [...payments];
+        const notes = [...next[pi].notes];
+        notes[ni] = { ...notes[ni], [key]: val };
+        next[pi] = { ...next[pi], notes };
+        setPayments(next);
+    };
+
+    const addNote = (pi) => {
+        const next = [...payments];
+        const payCur = next[pi].currency ?? form.data.currency;
+        next[pi] = { ...next[pi], notes: [...next[pi].notes, { amount: '', count: '', currency: payCur }] };
+        setPayments(next);
+    };
+
+    const removeNote = (pi, ni) => {
+        const next = [...payments];
+        next[pi] = { ...next[pi], notes: next[pi].notes.filter((_, x) => x !== ni) };
+        setPayments(next);
     };
 
     const savePayment = (e) => {
         e.preventDefault();
+        if (!customerId) return alert('Please save customer first.');
+        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must match price (${price}).`);
 
-        if (!customerId) {
-            alert('Please save customer first.');
-            return;
-        }
+        const payload = payments.map((p) => ({
+            ...p,
+            currency: p.currency ?? form.data.currency,
+            amount: methodAmount(p),
+            // keep notes with their own currency in JSON
+            notes: p.method === 'Cash'
+                ? (p.notes ?? []).map((n) => ({ ...n, currency: n.currency ?? p.currency ?? form.data.currency }))
+                : null,
+        }));
 
-        if (isCash && Number(total) !== Number(form.data.price)) {
-            alert('Cash total must match price.');
-            return;
-        }
-
-        // move instantly
         setVehicleEnabledAgentId(agent.id);
         setActiveTab('vehicle');
 
-        // save in backend after moving
+        form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
         form.post(`/customers/${customerId}/payment`, {
             preserveScroll: true,
             preserveState: true,
-
             onSuccess: (page) => {
-                const path =
-                    page.props.invoicePath ??
-                    page.props.flash?.invoice_path ??
-                    null;
-
-                if (path) {
-                    setInvoicePath(path);
-                }
+                const path = page.props.invoicePath ?? page.props.flash?.invoice_path ?? null;
+                if (path) setInvoicePath(path);
             },
-
-            onError: () => {
-                alert('Payment save failed. Please check again.');
-                setActiveTab('payment');
-            },
+            onError: () => { alert('Payment save failed.'); setActiveTab('payment'); },
         });
     };
 
     return (
         <form onSubmit={savePayment} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Select label="Currency" value={form.data.currency} onChange={(e) => form.setData('currency', e.target.value)} options={['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY']} />
-                <Field label="Price" type="number" value={form.data.price} onChange={(e) => form.setData('price', e.target.value)} />
-                <Select label="Payment Method" value={form.data.payment_method} onChange={(e) => form.setData('payment_method', e.target.value)} options={['Cash', 'POS']} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select label="Main Currency" value={form.data.currency}
+                    onChange={(e) => form.setData('currency', e.target.value)} options={CURRENCIES} />
+                <Field label="Total Price" type="number" value={form.data.price}
+                    onChange={(e) => form.setData('price', e.target.value)} />
             </div>
 
-            {form.data.payment_method === 'POS' && (
-                <div className="border rounded-xl p-4 bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="Transaction ID" value={form.data.transaction_id} onChange={(e) => form.setData('transaction_id', e.target.value)} />
-                    <Field label="Card Number (Optional)" value={form.data.card_number} onChange={(e) => form.setData('card_number', e.target.value)} />
-                </div>
-            )}
-
-            {isCash && (
-                <div className="border rounded-xl p-4 bg-gray-50 space-y-3">
-                    <h3 className="font-bold">Cash Notes Received</h3>
-
-                    {form.data.payment_notes.map((note, i) => (
-                        <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                            <div className="col-span-5">
-                                <Field label="Note Value" type="number" value={note.amount} onChange={(e) => updateNote(i, 'amount', e.target.value)} />
+            <div className="space-y-4">
+                {payments.map((p, pi) => {
+                    const payCur = p.currency ?? form.data.currency;
+                    return (
+                        <div key={pi} className="border rounded-xl p-4 bg-gray-50 space-y-3">
+                            <div className="flex items-end gap-3">
+                                <div className="w-7 h-7 mb-1 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">
+                                    {pi + 1}
+                                </div>
+                                <div className="w-40">
+                                    <label className="label">Method</label>
+                                    <select className="input" value={p.method}
+                                        onChange={(e) => changeMethod(pi, e.target.value)}>
+                                        <option value="Cash">Cash</option>
+                                        <option value="POS">POS</option>
+                                    </select>
+                                </div>
+                                {/* <div className="w-28">
+                                    <label className="label">Currency</label>
+                                    <select className="input" value={payCur}
+                                        onChange={(e) => updatePayment(pi, 'currency', e.target.value)}>
+                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div> */}
+                                <div className="flex-1 text-right font-bold text-green-800 pb-2">
+                                    {payCur} {methodAmount(p).toLocaleString()}
+                                </div>
+                                <button type="button" disabled={payments.length === 1}
+                                    onClick={() => removePayment(pi)}
+                                    className="h-9 px-3 bg-red-600 text-white rounded disabled:bg-gray-300">
+                                    <Trash2 size={14} />
+                                </button>
                             </div>
 
-                            <div className="col-span-5">
-                                <Field label="Quantity" type="number" value={note.count} onChange={(e) => updateNote(i, 'count', e.target.value)} />
-                            </div>
+                            {p.method === 'Cash' ? (
+                                <div className="border-t pt-3 space-y-2">
+                                    <h4 className="font-semibold text-sm">Cash Notes</h4>
+                                    {p.notes.map((n, ni) => {
+                                        const noteCur = n.currency ?? payCur;
+                                        // const mismatch = noteCur !== payCur;
+                                        return (
+                                            <div key={ni} className="grid grid-cols-12 gap-2 items-end">
+                                                {/* NEW: per-note currency */}
+                                                <div className="col-span-3">
+                                                    <label className="label">Currency</label>
+                                                    <select className="input" value={noteCur}
+                                                        onChange={(e) => updateNote(pi, ni, 'currency', e.target.value)}>
+                                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="col-span-4">
+                                                    <Field label="Note Value" type="number" value={n.amount}
+                                                        onChange={(e) => updateNote(pi, ni, 'amount', e.target.value)} />
+                                                </div>
+                                                <div className="col-span-3">
+                                                    <Field label="Qty" type="number" value={n.count}
+                                                        onChange={(e) => updateNote(pi, ni, 'count', e.target.value)} />
+                                                </div>
+                                                <button type="button" disabled={p.notes.length === 1}
+                                                    onClick={() => removeNote(pi, ni)}
+                                                    className="col-span-2 h-10 bg-red-600 text-white rounded disabled:bg-gray-300">
+                                                    <Trash2 size={14} className="mx-auto" />
+                                                </button>
 
-                            <button
-                                type="button"
-                                disabled={form.data.payment_notes.length === 1}
-                                onClick={() => form.setData('payment_notes', form.data.payment_notes.filter((_, x) => x !== i))}
-                                className="col-span-2 h-10 bg-red-600 text-white rounded disabled:bg-gray-300"
-                            >
-                                <Trash2 size={14} className="mx-auto" />
-                            </button>
+                                                {/* {mismatch && (
+                                                    <p className="col-span-12 text-[11px] text-amber-600">
+                                                        ⚠ {noteCur} note not counted toward {payCur} total (different currency).
+                                                    </p>
+                                                )} */}
+                                            </div>
+                                        );
+                                    })}
+                                    <button type="button" onClick={() => addNote(pi)}
+                                        className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">+ Add Note</button>
+                                </div>
+                            ) : (
+                                <div className="border-t pt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Field label="Amount" type="number" value={p.amount}
+                                        onChange={(e) => updatePayment(pi, 'amount', e.target.value)} />
+                                    <Field label="Transaction ID" value={p.transaction_id}
+                                        onChange={(e) => updatePayment(pi, 'transaction_id', e.target.value)} />
+                                    <Field label="Card Number" value={p.card_number}
+                                        onChange={(e) => updatePayment(pi, 'card_number', e.target.value)} />
+                                </div>
+                            )}
                         </div>
-                    ))}
+                    );
+                })}
+            </div>
 
-                    <button
-                        type="button"
-                        onClick={() => form.setData('payment_notes', [...form.data.payment_notes, { amount: '', count: '' }])}
-                        className="bg-blue-700 text-white px-4 py-2 rounded-lg"
-                    >
-                        + Add Note
-                    </button>
+            <button type="button" onClick={addPayment}
+                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm">+ Add Payment Method</button>
 
-                    <div className="flex justify-between border-t pt-3 font-bold">
-                        <span>Required: {form.data.currency} {Number(form.data.price).toLocaleString()}</span>
-                        <span className={Number(total) === Number(form.data.price) ? 'text-green-700' : 'text-red-600'}>
-                            Entered: {form.data.currency} {Number(total).toLocaleString()}
-                        </span>
-                    </div>
-                </div>
-            )}
+            <div className="border rounded-xl p-4 bg-gray-50 flex justify-between font-bold">
+                <span>Required: {form.data.currency} {price.toLocaleString()}</span>
+                <span className={balanced ? 'text-green-700' : 'text-red-600'}>
+                    Entered: {form.data.currency} {grandTotal.toLocaleString()}
+                    {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
+                </span>
+            </div>
 
-            {form.errors.payment_notes && <p className="text-red-600 text-sm">{form.errors.payment_notes}</p>}
+            {form.errors.payments && <p className="text-red-600 text-sm">{form.errors.payments}</p>}
 
             {invoicePath && (
-                <a
-                    href={`/storage/${invoicePath}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block bg-green-700 text-white px-4 py-2 rounded-lg"
-                >
-                    Open Invoice
-                </a>
+                <a href={`/storage/${invoicePath}`} target="_blank" rel="noreferrer"
+                    className="inline-block bg-green-700 text-white px-4 py-2 rounded-lg">Open Invoice</a>
             )}
 
             <div className="flex justify-end">
-                <button
-                    disabled={!canSubmit}
-                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
+                <button disabled={!canSubmit}
+                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
                     Continue to Vehicle
                 </button>
             </div>

@@ -406,7 +406,15 @@ export default function Create({ serviceCategories = [] }) {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => toast.success('Driver created successfully'),
-            onError: () => toast.error('Please check the form errors'),
+            onError: (errors) => {
+                const firstError = Object.values(errors)[0];
+
+                if (Array.isArray(firstError)) {
+                    toast.error(firstError[0]);
+                } else {
+                    toast.error(firstError);
+                }
+            },
         });
     };
 
