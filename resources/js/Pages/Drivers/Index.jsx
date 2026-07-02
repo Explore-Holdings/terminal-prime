@@ -162,16 +162,13 @@ export default function Index({ drivers = [] }) {
                     columns={columns}
                     data={filteredDrivers}
                     pagination
+                    paginationPerPage={25}
+                    paginationRowsPerPageOptions={[10, 25, 50, 100, 200, 500]}
                     highlightOnHover
                     striped
                     responsive
                     persistTableHead
                     customStyles={customStyles}
-                    noDataComponent={
-                        <div className="p-6 text-gray-500">
-                            No drivers found
-                        </div>
-                    }
                 />
             </div>
         </div>
