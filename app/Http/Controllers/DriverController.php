@@ -29,7 +29,9 @@ class DriverController extends Controller
     public function index()
     {
         return Inertia::render('Drivers/Index', [
-            'drivers' => Driver::latest()->get()
+            'drivers' => Driver::with('vehicle')
+                ->latest()
+                ->get()
         ]);
     }
 
