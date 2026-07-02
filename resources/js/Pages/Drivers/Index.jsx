@@ -16,6 +16,7 @@ export default function Index({ drivers = [] }) {
                 ${driver.mobile_number ?? ''}
                 ${driver.driver_status ?? ''}
                 ${driver.registration_status ?? ''}
+                ${driver.vehicle?.registration_number ?? ''}
             `.toLowerCase();
 
             return text.includes(search.toLowerCase());
@@ -26,6 +27,11 @@ export default function Index({ drivers = [] }) {
         {
             name: 'Reg No',
             selector: row => row.registration_number ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Vehicle Number',
+            selector: row => row.vehicle?.registration_number ?? '-',
             sortable: true,
         },
         {
