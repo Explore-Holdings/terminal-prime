@@ -648,6 +648,8 @@ function DriversTable({ drivers }) {
 }
 
 function DriverPaymentModal({ driver, onClose }) {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+
     const form = useForm({
         amount: driver.amount ?? '',
         due_date: driver.due_date ?? '',
@@ -702,6 +704,7 @@ function DriverPaymentModal({ driver, onClose }) {
                         </label>
                         <input
                             type="date"
+                            min={todayStr}
                             className="w-full border rounded px-3 py-2 text-sm"
                             value={form.data.due_date}
                             onChange={(e) => form.setData('due_date', e.target.value)}
