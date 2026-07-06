@@ -49,6 +49,13 @@ return new class extends Migration
             $table->enum('duty_status', ['off_duty','on_duty','on_trip'])->default('off_duty'); 
             $table->dateTime('checked_in_at')->nullable();
             $table->date('checked_out_at')->nullable();
+
+            $table->decimal('amount', 10, 2)->nullable();
+            $table->date('due_date')->nullable();
+            $table->boolean('payment_received')->default(false)->nullable();
+            $table->string('payment_method')->nullable();
+            $table->string('payment_attachment')->nullable();
+            
             $table->timestamps();
         });
     }
