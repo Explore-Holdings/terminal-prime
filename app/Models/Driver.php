@@ -35,6 +35,11 @@ class Driver extends Model
         'duty_status',
         'checked_in_at',
         'checked_out_at',
+        'amount',
+        'due_date',
+        'payment_received',
+        'payment_method',
+        'payment_attachment',
     ];
 
     public function emergencyContact()
