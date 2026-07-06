@@ -28,7 +28,8 @@ export default function Index({
 
                 <div className="flex gap-2 p-4 border-b">
                     <Tab active={tab === 'settlements'} onClick={() => setTab('settlements')}>Settlements</Tab>
-                    <Tab active={tab === 'drivers'} onClick={() => setTab('drivers')}>Driver Totals</Tab>
+                    <Tab active={tab === 'drivers'} onClick={() => setTab('drivers')}>Drivers</Tab>
+                    <Tab active={tab === 'driver_totals'} onClick={() => setTab('driver_totals')}>Driver Totals</Tab>
                     <Tab active={tab === 'agents'} onClick={() => setTab('agents')}>Agent Totals</Tab>
                     <Tab active={tab === 'incentives'} onClick={() => setTab('incentives')}>Incentives</Tab>
                 </div>
@@ -39,6 +40,10 @@ export default function Index({
                     )}
 
                     {tab === 'drivers' && (
+                        <DriversTable drivers={drivers} />
+                    )}
+
+                    {tab === 'driver_totals' && (
                         <TotalsTable data={driverTotals} title="Driver" />
                     )}
 
@@ -501,6 +506,286 @@ function Select({ label, value, onChange, options }) {
                     </option>
                 ))}
             </select>
+        </div>
+    );
+}
+
+function DriversTable({ drivers }) {
+    const [selectedDriver, setSelectedDriver] = useState(null);
+    const [search, setSearch] = useState('');
+
+    const handleStatusChange = (id, newStatus) => {
+        if (confirm(`Are you sure you want to change the driver status to ${newStatus}?`)) {
+            router.post(`/finance/drivers/${id}/status`, {
+                driver_status: newStatus
+            }, {
+                preserveScroll: true,
+            });
+        }
+    };
+
+    const filteredDrivers = drivers.filter(driver => {
+        const query = search.toLowerCase();
+        return (
+            (driver.full_name?.toLowerCase().includes(query) ?? false) ||
+            (driver.registration_number?.toLowerCase().includes(query) ?? false)
+        );
+    });
+
+    const columns = [
+        {
+            name: 'Reg. Number',
+            selector: row => row.registration_number ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Driver Name',
+            selector: row => row.full_name ?? '-',
+            sortable: true,
+            cell: row => <strong>{row.full_name ?? '-'}</strong>,
+        },
+        {
+            name: 'Amount',
+            selector: row => Number(row.amount ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => row.amount !== null ? `LKR ${Number(row.amount).toLocaleString()}` : '-',
+        },
+        {
+            name: 'Due Date',
+            selector: row => row.due_date ?? '-',
+            sortable: true,
+            cell: row => row.due_date ?? '-',
+        },
+        {
+            name: 'Payment Received',
+            selector: row => row.payment_received,
+            sortable: true,
+            cell: row => (
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                    row.payment_received
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                }`}>
+                    {row.payment_received ? 'Received' : 'Pending'}
+                </span>
+            ),
+        },
+        {
+            name: 'Payment Method',
+            selector: row => row.payment_method ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Attachment',
+            cell: row => row.payment_attachment ? (
+                <a
+                    href={`/storage/${row.payment_attachment}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline font-semibold text-xs"
+                >
+                    View
+                </a>
+            ) : (
+                <span className="text-gray-400 text-xs">No file</span>
+            ),
+        },
+        {
+            name: 'Driver Status',
+            width: '180px',
+            cell: row => {
+                return (
+                    <select
+                        value={row.driver_status ?? 'Inactive'}
+                        onChange={(e) => handleStatusChange(row.id, e.target.value)}
+                        className={`border rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
+                            row.driver_status === 'Active' ? 'border-green-300 bg-green-50 text-green-700 font-bold' :
+                            row.driver_status === 'Suspended' ? 'border-red-300 bg-red-50 text-red-700 font-bold' :
+                            'border-gray-300 bg-gray-50 text-gray-700 font-bold'
+                        }`}
+                    >
+                        <option value="Active">Active</option>
+                        <option value="Suspended">Suspended</option>
+                    </select>
+                );
+            },
+        },
+        {
+            name: 'Action',
+            width: '120px',
+            cell: row => (
+                <button
+                    onClick={() => setSelectedDriver(row)}
+                    className="px-3 py-1 rounded text-xs font-bold text-white bg-blue-700 hover:bg-blue-855"
+                >
+                    Edit Payment
+                </button>
+            ),
+        },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-end p-2">
+                <input
+                    type="text"
+                    placeholder="Search by name or registration number..."
+                    className="border rounded px-3 py-2 text-sm w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-700 focus:border-transparent"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </div>
+            <Table columns={columns} data={filteredDrivers} empty="No drivers found." />
+            {selectedDriver && (
+                <DriverPaymentModal
+                    driver={selectedDriver}
+                    onClose={() => setSelectedDriver(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+function DriverPaymentModal({ driver, onClose }) {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+
+    const form = useForm({
+        amount: driver.amount ?? '',
+        due_date: driver.due_date ?? '',
+        payment_received: driver.payment_received ? true : false,
+        payment_method: driver.payment_method ?? '',
+        payment_attachment: null,
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+
+        form.post(`/finance/drivers/${driver.id}/payment`, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => onClose(),
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white shadow-xl w-full max-w-md">
+                <div className="flex justify-between items-center border-b px-4 py-3">
+                    <h2 className="text-lg font-bold">
+                        Edit Payment Info - {driver.full_name}
+                    </h2>
+
+                    <button type="button" onClick={onClose} className="text-red-600 font-bold">
+                        ✕
+                    </button>
+                </div>
+
+                <form onSubmit={submit} className="p-4 space-y-4">
+                    {/* Amount */}
+                    <div>
+                        <label className="block text-xs font-medium mb-1">
+                            Amount (LKR)
+                        </label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            value={form.data.amount}
+                            onChange={(e) => form.setData('amount', e.target.value)}
+                        />
+                    </div>
+
+                    {/* Due Date */}
+                    <div>
+                        <label className="block text-xs font-medium mb-1">
+                            Due Date
+                        </label>
+                        <input
+                            type="date"
+                            min={todayStr}
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            value={form.data.due_date}
+                            onChange={(e) => form.setData('due_date', e.target.value)}
+                        />
+                    </div>
+
+                    {/* Payment Received Status */}
+                    <div className="flex items-center gap-2 py-1">
+                        <input
+                            type="checkbox"
+                            id="payment_received"
+                            className="rounded text-blue-700 focus:ring-blue-700 h-4 w-4"
+                            checked={form.data.payment_received}
+                            onChange={(e) => form.setData('payment_received', e.target.checked)}
+                        />
+                        <label htmlFor="payment_received" className="text-sm font-medium select-none cursor-pointer">
+                            Payment Received
+                        </label>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div>
+                        <label className="block text-xs font-medium mb-1">
+                            Payment Method
+                        </label>
+                        <select
+                            className="w-full border rounded px-3 py-2 text-sm"
+                            value={form.data.payment_method}
+                            onChange={(e) => form.setData('payment_method', e.target.value)}
+                        >
+                            <option value="">Select Method</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    {/* Payment Attachment */}
+                    <div>
+                        <label className="block text-xs font-medium mb-1">
+                            Payment Attachment
+                        </label>
+                        {driver.payment_attachment && (
+                            <div className="mb-2 text-xs">
+                                Current attachment:{' '}
+                                <a
+                                    href={`/storage/${driver.payment_attachment}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-blue-600 underline font-semibold"
+                                >
+                                    View File
+                                </a>
+                            </div>
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="w-full border rounded px-2 py-1 text-sm bg-gray-50"
+                            onChange={(e) => form.setData('payment_attachment', e.target.files[0])}
+                        />
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded font-bold transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-1/2 bg-green-700 hover:bg-green-800 text-white py-2 rounded font-bold transition-colors"
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }
