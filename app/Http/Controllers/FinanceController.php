@@ -49,7 +49,7 @@ class FinanceController extends Controller
 
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
-            'drivers' => Driver::select('id', 'full_name')->orderBy('full_name')->get(),
+            'drivers' => Driver::select('id', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
             'agents' => Agent::with('user')->latest()->get(),
             'driverTotals' => $driverTotals,
             'agentTotals' => $agentTotals,
@@ -107,6 +107,54 @@ class FinanceController extends Controller
             'currency' => $data['currency'],
             'remarks' => $data['remarks'] ?? null,
             'created_by' => auth()->id(),
+        ]);
+
+        return back();
+    }
+
+    public function updateDriverPayment(Request $request, Driver $driver)
+    {
+        $data = $request->validate([
+            'amount' => 'nullable|numeric|min:0',
+            'due_date' => 'nullable|date',
+            'payment_received' => 'nullable|boolean',
+            'payment_method' => 'nullable|string|max:100',
+            'payment_attachment' => 'nullable|file|max:10240', // max 10MB
+        ]);
+
+        $updateData = [
+            'amount' => $data['amount'] ?? null,
+            'due_date' => $data['due_date'] ?? null,
+            'payment_received' => filter_var($data['payment_received'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'payment_method' => $data['payment_method'] ?? null,
+        ];
+
+        if ($request->hasFile('payment_attachment')) {
+            // Delete old file if exists
+            if ($driver->payment_attachment && \Illuminate\Support\Facades\Storage::disk('public')->exists($driver->payment_attachment)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($driver->payment_attachment);
+            }
+
+            $file = $request->file('payment_attachment');
+            $extension = $file->getClientOriginalExtension();
+            $fileName = "driver-" . $driver->id . "-payment-" . time() . "." . $extension;
+            $path = $file->storeAs("driver_payments", $fileName, 'public');
+            $updateData['payment_attachment'] = $path;
+        }
+
+        $driver->update($updateData);
+
+        return back();
+    }
+
+    public function updateDriverStatus(Request $request, Driver $driver)
+    {
+        $data = $request->validate([
+            'driver_status' => 'required|in:Active,Inactive,Suspended,Rejected',
+        ]);
+
+        $driver->update([
+            'driver_status' => $data['driver_status']
         ]);
 
         return back();
