@@ -35,6 +35,21 @@ class FinanceController extends Controller
             ];
         });
 
+        Driver::all()->each(function ($driver) {
+            if ($driver->payment_received) {
+                $driver->update([
+                    'driver_status' => 'Active',
+                ]);
+            } elseif (
+                $driver->due_date &&
+                now()->gt(\Carbon\Carbon::parse($driver->due_date))
+            ) {
+                $driver->update([
+                    'driver_status' => 'Suspended',
+                ]);
+            }
+        });
+
         $agentTotals = Agent::with(['user', 'incentives'])->get()->map(function ($agent) use ($finances) {
             $agentFinance = $finances->where('agent_id', $agent->id);
 
