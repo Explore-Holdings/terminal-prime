@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -38,7 +40,9 @@ class UserController extends Controller
         ];
 
         if ($request->hasFile('signature')) {
-            $data['signature'] = $request->file('signature')->store('signatures', 'public');
+            $extension = $request->file('signature')->getClientOriginalExtension();
+            $filename = Str::slug($request->name) . '-signature.' . $extension;
+            $data['signature'] = $request->file('signature')->storeAs('signatures', $filename, 'public');
         }
 
         User::create($data);
@@ -69,10 +73,12 @@ class UserController extends Controller
         }
 
         if ($request->hasFile('signature')) {
-            if ($user->signature && \Illuminate\Support\Facades\Storage::disk('public')->exists($user->signature)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->signature);
+            if ($user->signature && Storage::disk('public')->exists($user->signature)) {
+                Storage::disk('public')->delete($user->signature);
             }
-            $data['signature'] = $request->file('signature')->store('signatures', 'public');
+            $extension = $request->file('signature')->getClientOriginalExtension();
+            $filename = Str::slug($request->name) . '-signature.' . $extension;
+            $data['signature'] = $request->file('signature')->storeAs('signatures', $filename, 'public');
         }
 
         $user->update($data);
