@@ -106,10 +106,11 @@ Route::get('/trips', [TripController::class, 'index'])
 
 Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
 Route::post('/finance/rates', [FinanceController::class, 'storeRateSettings'])->name('finance.rates.store');
-Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 Route::post('/finance/incentives/store', [FinanceController::class, 'storeIncentive'])->name('finance.incentives.store');
 Route::post('/finance/drivers/{driver}/payment', [FinanceController::class, 'updateDriverPayment'])->name('finance.drivers.payment');
 Route::post('/finance/drivers/{driver}/status', [FinanceController::class, 'updateDriverStatus'])->name('finance.drivers.status');
+Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::class, 'markReceived'])->name('finance.trip-finances.mark-received');
+Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
     ->name('survey.show');

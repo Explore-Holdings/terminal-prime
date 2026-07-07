@@ -2,6 +2,7 @@ import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
+import toast, { Toaster } from 'react-hot-toast';
 
 export default function Index({
     trips = [],
@@ -19,6 +20,7 @@ export default function Index({
     return (
         <AppSidebarLayout title="Finance">
             <Head title="Finance" />
+            <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
 
             <div className="bg-white rounded-xl shadow overflow-hidden">
                 <div className="p-6 border-b">
@@ -299,6 +301,7 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Agent Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Driver Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Balance</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -307,6 +310,41 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                                         const agentPortion = (amount * agentRate) / 100;
                                         const driverPortion = (amount * driverRate) / 100;
                                         const balance = amount - agentPortion - driverPortion;
+                                        const isReceived = Boolean(trip.cash_received) || Boolean(trip.trip_finance?.received);
+
+                                        const handleMarkReceived = () => {
+                                            if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received?`)) {
+                                                return;
+                                            }
+
+                                            const toastId = toast.loading(`Marking Trip #${trip.id} as received…`);
+
+                                            router.post(
+                                                `/finance/trip-finances/${trip.id}/mark-received`,
+                                                {
+                                                    total_amount:    amount,
+                                                    driver_share:    driverPortion,
+                                                    agent_share:     agentPortion,
+                                                    balance:         balance,
+                                                    received_amount: amount,
+                                                },
+                                                {
+                                                    preserveScroll: true,
+                                                    onSuccess: () => {
+                                                        toast.success(
+                                                            `Trip #${trip.id} marked as received — LKR ${amount.toLocaleString()}`,
+                                                            { id: toastId }
+                                                        );
+                                                    },
+                                                    onError: () => {
+                                                        toast.error(
+                                                            `Failed to mark Trip #${trip.id} as received`,
+                                                            { id: toastId }
+                                                        );
+                                                    },
+                                                }
+                                            );
+                                        };
 
                                         return (
                                             <tr key={trip.id} className="hover:bg-gray-50">
@@ -318,6 +356,21 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</td>
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</td>
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {balance.toLocaleString()}</td>
+                                                <td className="px-3 py-2">
+                                                    {isReceived ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                            ✓ Received
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleMarkReceived}
+                                                            className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform"
+                                                        >
+                                                            Mark Received
+                                                        </button>
+                                                    )}
+                                                </td>
                                             </tr>
                                         );
                                     })}

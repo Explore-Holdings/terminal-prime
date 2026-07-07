@@ -17,6 +17,7 @@ class Trip extends Model
         'remarks',
         'status',
         'survey_sent_at',
+        'cash_received',
     ];
 
     protected $casts = [
@@ -42,5 +43,10 @@ class Trip extends Model
     public function finance()
     {
         return $this->hasOne(Finance::class);
+    }
+
+    public function tripFinance()
+    {
+        return $this->hasOne(TripFinance::class);
     }
 }

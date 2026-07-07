@@ -8,6 +8,7 @@ use App\Models\Finance;
 use App\Models\Incentive;
 use App\Models\RateSetting;
 use App\Models\Trip;
+use App\Models\TripFinance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -21,6 +22,7 @@ class FinanceController extends Controller
             'agent.user',
             'driver',
             'finance',
+            'tripFinance.receiver',
         ])->latest()->get();
 
         $finances = Finance::with(['driver', 'agent.user'])->get();
@@ -123,6 +125,38 @@ class FinanceController extends Controller
                 'created_by' => Auth::id(),
             ]
         );
+
+        return back();
+    }
+
+    public function markReceived(Request $request, Trip $trip)
+    {
+        $data = $request->validate([
+            'total_amount'    => 'required|numeric|min:0',
+            'driver_share'    => 'required|numeric|min:0',
+            'agent_share'     => 'required|numeric|min:0',
+            'balance'         => 'required|numeric',
+            'received_amount' => 'required|numeric|min:0',
+        ]);
+
+        TripFinance::updateOrCreate(
+            ['trip_id' => $trip->id],
+            [
+                'driver_id'       => $trip->driver_id,
+                'agent_id'        => $trip->agent_id,
+                'total_amount'    => $data['total_amount'],
+                'driver_share'    => $data['driver_share'],
+                'agent_share'     => $data['agent_share'],
+                'balance'         => $data['balance'],
+                'received'        => true,
+                'received_amount' => $data['received_amount'],
+                'received_by'     => Auth::id(),
+                'received_at'     => now(),
+            ]
+        );
+
+        // Mark the trip itself as cash received
+        $trip->update(['cash_received' => true]);
 
         return back();
     }
