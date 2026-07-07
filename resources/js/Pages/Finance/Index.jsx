@@ -10,6 +10,7 @@ export default function Index({
     driverTotals = [],
     agentTotals = [],
     incentives = [],
+    rateSetting = null,
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('settlements');
@@ -34,17 +35,17 @@ export default function Index({
                     <MainTabCard active={mainTab === 'settlements'} onClick={() => setMainTab('settlements')}>
                         Settlements
                     </MainTabCard>
-                    <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
-                        Reports
-                    </MainTabCard>
                     <MainTabCard active={mainTab === 'expenses'} onClick={() => setMainTab('expenses')}>
                         Expenses
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
+                        Reports
                     </MainTabCard>
                 </div>
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} onSettle={setSelectedTrip} />
+                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -109,10 +110,13 @@ export default function Index({
     );
 }
 
-function DailyOperationsPanel({ trips, onSettle }) {
+function DailyOperationsPanel({ trips, rateSetting }) {
     const [range, setRange] = useState('today');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const pageSize = 8;
 
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -162,6 +166,21 @@ function DailyOperationsPanel({ trips, onSettle }) {
     });
 
     const totalAmount = filteredTrips.reduce((sum, trip) => sum + Number(trip.customer?.paid_amount ?? 0), 0);
+    const agentRate = Number(rateSetting?.agent_rate ?? 0);
+    const driverRate = Number(rateSetting?.driver_rate ?? 0);
+
+    const filteredRows = filteredTrips.filter((trip) => {
+        const query = searchTerm.toLowerCase();
+        return (
+            String(trip.id).includes(query) ||
+            (trip.customer?.name ?? '').toLowerCase().includes(query) ||
+            (trip.driver?.full_name ?? '').toLowerCase().includes(query) ||
+            (trip.agent?.user?.name ?? '').toLowerCase().includes(query)
+        );
+    });
+
+    const pagedRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 
     return (
         <div className="space-y-4">
@@ -223,39 +242,112 @@ function DailyOperationsPanel({ trips, onSettle }) {
                     No assigned trips found for this period.
                 </div>
             ) : (
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredTrips.map((trip) => (
-                        <div key={trip.id} className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-gray-700">Trip #{trip.id}</span>
-                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                            trip.finance?.status === 'Settled'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-yellow-100 text-yellow-700'
-                                        }`}>
-                                            {trip.finance?.status ?? 'Pending'}
-                                        </span>
+                <>
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-gray-50 p-2">
+                        <div className="flex gap-2">
+                            {filteredTrips.map((trip) => (
+                                <div key={trip.id} className="min-w-[220px] rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-semibold text-gray-700">Trip #{trip.id}</span>
+                                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                                    trip.finance?.status === 'Settled'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                    {trip.finance?.status ?? 'Pending'}
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 truncate text-xs text-gray-600">{trip.customer?.name ?? '-'}</p>
+                                            <p className="truncate text-[11px] text-gray-500">{trip.driver?.full_name ?? '-'}</p>
+                                            <p className="truncate text-[11px] text-gray-400">{trip.agent?.user?.name ?? '-'}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] uppercase tracking-wide text-gray-400">Amt</p>
+                                            <p className="text-sm font-semibold text-gray-800">LKR {Number(trip.customer?.paid_amount ?? 0).toLocaleString()}</p>
+                                        </div>
                                     </div>
-                                    <p className="mt-1 truncate text-xs text-gray-600">
-                                        {trip.customer?.name ?? '-'}
-                                    </p>
-                                    <p className="truncate text-[11px] text-gray-500">
-                                        {trip.driver?.full_name ?? '-'}
-                                    </p>
-                                    <p className="truncate text-[11px] text-gray-400">
-                                        {trip.agent?.user?.name ?? '-'}
-                                    </p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] uppercase tracking-wide text-gray-400">Amt</p>
-                                    <p className="text-sm font-semibold text-gray-800">LKR {Number(trip.customer?.paid_amount ?? 0).toLocaleString()}</p>
-                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-3">
+                            <input
+                                type="text"
+                                placeholder="Search trips..."
+                                className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setPage(1);
+                                }}
+                            />
+                            <div className="text-sm text-gray-500">
+                                Page {page} of {totalPages}
                             </div>
                         </div>
-                    ))}
-                </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Trip</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Amount</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Agent Share</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Driver Share</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 bg-white">
+                                    {pagedRows.map((trip) => {
+                                        const amount = Number(trip.customer?.paid_amount ?? 0);
+                                        const agentPortion = (amount * agentRate) / 100;
+                                        const driverPortion = (amount * driverRate) / 100;
+                                        const balance = amount - agentPortion - driverPortion;
+
+                                        return (
+                                            <tr key={trip.id} className="hover:bg-gray-50">
+                                                <td className="px-3 py-2">
+                                                    <div className="font-semibold text-gray-800">#{trip.id}</div>
+                                                    <div className="text-xs text-gray-500">{trip.customer?.name ?? '-'}</div>
+                                                </td>
+                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {amount.toLocaleString()}</td>
+                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</td>
+                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</td>
+                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {balance.toLocaleString()}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-gray-200 p-3 text-sm text-gray-600">
+                            <button
+                                type="button"
+                                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                                disabled={page === 1}
+                                className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Previous
+                            </button>
+                            <span>
+                                Showing {filteredRows.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredRows.length)} of {filteredRows.length}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                                disabled={page === totalPages}
+                                className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );

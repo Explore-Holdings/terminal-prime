@@ -6,8 +6,10 @@ use App\Models\Agent;
 use App\Models\Driver;
 use App\Models\Finance;
 use App\Models\Incentive;
+use App\Models\RateSetting;
 use App\Models\Trip;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class FinanceController extends Controller
@@ -22,6 +24,7 @@ class FinanceController extends Controller
         ])->latest()->get();
 
         $finances = Finance::with(['driver', 'agent.user'])->get();
+        $rateSetting = RateSetting::where('is_active', true)->latest()->first();
 
         $driverTotals = Driver::with('incentives')->get()->map(function ($driver) use ($finances) {
             $driverFinance = $finances->where('driver_id', $driver->id);
@@ -69,7 +72,28 @@ class FinanceController extends Controller
             'driverTotals' => $driverTotals,
             'agentTotals' => $agentTotals,
             'incentives' => Incentive::with(['driver', 'agent.user'])->latest()->get(),
+            'rateSetting' => $rateSetting,
         ]);
+    }
+
+    public function storeRateSettings(Request $request)
+    {
+        $data = $request->validate([
+            'agent_rate' => 'required|numeric|min:0|max:100',
+            'driver_rate' => 'required|numeric|min:0|max:100',
+        ]);
+
+        RateSetting::updateOrCreate(
+            ['is_active' => true],
+            [
+                'name' => 'Default',
+                'agent_rate' => $data['agent_rate'],
+                'driver_rate' => $data['driver_rate'],
+                'is_active' => true,
+            ]
+        );
+
+        return back();
     }
 
     public function store(Request $request, Trip $trip)
@@ -96,7 +120,7 @@ class FinanceController extends Controller
                 'expense_amount' => $data['expense_amount'] ?? 0,
                 'status' => 'Settled',
                 'remarks' => $data['remarks'] ?? null,
-                'created_by' => auth()->id(),
+                'created_by' => Auth::id(),
             ]
         );
 
@@ -121,7 +145,7 @@ class FinanceController extends Controller
             'amount' => $data['amount'],
             'currency' => $data['currency'],
             'remarks' => $data['remarks'] ?? null,
-            'created_by' => auth()->id(),
+            'created_by' => Auth::id(),
         ]);
 
         return back();
