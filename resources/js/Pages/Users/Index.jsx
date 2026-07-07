@@ -17,7 +17,7 @@ export default function Index({ users = [], roles = [] }) {
         email: '',
         password: '',
         role_id: '',
-        designation: '',
+        designation: null,
         signature: null,
     });
 
@@ -314,8 +314,9 @@ export default function Index({ users = [], roles = [] }) {
                                 label="Designation"
                                 value={userForm.data.designation}
                                 onChange={(e) => userForm.setData('designation', e.target.value)}
-                                // error={userForm.errors.designation}
+                                error={userForm.errors.designation}
                                 placeholder="e.g. Manager"
+                                required={false}
                             />
 
                             <div>
@@ -465,11 +466,11 @@ function Modal({ title, subtitle, children, onClose }) {
     );
 }
 
-function Input({ label, value, onChange, error, type = 'text', placeholder = '' }) {
+function Input({ label, value, onChange, error, type = 'text', placeholder = '', required = true }) {
     return (
         <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-                {label} <span className="text-red-600">*</span>
+                {label} {required && <span className="text-red-600">*</span>}
             </label>
 
             <input
