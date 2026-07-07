@@ -193,133 +193,133 @@
 </head>
 
 <body>
-<div class="receipt">
+    <div class="receipt">
 
-    <div class="header">
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="border: none; padding: 0;">
-                    <h1 class="brand">Terminal Prime</h1>
-                    <div class="subtitle">Airport Counter Receipt</div>
-                </td>
+        <div class="header">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="border: none; padding: 0;">
+                        <h1 class="brand">Terminal Prime</h1>
+                        <div class="subtitle">Airport Counter Receipt</div>
+                    </td>
 
-                <td class="right" style="border: none; padding: 0;">
-                    <span class="status-pill">
-                        {{ $customer->payment_status }}
-                    </span>
-                </td>
-            </tr>
+                    <td class="right" style="border: none; padding: 0;">
+                        <span class="status-pill">
+                            {{ $customer->payment_status }}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="meta-table">
+                <tr>
+                    <td>
+                        <strong>Receipt No:</strong>
+                        {{ $customer->invoice_number }}
+                    </td>
+
+                    <td class="right">
+                        <strong>Date:</strong>
+                        {{ now('Asia/Colombo')->format('d/m/Y h:i A') }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Customer Information</div>
+
+            <table class="info-table">
+                <tr>
+                    <td class="label">Customer Name</td>
+                    <td class="value">{{ $customer->name }}</td>
+                </tr>
+                <tr>
+                    <td class="label">WhatsApp</td>
+                    <td class="value">{{ $customer->whatsapp_number ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Country</td>
+                    <td class="value">{{ $customer->country ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Drop-off Location</td>
+                    <td class="value">{{ $customer->dropoff_location ?? '-' }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <table class="items">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">Service Description</th>
+                    <th class="right">Amount</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <td>Airport Counter Service</td>
+                    <td class="amount">
+                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
+                        {{ number_format($customer->paid_amount, 2) }}
+                    </td>
+                </tr>
+            </tbody>
         </table>
 
-        <table class="meta-table">
+        <table class="summary">
             <tr>
-                <td>
-                    <strong>Receipt No:</strong>
-                    {{ $customer->invoice_number }}
-                </td>
-
-                <td class="right">
-                    <strong>Date:</strong>
-                    {{ now('Asia/Colombo')->format('d/m/Y h:i A') }}
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div class="section">
-        <div class="section-title">Customer Information</div>
-
-        <table class="info-table">
-            <tr>
-                <td class="label">Customer Name</td>
-                <td class="value">{{ $customer->name }}</td>
-            </tr>
-            <tr>
-                <td class="label">WhatsApp</td>
-                <td class="value">{{ $customer->whatsapp_number ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="label">Country</td>
-                <td class="value">{{ $customer->country ?? '-' }}</td>
-            </tr>
-            <tr>
-                <td class="label">Drop-off Location</td>
-                <td class="value">{{ $customer->dropoff_location ?? '-' }}</td>
-            </tr>
-        </table>
-    </div>
-
-    <table class="items">
-        <thead>
-            <tr>
-                <th style="text-align: left;">Service Description</th>
-                <th class="right">Amount</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            <tr>
-                <td>Airport Counter Service</td>
-                <td class="amount">
-                    {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                    {{ number_format($customer->paid_amount, 2) }}
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <table class="summary">
-        <tr>
-            <td class="summary-label">Total Paid</td>
-            <td class="summary-value">
-                {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                {{ number_format($customer->paid_amount, 2) }}
-            </td>
-        </tr>
-    </table>
-
-    <div class="gold-line"></div>
-
-    <div class="section">
-        <div class="section-title">Payment Summary</div>
-
-        <table class="info-table">
-            <tr>
-                <td class="label">Payment Method</td>
-                <td class="value">{{ $customer->payment_method }}</td>
-            </tr>
-            <tr>
-                <td class="label">Payment Status</td>
-                <td class="value">{{ $customer->payment_status }}</td>
-            </tr>
-            <tr>
-                <td class="label">Paid Amount</td>
-                <td class="value">
+                <td class="summary-label">Total Paid</td>
+                <td class="summary-value">
                     {{ $customer->agent->new_currency ?? $customer->agent->currency }}
                     {{ number_format($customer->paid_amount, 2) }}
                 </td>
             </tr>
         </table>
-    </div>
 
-    <div style="margin-top: 15px; text-align: right; padding-right: 20px;">
-        @if(auth()->check())
-            @if(auth()->user()->signature && file_exists(storage_path('app/public/' . auth()->user()->signature)))
-                <img src="{{ storage_path('app/public/' . auth()->user()->signature) }}" style="height: 50px; object-fit: contain; margin-bottom: 5px;">
-                <br>
+        <div class="gold-line"></div>
+
+        <div class="section">
+            <div class="section-title">Payment Summary</div>
+
+            <table class="info-table">
+                <tr>
+                    <td class="label">Payment Method</td>
+                    <td class="value">{{ $customer->payment_method }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Payment Status</td>
+                    <td class="value">{{ $customer->payment_status }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Paid Amount</td>
+                    <td class="value">
+                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
+                        {{ number_format($customer->paid_amount, 2) }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="margin-top: 15px; text-align: right; padding-right: 20px;">
+            @if(auth()->check())
+                @if(auth()->user()->signature && file_exists(storage_path('app/public/' . auth()->user()->signature)))
+                    <img src="{{ storage_path('app/public/' . auth()->user()->signature) }}" style="height: 50px; object-fit: contain; margin-bottom: 5px;">
+                    <br>
+                @endif
+                <strong style="color: #333; font-size: 14px;">{{ auth()->user()->name }}</strong><br>
+                @if(auth()->user()->designation)
+                    <span style="color: #666; font-size: 12px;">{{ auth()->user()->designation }}</span>
+                @endif
             @endif
-            <strong style="color: #333; font-size: 14px;">{{ auth()->user()->name }}</strong><br>
-            @if(auth()->user()->designation)
-                <span style="color: #666; font-size: 12px;">{{ auth()->user()->designation }}</span>
-            @endif
-        @endif
-    </div>
+        </div>
 
-    <div class="footer">
-        Thank you for choosing <strong>Terminal Prime</strong>.<br>
-        This is a computer generated receipt.
-    </div>
+        <div class="footer">
+            Thank you for choosing <strong>Terminal Prime</strong>.<br>
+            This is a computer generated receipt.
+        </div>
 
-</div>
+    </div>
 </body>
 </html>
