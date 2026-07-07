@@ -24,9 +24,9 @@
         .header {
             background: #111827;
             color: #ffffff;
-            padding: 18px 18px 14px;
+            padding: 12px 12px 10px;
             border-radius: 10px;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
         }
 
         .brand {
@@ -77,8 +77,8 @@
         .section {
             border: 1px solid #e5e7eb;
             border-radius: 10px;
-            padding: 11px 12px;
-            margin-bottom: 10px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
             background: #fbfbfb;
         }
 
@@ -88,8 +88,8 @@
             letter-spacing: 1.2px;
             text-transform: uppercase;
             color: #111827;
-            margin-bottom: 8px;
-            padding-bottom: 5px;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
             border-bottom: 1px solid #e5e7eb;
         }
 
@@ -100,7 +100,7 @@
 
         .info-table td {
             border: none;
-            padding: 3px 0;
+            padding: 2px 0;
             vertical-align: top;
         }
 
@@ -117,21 +117,21 @@
         .items {
             width: 100%;
             border-collapse: collapse;
-            margin: 10px 0;
+            margin: 6px 0;
             border-radius: 8px;
         }
 
         .items th {
             background: #f3f4f6;
             color: #374151;
-            padding: 8px;
+            padding: 5px;
             font-size: 10px;
             text-transform: uppercase;
             border-bottom: 1px solid #d1d5db;
         }
 
         .items td {
-            padding: 9px 8px;
+            padding: 5px 8px;
             border-bottom: 1px solid #e5e7eb;
         }
 
@@ -150,7 +150,7 @@
         }
 
         .summary td {
-            padding: 9px;
+            padding: 5px;
             border: none;
         }
 
@@ -172,13 +172,13 @@
         .gold-line {
             height: 3px;
             background: #d4af37;
-            margin: 12px 0;
+            margin: 8px 0;
             border-radius: 10px;
         }
 
         .footer {
-            margin-top: 16px;
-            padding-top: 10px;
+            margin-top: 10px;
+            padding-top: 6px;
             border-top: 1px dashed #9ca3af;
             text-align: center;
             color: #6b7280;
@@ -302,9 +302,22 @@
         </table>
     </div>
 
+    <div style="margin-top: 15px; text-align: right; padding-right: 20px;">
+        @if(auth()->check())
+            @if(auth()->user()->signature && file_exists(storage_path('app/public/' . auth()->user()->signature)))
+                <img src="{{ storage_path('app/public/' . auth()->user()->signature) }}" style="height: 50px; object-fit: contain; margin-bottom: 5px;">
+                <br>
+            @endif
+            <strong style="color: #333; font-size: 14px;">{{ auth()->user()->name }}</strong><br>
+            @if(auth()->user()->designation)
+                <span style="color: #666; font-size: 12px;">{{ auth()->user()->designation }}</span>
+            @endif
+        @endif
+    </div>
+
     <div class="footer">
         Thank you for choosing <strong>Terminal Prime</strong>.<br>
-        This is a computer generated premium receipt.
+        This is a computer generated receipt.
     </div>
 
 </div>
