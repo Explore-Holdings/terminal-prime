@@ -17,6 +17,8 @@ export default function Index({ users = [], roles = [] }) {
         email: '',
         password: '',
         role_id: '',
+        designation: '',
+        signature: null,
     });
 
     const roleForm = useForm({
@@ -56,6 +58,8 @@ export default function Index({ users = [], roles = [] }) {
             email: user.email ?? '',
             password: '',
             role_id: user.role_id ?? '',
+            designation: user.designation ?? '',
+            signature: null,
         });
 
         setShowUserModal(true);
@@ -65,11 +69,13 @@ export default function Index({ users = [], roles = [] }) {
         e.preventDefault();
 
         if (editingUser) {
-            userForm.put(`/users/${editingUser.id}`, {
+            userForm.transform((data) => ({ ...data, _method: 'put' }));
+            userForm.post(`/users/${editingUser.id}`, {
                 preserveScroll: true,
                 onSuccess: () => setShowUserModal(false),
             });
         } else {
+            userForm.transform((data) => data);
             userForm.post('/users', {
                 preserveScroll: true,
                 onSuccess: () => setShowUserModal(false),
@@ -301,6 +307,45 @@ export default function Index({ users = [], roles = [] }) {
                                     {userForm.errors.role_id}
                                 </p>
                             )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                                label="Designation"
+                                value={userForm.data.designation}
+                                onChange={(e) => userForm.setData('designation', e.target.value)}
+                                // error={userForm.errors.designation}
+                                placeholder="e.g. Manager"
+                            />
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                                    Signature Image
+                                </label>
+
+                                {editingUser?.signature && (
+                                    <div className="mb-2">
+                                        <img
+                                            src={`/storage/${editingUser.signature}`}
+                                            alt="Signature"
+                                            className="h-16 object-contain border rounded p-1 bg-gray-50"
+                                        />
+                                    </div>
+                                )}
+
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => userForm.setData('signature', e.target.files[0])}
+                                    className="w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-1.5"
+                                />
+
+                                {userForm.errors.signature && (
+                                    <p className="text-red-600 text-sm mt-1">
+                                        {userForm.errors.signature}
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2 pt-4 border-t">
