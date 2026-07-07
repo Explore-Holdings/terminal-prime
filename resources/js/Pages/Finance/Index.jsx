@@ -44,7 +44,7 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsTable trips={trips} onSettle={setSelectedTrip} />
+                        <DailyOperationsPanel trips={trips} onSettle={setSelectedTrip} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -109,70 +109,156 @@ export default function Index({
     );
 }
 
-function DailyOperationsTable({ trips, onSettle }) {
-    const money = (v) => Number(v ?? 0).toLocaleString();
+function DailyOperationsPanel({ trips, onSettle }) {
+    const [range, setRange] = useState('today');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
 
-    const columns = [
-        {
-            name: 'Trip',
-            selector: row => row.id,
-            sortable: true,
-            width: '90px',
-            cell: row => <strong>#{row.id}</strong>,
-        },
-        {
-            name: 'Customer',
-            selector: row => row.customer?.name ?? '-',
-            sortable: true,
-        },
-        {
-            name: 'Agent',
-            selector: row => row.agent?.user?.name ?? '-',
-            sortable: true,
-        },
-        {
-            name: 'Driver',
-            selector: row => row.driver?.full_name ?? '-',
-            sortable: true,
-        },
-        {
-            name: 'Trip Amount',
-            selector: row => Number(row.customer?.paid_amount ?? 0),
-            sortable: true,
-            right: true,
-            cell: row => `LKR ${money(row.customer?.paid_amount)}`,
-        },
-        {
-            name: 'Status',
-            cell: row => (
-                <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    row.finance?.status === 'Settled'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                    {row.finance?.status ?? 'Pending'}
-                </span>
-            ),
-        },
-        {
-            name: 'Action',
-            width: '120px',
-            cell: row => (
-                <button
-                    onClick={() => onSettle(row)}
-                    className={`px-3 py-1 rounded text-xs font-bold text-white ${
-                        row.finance?.status === 'Settled'
-                            ? 'bg-slate-700'
-                            : 'bg-blue-700'
-                    }`}
-                >
-                    {row.finance?.status === 'Settled' ? 'Edit' : 'Settle'}
-                </button>
-            ),
-        },
-    ];
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    return <Table columns={columns} data={trips} empty="No daily operations found." />;
+    const filteredTrips = trips.filter((trip) => {
+        const assignedAt = trip.trip_assigned_at ? new Date(trip.trip_assigned_at) : null;
+
+        if (!assignedAt || Number.isNaN(assignedAt.getTime())) {
+            return false;
+        }
+
+        if (range === 'today') {
+            return assignedAt >= startOfToday && assignedAt <= endOfToday;
+        }
+
+        if (range === 'week') {
+            const startOfWeek = new Date(startOfToday);
+            startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+            return assignedAt >= startOfWeek && assignedAt <= endOfWeek;
+        }
+
+        if (range === 'month') {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+            return assignedAt >= startOfMonth && assignedAt <= endOfMonth;
+        }
+
+        if (range === 'custom') {
+            if (!customStart) {
+                return false;
+            }
+
+            const from = new Date(customStart);
+            from.setHours(0, 0, 0, 0);
+
+            const to = customEnd ? new Date(customEnd) : new Date(customStart);
+            to.setHours(23, 59, 59, 999);
+
+            return assignedAt >= from && assignedAt <= to;
+        }
+
+        return false;
+    });
+
+    const totalAmount = filteredTrips.reduce((sum, trip) => sum + Number(trip.customer?.paid_amount ?? 0), 0);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                <div className="flex flex-wrap gap-2">
+                    {[
+                        { key: 'today', label: 'Today' },
+                        { key: 'week', label: 'This Week' },
+                        { key: 'month', label: 'This Month' },
+                        { key: 'custom', label: 'Custom' },
+                    ].map((item) => (
+                        <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => setRange(item.key)}
+                            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                                range === item.key
+                                    ? 'bg-blue-700 text-white'
+                                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
+
+                {range === 'custom' && (
+                    <div className="flex flex-wrap gap-2">
+                        <input
+                            type="date"
+                            value={customStart}
+                            onChange={(e) => setCustomStart(e.target.value)}
+                            className="rounded border border-gray-300 px-3 py-2 text-sm"
+                        />
+                        <input
+                            type="date"
+                            value={customEnd}
+                            onChange={(e) => setCustomEnd(e.target.value)}
+                            className="rounded border border-gray-300 px-3 py-2 text-sm"
+                        />
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-gray-800">
+                    {range === 'today' ? 'Today assigned trips' : 'Assigned trips'}
+                </h2>
+                <div className="flex items-center gap-3 text-sm">
+                    <span className="text-gray-500">{filteredTrips.length} trip(s)</span>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                        Total : LKR {totalAmount.toLocaleString()}
+                    </span>
+                </div>
+            </div>
+
+            {filteredTrips.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                    No assigned trips found for this period.
+                </div>
+            ) : (
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {filteredTrips.map((trip) => (
+                        <div key={trip.id} className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-gray-700">Trip #{trip.id}</span>
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                            trip.finance?.status === 'Settled'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                            {trip.finance?.status ?? 'Pending'}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 truncate text-xs text-gray-600">
+                                        {trip.customer?.name ?? '-'}
+                                    </p>
+                                    <p className="truncate text-[11px] text-gray-500">
+                                        {trip.driver?.full_name ?? '-'}
+                                    </p>
+                                    <p className="truncate text-[11px] text-gray-400">
+                                        {trip.agent?.user?.name ?? '-'}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] uppercase tracking-wide text-gray-400">Amt</p>
+                                    <p className="text-sm font-semibold text-gray-800">LKR {Number(trip.customer?.paid_amount ?? 0).toLocaleString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function SettlementsTable({ trips, onSettle }) {
@@ -566,7 +652,7 @@ function SettlementModal({ trip, onClose }) {
                     <div className={`p-2 rounded text-sm font-bold ${
                         total === amount ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                     }`}>
-                        Total: {currency} {total.toLocaleString()} / {currency} {amount.toLocaleString()}
+                        Total : {currency} {total.toLocaleString()} / {currency} {amount.toLocaleString()}
                     </div>
 
                     <button disabled={form.processing} className="w-full bg-green-700 text-white py-2 rounded font-bold">

@@ -34,7 +34,15 @@ export default function Login({ status, canResetPassword }) {
                 <div className="w-full max-w-md">
                     <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
                         <div className="text-center mb-7">
-                            <div className="mx-auto h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center text-3xl text-white mb-3">
+                            {/* <div className="mx-auto h-14 w-14 rounded-2xl overflow-hidden mb-3">
+                                <img
+                                    src="/assets/images/logo.png"
+                                    alt="Airport"
+                                    className="h-full w-full object-cover"
+                                />
+                            </div> */}
+
+                             <div className="mx-auto h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center text-3xl text-white mb-3">
                                 ✈
                             </div>
 
