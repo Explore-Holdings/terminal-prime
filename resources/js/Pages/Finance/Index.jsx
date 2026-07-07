@@ -11,7 +11,8 @@ export default function Index({
     agentTotals = [],
     incentives = [],
 }) {
-    const [tab, setTab] = useState('settlements');
+    const [mainTab, setMainTab] = useState('daily_operations');
+    const [subTab, setSubTab] = useState('settlements');
     const [selectedTrip, setSelectedTrip] = useState(null);
 
     return (
@@ -22,40 +23,77 @@ export default function Index({
                 <div className="p-6 border-b">
                     <h1 className="text-2xl font-bold">Finance</h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Settlements, driver totals, agent totals and incentives.
+                        Daily operations, settlements, reports and expenses.
                     </p>
                 </div>
 
-                <div className="flex gap-2 p-4 border-b">
-                    <Tab active={tab === 'settlements'} onClick={() => setTab('settlements')}>Settlements</Tab>
-                    <Tab active={tab === 'drivers'} onClick={() => setTab('drivers')}>Drivers</Tab>
-                    <Tab active={tab === 'driver_totals'} onClick={() => setTab('driver_totals')}>Driver Totals</Tab>
-                    <Tab active={tab === 'agents'} onClick={() => setTab('agents')}>Agent Totals</Tab>
-                    <Tab active={tab === 'incentives'} onClick={() => setTab('incentives')}>Incentives</Tab>
+                <div className="flex flex-wrap gap-3 p-4 border-b">
+                    <MainTabCard active={mainTab === 'daily_operations'} onClick={() => setMainTab('daily_operations')}>
+                        Daily Operations
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'settlements'} onClick={() => setMainTab('settlements')}>
+                        Settlements
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
+                        Reports
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'expenses'} onClick={() => setMainTab('expenses')}>
+                        Expenses
+                    </MainTabCard>
                 </div>
 
                 <div className="p-4">
-                    {tab === 'settlements' && (
-                        <SettlementsTable trips={trips} onSettle={setSelectedTrip} />
+                    {mainTab === 'daily_operations' && (
+                        <DailyOperationsTable trips={trips} onSettle={setSelectedTrip} />
                     )}
 
-                    {tab === 'drivers' && (
-                        <DriversTable drivers={drivers} />
+                    {mainTab === 'settlements' && (
+                        <>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <SubTab active={subTab === 'settlements'} onClick={() => setSubTab('settlements')}>Settlements</SubTab>
+                                <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Drivers</SubTab>
+                                <SubTab active={subTab === 'driver_totals'} onClick={() => setSubTab('driver_totals')}>Driver Totals</SubTab>
+                                <SubTab active={subTab === 'agents'} onClick={() => setSubTab('agents')}>Agent Totals</SubTab>
+                                <SubTab active={subTab === 'incentives'} onClick={() => setSubTab('incentives')}>Incentives</SubTab>
+                            </div>
+
+                            {subTab === 'settlements' && (
+                                <SettlementsTable trips={trips} onSettle={setSelectedTrip} />
+                            )}
+
+                            {subTab === 'drivers' && (
+                                <DriversTable drivers={drivers} />
+                            )}
+
+                            {subTab === 'driver_totals' && (
+                                <TotalsTable data={driverTotals} title="Driver" />
+                            )}
+
+                            {subTab === 'agents' && (
+                                <TotalsTable data={agentTotals} title="Agent" />
+                            )}
+
+                            {subTab === 'incentives' && (
+                                <IncentivesTab
+                                    drivers={drivers}
+                                    agents={agents}
+                                    incentives={incentives}
+                                />
+                            )}
+                        </>
                     )}
 
-                    {tab === 'driver_totals' && (
-                        <TotalsTable data={driverTotals} title="Driver" />
+                    {mainTab === 'reports' && (
+                        <EmptyState
+                            title="Reports"
+                            description="Revenue and performance reports will appear here soon."
+                        />
                     )}
 
-                    {tab === 'agents' && (
-                        <TotalsTable data={agentTotals} title="Agent" />
-                    )}
-
-                    {tab === 'incentives' && (
-                        <IncentivesTab
-                            drivers={drivers}
-                            agents={agents}
-                            incentives={incentives}
+                    {mainTab === 'expenses' && (
+                        <EmptyState
+                            title="Expenses"
+                            description="Expense tracking and approvals will appear here soon."
                         />
                     )}
                 </div>
@@ -69,6 +107,72 @@ export default function Index({
             )}
         </AppSidebarLayout>
     );
+}
+
+function DailyOperationsTable({ trips, onSettle }) {
+    const money = (v) => Number(v ?? 0).toLocaleString();
+
+    const columns = [
+        {
+            name: 'Trip',
+            selector: row => row.id,
+            sortable: true,
+            width: '90px',
+            cell: row => <strong>#{row.id}</strong>,
+        },
+        {
+            name: 'Customer',
+            selector: row => row.customer?.name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Agent',
+            selector: row => row.agent?.user?.name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Driver',
+            selector: row => row.driver?.full_name ?? '-',
+            sortable: true,
+        },
+        {
+            name: 'Trip Amount',
+            selector: row => Number(row.customer?.paid_amount ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => `LKR ${money(row.customer?.paid_amount)}`,
+        },
+        {
+            name: 'Status',
+            cell: row => (
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                    row.finance?.status === 'Settled'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                    {row.finance?.status ?? 'Pending'}
+                </span>
+            ),
+        },
+        {
+            name: 'Action',
+            width: '120px',
+            cell: row => (
+                <button
+                    onClick={() => onSettle(row)}
+                    className={`px-3 py-1 rounded text-xs font-bold text-white ${
+                        row.finance?.status === 'Settled'
+                            ? 'bg-slate-700'
+                            : 'bg-blue-700'
+                    }`}
+                >
+                    {row.finance?.status === 'Settled' ? 'Edit' : 'Settle'}
+                </button>
+            ),
+        },
+    ];
+
+    return <Table columns={columns} data={trips} empty="No daily operations found." />;
 }
 
 function SettlementsTable({ trips, onSettle }) {
@@ -356,6 +460,47 @@ function IncentivesTab({ drivers, agents, incentives }) {
 
             <Table columns={columns} data={incentives} empty="No incentives found." />
         </div>
+    );
+}
+
+function EmptyState({ title, description }) {
+    return (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
+            <p className="mt-2 text-sm text-gray-500">{description}</p>
+        </div>
+    );
+}
+
+function MainTabCard({ active, onClick, children }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                active
+                    ? 'border-blue-700 bg-blue-700 text-white shadow'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+function SubTab({ active, onClick, children }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                active
+                    ? 'bg-blue-700 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+        >
+            {children}
+        </button>
     );
 }
 
