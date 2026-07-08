@@ -104,7 +104,7 @@ export default function Index({
                     {mainTab === 'settlements' && (
                         <>
                             <div className="flex flex-wrap gap-2 mb-4">
-                                <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Drivers</SubTab>
+                                <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Driver Inactive</SubTab>
                                 <SubTab active={subTab === 'incentives'} onClick={() => setSubTab('incentives')}>Incentives</SubTab>
                                 <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
                             </div>
