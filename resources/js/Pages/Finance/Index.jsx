@@ -17,6 +17,11 @@ export default function Index({
     const [subTab, setSubTab] = useState('settlements');
     const [selectedTrip, setSelectedTrip] = useState(null);
 
+    // Date-range filter — lifted here so it lives in the header
+    const [range, setRange] = useState('today');
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
+
     return (
         <AppSidebarLayout title="Finance">
             <Head title="Finance" />
@@ -24,10 +29,55 @@ export default function Index({
 
             <div className="bg-white rounded-xl shadow overflow-hidden">
                 <div className="p-6 border-b">
-                    <h1 className="text-2xl font-bold">Finance</h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Daily operations, settlements, reports and expenses.
-                    </p>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h1 className="text-2xl font-bold">Finance</h1>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Daily operations, settlements, reports and expenses.
+                            </p>
+                        </div>
+
+                        {mainTab === 'daily_operations' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                {[
+                                    { key: 'today', label: 'Today' },
+                                    { key: 'week',  label: 'This Week' },
+                                    { key: 'month', label: 'This Month' },
+                                    { key: 'custom', label: 'Custom' },
+                                ].map((item) => (
+                                    <button
+                                        key={item.key}
+                                        type="button"
+                                        onClick={() => setRange(item.key)}
+                                        className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                                            range === item.key
+                                                ? 'bg-blue-700 text-white'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+
+                                {range === 'custom' && (
+                                    <>
+                                        <input
+                                            type="date"
+                                            value={customStart}
+                                            onChange={(e) => setCustomStart(e.target.value)}
+                                            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+                                        />
+                                        <input
+                                            type="date"
+                                            value={customEnd}
+                                            onChange={(e) => setCustomEnd(e.target.value)}
+                                            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+                                        />
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3 p-4 border-b">
@@ -47,7 +97,7 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} />
+                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -112,10 +162,7 @@ export default function Index({
     );
 }
 
-function DailyOperationsPanel({ trips, rateSetting }) {
-    const [range, setRange] = useState('today');
-    const [customStart, setCustomStart] = useState('');
-    const [customEnd, setCustomEnd] = useState('');
+function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 8;
@@ -185,49 +232,8 @@ function DailyOperationsPanel({ trips, rateSetting }) {
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <div className="flex flex-wrap gap-2">
-                    {[
-                        { key: 'today', label: 'Today' },
-                        { key: 'week', label: 'This Week' },
-                        { key: 'month', label: 'This Month' },
-                        { key: 'custom', label: 'Custom' },
-                    ].map((item) => (
-                        <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => setRange(item.key)}
-                            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                                range === item.key
-                                    ? 'bg-blue-700 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                            }`}
-                        >
-                            {item.label}
-                        </button>
-                    ))}
-                </div>
-
-                {range === 'custom' && (
-                    <div className="flex flex-wrap gap-2">
-                        <input
-                            type="date"
-                            value={customStart}
-                            onChange={(e) => setCustomStart(e.target.value)}
-                            className="rounded border border-gray-300 px-3 py-2 text-sm"
-                        />
-                        <input
-                            type="date"
-                            value={customEnd}
-                            onChange={(e) => setCustomEnd(e.target.value)}
-                            className="rounded border border-gray-300 px-3 py-2 text-sm"
-                        />
-                    </div>
-                )}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2">
+        <>
+        <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-gray-800">
                     {range === 'today' ? 'Today assigned trips' : 'Assigned trips'}
                 </h2>
@@ -448,7 +454,7 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                     </div>
                 </>
             )}
-        </div>
+        </>
     );
 }
 
