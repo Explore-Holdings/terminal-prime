@@ -1740,7 +1740,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 border-b border-gray-200 p-6 flex flex-col items-center relative">
+                <div className="bg-gray-50 border-b border-gray-200 p-4 flex flex-col items-center relative">
                     <h1 className="text-xl font-black text-gray-900 uppercase tracking-widest mb-1">Terminal Prime</h1>
                     <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit & Loss Statement</h2>
                     
@@ -1761,7 +1761,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                     </div>
                 </div>
                 
-                <div className="p-6 md:p-10 space-y-8">
+                <div className="p-4 space-y-8">
                     {/* Income Section */}
                     <div>
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
@@ -1820,7 +1820,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                     </div>
 
                     {/* Net Profit Section */}
-                    <div className={`p-5 rounded-xl border-2 flex justify-between items-center text-xl font-black uppercase tracking-wide
+                    <div className={`p-3 rounded-xl border-2 flex justify-between items-center text-xl font-black uppercase tracking-wide
                         ${netProfit >= 0 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}
                     `}>
                         <span>{netProfit >= 0 ? 'Net Profit' : 'Net Loss'}</span>
