@@ -15,7 +15,7 @@ export default function Index({
     expenses = [],
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
-    const [subTab, setSubTab] = useState('settlements');
+    const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
 
     // Date-range filter — lifted here so it lives in the header
@@ -104,27 +104,20 @@ export default function Index({
                     {mainTab === 'settlements' && (
                         <>
                             <div className="flex flex-wrap gap-2 mb-4">
-                                <SubTab active={subTab === 'settlements'} onClick={() => setSubTab('settlements')}>Settlements</SubTab>
                                 <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Drivers</SubTab>
-                                <SubTab active={subTab === 'driver_totals'} onClick={() => setSubTab('driver_totals')}>Driver Totals</SubTab>
-                                <SubTab active={subTab === 'agents'} onClick={() => setSubTab('agents')}>Agent Totals</SubTab>
+                                <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
                                 <SubTab active={subTab === 'incentives'} onClick={() => setSubTab('incentives')}>Incentives</SubTab>
                             </div>
-
-                            {subTab === 'settlements' && (
-                                <SettlementsTable trips={trips} onSettle={setSelectedTrip} />
-                            )}
 
                             {subTab === 'drivers' && (
                                 <DriversTable drivers={drivers} />
                             )}
 
-                            {subTab === 'driver_totals' && (
-                                <TotalsTable data={driverTotals} title="Driver" />
-                            )}
-
-                            {subTab === 'agents' && (
-                                <TotalsTable data={agentTotals} title="Agent" />
+                            {subTab === 'payouts' && (
+                                <PayoutsTab 
+                                    drivers={driverTotals} 
+                                    agents={agentTotals}
+                                />
                             )}
 
                             {subTab === 'incentives' && (
@@ -526,40 +519,152 @@ function SettlementsTable({ trips, onSettle }) {
     return <Table columns={columns} data={trips} empty="No trips found." />;
 }
 
-function TotalsTable({ data, title }) {
-    const money = (v) => Number(v ?? 0).toLocaleString();
+function PayoutsTab({ drivers, agents }) {
+    const allPeople = [
+        ...drivers.map(d => ({ ...d, type: 'Driver', person_id: d.id, id: `Driver_${d.id}` })),
+        ...agents.map(a => ({ ...a, type: 'Agent', person_id: a.id, id: `Agent_${a.id}` }))
+    ];
+
+    const [inputs, setInputs] = useState({});
+
+    const handleInputChange = (type, id, field, value) => {
+        const key = `${type}_${id}`;
+        setInputs(prev => ({
+            ...prev,
+            [key]: {
+                ...prev[key] || {},
+                [field]: value
+            }
+        }));
+    };
+
+    const submitPayout = (type, id) => {
+        const key = `${type}_${id}`;
+        const data = inputs[key];
+        if (!data || !data.amount) return;
+
+        router.post('/finance/payouts/store', {
+            person_type: type,
+            [`${type.toLowerCase()}_id`]: id,
+            amount: data.amount,
+            currency: 'LKR',
+            remarks: data.remarks || '',
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setInputs(prev => {
+                    const newInputs = { ...prev };
+                    delete newInputs[key];
+                    return newInputs;
+                });
+                toast.success('Payout recorded successfully');
+            }
+        });
+    };
+
+    const money = (v) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const columns = [
         {
-            name: title,
+            name: 'Type',
+            selector: row => row.type,
+            sortable: true,
+            width: '100px',
+        },
+        {
+            name: 'Name',
             selector: row => row.name ?? '-',
             sortable: true,
             cell: row => <strong>{row.name ?? '-'}</strong>,
         },
         {
-            name: 'Share Total',
+            name: 'Trip Shares',
             selector: row => Number(row.share_total ?? 0),
             sortable: true,
             right: true,
-            cell: row => `LKR ${money(row.share_total)}`,
+            cell: row => money(row.share_total),
         },
         {
             name: 'Incentives',
             selector: row => Number(row.incentive_total ?? 0),
             sortable: true,
             right: true,
-            cell: row => `LKR ${money(row.incentive_total)}`,
+            cell: row => money(row.incentive_total),
         },
         {
-            name: 'Grand Total',
+            name: 'Earned (Total)',
             selector: row => Number(row.grand_total ?? 0),
             sortable: true,
             right: true,
-            cell: row => <strong>LKR {money(row.grand_total)}</strong>,
+            cell: row => <strong>{money(row.grand_total)}</strong>,
         },
+        {
+            name: 'Paid',
+            selector: row => Number(row.total_paid ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => money(row.total_paid),
+        },
+        {
+            name: 'Balance',
+            selector: row => Number(row.balance ?? 0),
+            sortable: true,
+            right: true,
+            cell: row => (
+                <span className={`font-bold ${row.balance > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                    {money(row.balance)}
+                </span>
+            ),
+        },
+        {
+            name: 'Amount (LKR)',
+            width: '150px',
+            cell: row => (
+                <input
+                    type="number"
+                    step="0.01"
+                    className="border border-gray-300 rounded px-2 py-1 w-full text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0.00"
+                    value={inputs[`${row.type}_${row.person_id}`]?.amount || ''}
+                    onChange={(e) => handleInputChange(row.type, row.person_id, 'amount', e.target.value)}
+                />
+            )
+        },
+        {
+            name: 'Remarks',
+            width: '200px',
+            cell: row => (
+                <input
+                    type="text"
+                    className="border border-gray-300 rounded px-2 py-1 w-full text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="Optional remarks"
+                    value={inputs[`${row.type}_${row.person_id}`]?.remarks || ''}
+                    onChange={(e) => handleInputChange(row.type, row.person_id, 'remarks', e.target.value)}
+                />
+            )
+        },
+        {
+            name: 'Action',
+            width: '100px',
+            cell: row => (
+                <button
+                    onClick={() => submitPayout(row.type, row.person_id)}
+                    className="bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 font-bold text-xs w-full disabled:opacity-50 transition-colors"
+                    disabled={!inputs[`${row.type}_${row.person_id}`]?.amount}
+                >
+                    Pay
+                </button>
+            )
+        }
     ];
 
-    return <Table columns={columns} data={data} empty={`No ${title.toLowerCase()} totals found.`} />;
+    return (
+        <div className="space-y-5">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <Table columns={columns} data={allPeople} empty="No users found." />
+            </div>
+        </div>
+    );
 }
 
 function IncentivesTab({ drivers, incentives }) {

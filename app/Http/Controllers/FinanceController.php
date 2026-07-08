@@ -10,6 +10,7 @@ use App\Models\RateSetting;
 use App\Models\Trip;
 use App\Models\TripFinance;
 use App\Models\Expense;
+use App\Models\Payout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -26,18 +27,24 @@ class FinanceController extends Controller
             'tripFinance.receiver',
         ])->latest()->get();
 
-        $finances = Finance::with(['driver', 'agent.user'])->get();
+        $finances = TripFinance::with(['driver', 'agent.user'])->get();
         $rateSetting = RateSetting::where('is_active', true)->latest()->first();
 
-        $driverTotals = Driver::with('incentives')->get()->map(function ($driver) use ($finances) {
+        $payouts = Payout::with(['driver', 'agent.user', 'creator'])->latest()->get();
+
+        $driverTotals = Driver::with(['incentives', 'payouts'])->get()->map(function ($driver) use ($finances) {
             $driverFinance = $finances->where('driver_id', $driver->id);
+            $totalEarned = $driverFinance->sum('driver_share') + $driver->incentives->sum('amount');
+            $totalPaid = $driver->payouts->sum('amount');
 
             return [
                 'id' => $driver->id,
                 'name' => $driver->full_name,
-                'share_total' => $driverFinance->sum('driver_amount'),
+                'share_total' => $driverFinance->sum('driver_share'),
                 'incentive_total' => $driver->incentives->sum('amount'),
-                'grand_total' => $driverFinance->sum('driver_amount') + $driver->incentives->sum('amount'),
+                'grand_total' => $totalEarned,
+                'total_paid' => $totalPaid,
+                'balance' => $totalEarned - $totalPaid,
             ];
         });
 
@@ -56,15 +63,19 @@ class FinanceController extends Controller
             }
         });
 
-        $agentTotals = Agent::with(['user', 'incentives'])->get()->map(function ($agent) use ($finances) {
+        $agentTotals = Agent::with(['user', 'incentives', 'payouts'])->get()->map(function ($agent) use ($finances) {
             $agentFinance = $finances->where('agent_id', $agent->id);
+            $totalEarned = $agentFinance->sum('agent_share') + $agent->incentives->sum('amount');
+            $totalPaid = $agent->payouts->sum('amount');
 
             return [
                 'id' => $agent->id,
                 'name' => $agent->user->name ?? $agent->name ?? '-',
-                'share_total' => $agentFinance->sum('agent_amount'),
+                'share_total' => $agentFinance->sum('agent_share'),
                 'incentive_total' => $agent->incentives->sum('amount'),
-                'grand_total' => $agentFinance->sum('agent_amount') + $agent->incentives->sum('amount'),
+                'grand_total' => $totalEarned,
+                'total_paid' => $totalPaid,
+                'balance' => $totalEarned - $totalPaid,
             ];
         });
 
@@ -79,7 +90,32 @@ class FinanceController extends Controller
             'incentives' => Incentive::with(['driver', 'agent.user'])->latest()->get(),
             'rateSetting' => $rateSetting,
             'expenses' => $expenses,
+            'payouts' => $payouts,
         ]);
+    }
+
+    public function storePayout(Request $request)
+    {
+        $data = $request->validate([
+            'person_type' => 'required|in:Driver,Agent',
+            'driver_id' => 'nullable|required_if:person_type,Driver|exists:drivers,id',
+            'agent_id' => 'nullable|required_if:person_type,Agent|exists:agents,id',
+            'amount' => 'required|numeric|min:0.01',
+            'currency' => 'required|string|max:10',
+            'remarks' => 'nullable|string',
+        ]);
+
+        Payout::create([
+            'person_type' => $data['person_type'],
+            'driver_id' => $data['person_type'] === 'Driver' ? $data['driver_id'] : null,
+            'agent_id' => $data['person_type'] === 'Agent' ? $data['agent_id'] : null,
+            'amount' => $data['amount'],
+            'currency' => $data['currency'],
+            'remarks' => $data['remarks'] ?? null,
+            'created_by' => Auth::id(),
+        ]);
+
+        return back()->with('success', 'Payout recorded successfully.');
     }
 
     public function storeRateSettings(Request $request)
