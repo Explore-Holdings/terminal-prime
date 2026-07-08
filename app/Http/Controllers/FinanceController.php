@@ -293,6 +293,7 @@ class FinanceController extends Controller
 
     public function destroyExpense(Expense $expense)
     {
+        $expense->update(['deleted_by' => Auth::id()]);
         $expense->delete();
 
         return back()->with('success', 'Expense deleted successfully.');
