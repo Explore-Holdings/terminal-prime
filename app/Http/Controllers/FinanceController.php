@@ -189,6 +189,27 @@ class FinanceController extends Controller
         return back();
     }
 
+    public function updateIncentive(Request $request, Incentive $incentive)
+    {
+        $data = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $incentive->update([
+            'amount' => $data['amount'],
+            'remarks' => $data['remarks'] ?? null,
+        ]);
+
+        return back();
+    }
+
+    public function destroyIncentive(Incentive $incentive)
+    {
+        $incentive->delete();
+        return back();
+    }
+
     public function updateDriverPayment(Request $request, Driver $driver)
     {
         $data = $request->validate([

@@ -1,5 +1,5 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
@@ -562,188 +562,252 @@ function TotalsTable({ data, title }) {
     return <Table columns={columns} data={data} empty={`No ${title.toLowerCase()} totals found.`} />;
 }
 
-function IncentivesTab({ drivers, agents, incentives }) {
-    const form = useForm({
-        person_type: 'Driver',
-        driver_id: '',
-        agent_id: '',
-        amount: '',
-        currency: 'LKR',
-        remarks: '',
-    });
+function IncentivesTab({ drivers, incentives }) {
+    const [inputs, setInputs] = useState({});
 
-    const submit = (e) => {
-        e.preventDefault();
+    const totals = useMemo(() => {
+        const t = {};
+        (incentives || []).forEach(inc => {
+            if (inc.person_type === 'Driver' && inc.driver_id) {
+                t[inc.driver_id] = (t[inc.driver_id] || 0) + Number(inc.amount || 0);
+            }
+        });
+        return t;
+    }, [incentives]);
 
-        form.post('/finance/incentives/store', {
+    const handleInputChange = (id, field, value) => {
+        setInputs(prev => ({
+            ...prev,
+            [id]: {
+                ...prev[id] || {},
+                [field]: value
+            }
+        }));
+    };
+
+    const submitIncentive = (driverId) => {
+        const data = inputs[driverId];
+        if (!data || !data.amount) {
+            return;
+        }
+
+        router.post('/finance/incentives/store', {
+            person_type: 'Driver',
+            driver_id: driverId,
+            amount: data.amount,
+            currency: 'LKR',
+            remarks: data.remarks || '',
+        }, {
             preserveScroll: true,
             onSuccess: () => {
-                form.reset();
-                router.reload({ only: ['incentives', 'driverTotals', 'agentTotals'] });
+                setInputs(prev => {
+                    const newInputs = { ...prev };
+                    delete newInputs[driverId];
+                    return newInputs;
+                });
             },
         });
     };
 
     const columns = [
         {
-            name: 'Type',
-            selector: row => row.person_type,
+            name: 'Driver Name',
+            selector: row => row.full_name,
+            sortable: true,
+            cell: row => <strong>{row.full_name}</strong>
+        },
+        {
+            name: 'Reg. Number',
+            selector: row => row.registration_number ?? '-',
             sortable: true,
         },
         {
-            name: 'Name',
-            selector: row =>
-                row.person_type === 'Driver'
-                    ? row.driver?.full_name ?? '-'
-                    : row.agent?.user?.name ?? '-',
-            sortable: true,
-        },
-        {
-            name: 'Amount',
-            selector: row => Number(row.amount ?? 0),
+            name: 'Total Added (LKR)',
+            width: '150px',
+            selector: row => totals[row.id] || 0,
             sortable: true,
             right: true,
-            cell: row => `${row.currency ?? 'LKR'} ${Number(row.amount ?? 0).toLocaleString()}`,
+            cell: row => (
+                <span className="font-semibold text-gray-700">
+                    {Number(totals[row.id] || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+            )
+        },
+        {
+            name: 'Amount (LKR)',
+            width: '180px',
+            cell: row => (
+                <input
+                    type="number"
+                    step="0.01"
+                    className="border border-gray-300 rounded px-2 py-1 w-full text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="0.00"
+                    value={inputs[row.id]?.amount || ''}
+                    onChange={(e) => handleInputChange(row.id, 'amount', e.target.value)}
+                />
+            )
         },
         {
             name: 'Remarks',
-            selector: row => row.remarks ?? '-',
-            wrap: true,
+            width: '200px',
+            cell: row => (
+                <input
+                    type="text"
+                    className="border border-gray-300 rounded px-2 py-1 w-full text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    placeholder="Optional remarks"
+                    value={inputs[row.id]?.remarks || ''}
+                    onChange={(e) => handleInputChange(row.id, 'remarks', e.target.value)}
+                />
+            )
         },
+        {
+            name: 'Action',
+            width: '180px',
+            cell: row => (
+                <div className="flex gap-2 w-full">
+                    <button
+                        onClick={() => submitIncentive(row.id)}
+                        className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-bold text-xs flex-1 disabled:opacity-50 transition-colors"
+                        disabled={!inputs[row.id]?.amount}
+                    >
+                        Add
+                    </button>
+                    {totals[row.id] > 0 && (
+                        <button
+                            onClick={() => setSelectedDriverForHistory(row)}
+                            className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 font-bold text-xs flex-1 transition-colors"
+                        >
+                            History
+                        </button>
+                    )}
+                </div>
+            )
+        }
     ];
+
+    const [selectedDriverForHistory, setSelectedDriverForHistory] = useState(null);
 
     return (
         <div className="space-y-5">
-            <form
-                onSubmit={submit}
-                className="bg-gray-50 border rounded-lg p-4"
-            >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <Table columns={columns} data={drivers} empty="No drivers found." />
+            </div>
 
-                    {/* Type */}
-                    <div>
-                        <label className="block text-xs font-medium mb-1">
-                            Type
-                        </label>
+            {selectedDriverForHistory && (
+                <IncentiveHistoryModal 
+                    driver={selectedDriverForHistory} 
+                    incentives={(incentives || []).filter(i => i.person_type === 'Driver' && i.driver_id === selectedDriverForHistory.id)}
+                    onClose={() => setSelectedDriverForHistory(null)} 
+                />
+            )}
+        </div>
+    );
+}
 
-                        <select
-                            className="w-full border rounded px-3 py-2"
-                            value={form.data.person_type}
-                            onChange={(e) =>
-                                form.setData('person_type', e.target.value)
-                            }
-                        >
-                            <option value="Driver">Driver</option>
-                            <option value="Agent">Agent</option>
-                        </select>
-                    </div>
+function IncentiveHistoryModal({ driver, incentives, onClose }) {
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({ amount: '', remarks: '' });
 
-                    {/* Driver / Agent */}
-                    <div>
-                        <label className="block text-xs font-medium mb-1">
-                            {form.data.person_type}
-                        </label>
+    const handleEdit = (inc) => {
+        setEditingId(inc.id);
+        setEditForm({ amount: inc.amount, remarks: inc.remarks || '' });
+    };
 
-                        {form.data.person_type === 'Driver' ? (
-                            <select
-                                className="w-full border rounded px-3 py-2"
-                                value={form.data.driver_id}
-                                onChange={(e) =>
-                                    form.setData('driver_id', e.target.value)
-                                }
-                            >
-                                <option value="">Select Driver</option>
+    const handleSave = (id) => {
+        if (!editForm.amount) return;
+        
+        router.put(`/finance/incentives/${id}`, editForm, {
+            preserveScroll: true,
+            onSuccess: () => setEditingId(null)
+        });
+    };
 
-                                {drivers.map((driver) => (
-                                    <option key={driver.id} value={driver.id}>
-                                        {driver.full_name}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <select
-                                className="w-full border rounded px-3 py-2"
-                                value={form.data.agent_id}
-                                onChange={(e) =>
-                                    form.setData('agent_id', e.target.value)
-                                }
-                            >
-                                <option value="">Select Agent</option>
+    const handleDelete = (id) => {
+        if (confirm("Are you sure you want to delete this incentive?")) {
+            router.delete(`/finance/incentives/${id}`, {
+                preserveScroll: true
+            });
+        }
+    };
 
-                                {agents.map((agent) => (
-                                    <option key={agent.id} value={agent.id}>
-                                        {agent.user?.name ?? agent.name}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
-
-                    {/* Amount */}
-                    <div>
-                        <label className="block text-xs font-medium mb-1">
-                            Amount
-                        </label>
-
-                        <input
-                            type="number"
-                            step="0.01"
-                            className="w-full border rounded px-3 py-2"
-                            value={form.data.amount}
-                            onChange={(e) =>
-                                form.setData('amount', e.target.value)
-                            }
-                        />
-                    </div>
-
-                    {/* Currency */}
-                    <div>
-                        <label className="block text-xs font-medium mb-1">
-                            Currency
-                        </label>
-
-                        <select
-                            className="w-full border rounded px-3 py-2"
-                            value={form.data.currency}
-                            onChange={(e) =>
-                                form.setData('currency', e.target.value)
-                            }
-                        >
-                            <option value="LKR">LKR</option>
-                        </select>
-                    </div>
-
-                    {/* Remarks */}
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-medium mb-1">
-                            Remarks
-                        </label>
-
-                        <input
-                            type="text"
-                            className="w-full border rounded px-3 py-2"
-                            value={form.data.remarks}
-                            onChange={(e) =>
-                                form.setData('remarks', e.target.value)
-                            }
-                        />
-                    </div>
-
-                    {/* Button */}
-                    <div className="md:col-span-2 flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={form.processing}
-                            className="bg-green-700 text-white px-5 py-2 rounded hover:bg-green-800 disabled:opacity-50"
-                        >
-                            Add Incentive
-                        </button>
-                    </div>
-
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center border-b px-6 py-4 bg-gray-50">
+                    <h2 className="text-lg font-bold">
+                        Incentive History - {driver.full_name}
+                    </h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-red-600 font-bold text-xl">
+                        ✕
+                    </button>
                 </div>
-            </form>
 
-            <Table columns={columns} data={incentives} empty="No incentives found." />
+                <div className="p-6 overflow-y-auto flex-1">
+                    {incentives.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No incentives found for this driver.</p>
+                    ) : (
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 border-b">
+                                    <tr>
+                                        <th className="px-4 py-3 font-semibold text-gray-700">Date</th>
+                                        <th className="px-4 py-3 font-semibold text-gray-700">Amount (LKR)</th>
+                                        <th className="px-4 py-3 font-semibold text-gray-700">Remarks</th>
+                                        <th className="px-4 py-3 font-semibold text-gray-700 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {incentives.map(inc => (
+                                        <tr key={inc.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 text-gray-500">
+                                                {new Date(inc.created_at).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-4 py-3 font-medium">
+                                                {editingId === inc.id ? (
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        className="border border-gray-300 rounded px-2 py-1 w-24 text-sm"
+                                                        value={editForm.amount}
+                                                        onChange={e => setEditForm(prev => ({...prev, amount: e.target.value}))}
+                                                    />
+                                                ) : (
+                                                    Number(inc.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {editingId === inc.id ? (
+                                                    <input 
+                                                        type="text" 
+                                                        className="border border-gray-300 rounded px-2 py-1 w-full text-sm"
+                                                        value={editForm.remarks}
+                                                        onChange={e => setEditForm(prev => ({...prev, remarks: e.target.value}))}
+                                                    />
+                                                ) : (
+                                                    inc.remarks || '-'
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                {editingId === inc.id ? (
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => setEditingId(null)} className="text-gray-500 hover:text-gray-700 font-semibold text-xs">Cancel</button>
+                                                        <button onClick={() => handleSave(inc.id)} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Save</button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex justify-end gap-3">
+                                                        <button onClick={() => handleEdit(inc)} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Edit</button>
+                                                        <button onClick={() => handleDelete(inc.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs">Delete</button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
