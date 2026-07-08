@@ -105,8 +105,8 @@ export default function Index({
                         <>
                             <div className="flex flex-wrap gap-2 mb-4">
                                 <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Drivers</SubTab>
-                                <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
                                 <SubTab active={subTab === 'incentives'} onClick={() => setSubTab('incentives')}>Incentives</SubTab>
+                                <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
                             </div>
 
                             {subTab === 'drivers' && (
@@ -525,6 +525,12 @@ function PayoutsTab({ drivers, agents }) {
         ...agents.map(a => ({ ...a, type: 'Agent', person_id: a.id, id: `Agent_${a.id}` }))
     ];
 
+    const [search, setSearch] = useState('');
+    const filteredPeople = allPeople.filter(p =>
+        (p.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        p.type.toLowerCase().includes(search.toLowerCase())
+    );
+
     const [inputs, setInputs] = useState({});
 
     const handleInputChange = (type, id, field, value) => {
@@ -645,8 +651,7 @@ function PayoutsTab({ drivers, agents }) {
         },
         {
             name: 'Action',
-            width: '100px',
-            cell: row => (
+            width: '100px',            cell: row => (
                 <button
                     onClick={() => submitPayout(row.type, row.person_id)}
                     className="bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 font-bold text-xs w-full disabled:opacity-50 transition-colors"
@@ -660,14 +665,35 @@ function PayoutsTab({ drivers, agents }) {
 
     return (
         <div className="space-y-5">
+            <div className="flex items-center justify-end gap-2 mb-3">
+                <div className="relative flex-1 max-w-xs">
+                    <input
+                        type="text"
+                        className="w-full pl-3 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        placeholder="Search by name or type…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                {search && (
+                    <button onClick={() => setSearch('')} className="text-xs text-gray-400 hover:text-gray-600">
+                        Clear
+                    </button>
+                )}
+            </div>
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <Table columns={columns} data={allPeople} empty="No users found." />
+                <Table columns={columns} data={filteredPeople} empty="No matching records found." />
             </div>
         </div>
     );
 }
 
 function IncentivesTab({ drivers, incentives }) {
+    const [search, setSearch] = useState('');
+    const filteredDrivers = (drivers || []).filter(d =>
+        (d.full_name ?? '').toLowerCase().includes(search.toLowerCase())
+    );
+
     const [inputs, setInputs] = useState({});
 
     const totals = useMemo(() => {
@@ -794,8 +820,24 @@ function IncentivesTab({ drivers, incentives }) {
 
     return (
         <div className="space-y-5">
+            <div className="flex items-center justify-end gap-2 mb-3">
+                <div className="relative flex-1 max-w-xs">
+                    <input
+                        type="text"
+                        className="w-full pl-3 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none justify-end"
+                        placeholder="Search by driver name…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+                {search && (
+                    <button onClick={() => setSearch('')} className="text-xs text-gray-400 hover:text-gray-600">
+                        Clear
+                    </button>
+                )}
+            </div>
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <Table columns={columns} data={drivers} empty="No drivers found." />
+                <Table columns={columns} data={filteredDrivers} empty="No matching drivers found." />
             </div>
 
             {selectedDriverForHistory && (
