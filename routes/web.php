@@ -110,7 +110,11 @@ Route::post('/finance/incentives/store', [FinanceController::class, 'storeIncent
 Route::post('/finance/drivers/{driver}/payment', [FinanceController::class, 'updateDriverPayment'])->name('finance.drivers.payment');
 Route::post('/finance/drivers/{driver}/status', [FinanceController::class, 'updateDriverStatus'])->name('finance.drivers.status');
 Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::class, 'markReceived'])->name('finance.trip-finances.mark-received');
+Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
+Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
+Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
+
 
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
     ->name('survey.show');

@@ -12,6 +12,7 @@ export default function Index({
     agentTotals = [],
     incentives = [],
     rateSetting = null,
+    expenses = [],
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('settlements');
@@ -144,10 +145,7 @@ export default function Index({
                     )}
 
                     {mainTab === 'expenses' && (
-                        <EmptyState
-                            title="Expenses"
-                            description="Expense tracking and approvals will appear here soon."
-                        />
+                        <ExpensesPanel expenses={expenses} />
                     )}
                 </div>
             </div>
@@ -1213,6 +1211,228 @@ function DriverPaymentModal({ driver, onClose }) {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+function ExpensesPanel({ expenses = [] }) {
+    const [editingExpense, setEditingExpense] = useState(null);
+
+    const form = useForm({
+        title: '',
+        amount: '',
+        expense_date: new Date().toISOString().split('T')[0],
+        remarks: '',
+    });
+
+    const submit = (e) => {
+        e.preventDefault();
+
+        if (editingExpense) {
+            form.put(`/finance/expenses/${editingExpense.id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    form.reset();
+                    setEditingExpense(null);
+                    toast.success('Expense updated successfully');
+                },
+                onError: () => {
+                    toast.error('Failed to update expense');
+                }
+            });
+        } else {
+            form.post('/finance/expenses', {
+                preserveScroll: true,
+                onSuccess: () => {
+                    form.reset();
+                    toast.success('Expense added successfully');
+                },
+                onError: () => {
+                    toast.error('Failed to add expense');
+                }
+            });
+        }
+    };
+
+    const handleEdit = (expense) => {
+        setEditingExpense(expense);
+        form.setData({
+            title: expense.title,
+            amount: expense.amount,
+            expense_date: expense.expense_date ? expense.expense_date.split('T')[0] : new Date().toISOString().split('T')[0],
+            remarks: expense.remarks ?? '',
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingExpense(null);
+        form.reset();
+    };
+
+    const handleDelete = (id) => {
+        if (confirm('Are you sure you want to delete this expense?')) {
+            router.delete(`/finance/expenses/${id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success('Expense deleted successfully');
+                },
+                onError: () => {
+                    toast.error('Failed to delete expense');
+                }
+            });
+        }
+    };
+
+    const columns = [
+        {
+            name: 'Date',
+            selector: row => row.expense_date ? row.expense_date.split('T')[0] : '-',
+            sortable: true,
+            width: '120px',
+        },
+        {
+            name: 'Title',
+            selector: row => row.title,
+            sortable: true,
+            cell: row => (
+                <div>
+                    <div className="font-semibold text-gray-800">{row.title}</div>
+                    {row.remarks && <div className="text-xs text-gray-500 truncate max-w-[250px]">{row.remarks}</div>}
+                </div>
+            )
+        },
+        {
+            name: 'Amount',
+            selector: row => Number(row.amount ?? 0),
+            sortable: true,
+            right: true,
+            width: '140px',
+            cell: row => <span className="font-bold text-gray-900">LKR {Number(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>,
+        },
+        {
+            name: 'Created By',
+            selector: row => row.creator?.name ?? '-',
+            sortable: true,
+            width: '140px',
+        },
+        {
+            name: 'Actions',
+            width: '150px',
+            cell: row => (
+                <div className="flex gap-2">
+                    <button
+                        type="button"
+                        onClick={() => handleEdit(row)}
+                        className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium text-xs border border-blue-200"
+                    >
+                        Edit
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleDelete(row.id)}
+                        className="px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 font-medium text-xs border border-red-200"
+                    >
+                        Delete
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form column */}
+                <div className="bg-white border rounded-xl shadow-sm p-5 space-y-4 h-fit">
+                    <h3 className="font-bold text-lg text-gray-800">
+                        {editingExpense ? '✏️ Edit Expense' : '➕ Add Expense'}
+                    </h3>
+                    <form onSubmit={submit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+                            <input
+                                type="text"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={form.data.title}
+                                onChange={(e) => form.setData('title', e.target.value)}
+                                placeholder="e.g. Office rent, Fuel reimbursement"
+                                required
+                            />
+                            {form.errors.title && <p className="text-red-500 text-xs mt-1">{form.errors.title}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Amount (LKR)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={form.data.amount}
+                                onChange={(e) => form.setData('amount', e.target.value)}
+                                placeholder="0.00"
+                                required
+                            />
+                            {form.errors.amount && <p className="text-red-500 text-xs mt-1">{form.errors.amount}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Expense Date</label>
+                            <input
+                                type="date"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={form.data.expense_date}
+                                onChange={(e) => form.setData('expense_date', e.target.value)}
+                                required
+                            />
+                            {form.errors.expense_date && <p className="text-red-500 text-xs mt-1">{form.errors.expense_date}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</label>
+                            <textarea
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                rows="3"
+                                value={form.data.remarks}
+                                onChange={(e) => form.setData('remarks', e.target.value)}
+                                placeholder="Additional details..."
+                            />
+                            {form.errors.remarks && <p className="text-red-500 text-xs mt-1">{form.errors.remarks}</p>}
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-2">
+                            {editingExpense && (
+                                <button
+                                    type="button"
+                                    onClick={handleCancelEdit}
+                                    className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={form.processing}
+                                className={`px-4 py-2 rounded-lg text-sm text-white font-medium ${editingExpense ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-700 hover:bg-blue-800'} disabled:opacity-50`}
+                            >
+                                {form.processing ? 'Saving...' : editingExpense ? 'Update Expense' : 'Add Expense'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                {/* Table column */}
+                <div className="lg:col-span-2 bg-white border rounded-xl shadow-sm p-5 space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-lg text-gray-800">Expense List</h3>
+                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100">
+                            Total: LKR {expenses.reduce((sum, exp) => sum + Number(exp.amount), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </span>
+                    </div>
+
+                    <Table columns={columns} data={expenses} empty="No expenses found. Use the form to add one." />
+                </div>
             </div>
         </div>
     );

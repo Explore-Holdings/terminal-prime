@@ -9,6 +9,7 @@ use App\Models\Incentive;
 use App\Models\RateSetting;
 use App\Models\Trip;
 use App\Models\TripFinance;
+use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -67,6 +68,8 @@ class FinanceController extends Controller
             ];
         });
 
+        $expenses = Expense::with('creator')->latest()->get();
+
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
             'drivers' => Driver::select('id', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
@@ -75,6 +78,7 @@ class FinanceController extends Controller
             'agentTotals' => $agentTotals,
             'incentives' => Incentive::with(['driver', 'agent.user'])->latest()->get(),
             'rateSetting' => $rateSetting,
+            'expenses' => $expenses,
         ]);
     }
 
@@ -231,5 +235,45 @@ class FinanceController extends Controller
         ]);
 
         return back();
+    }
+
+    public function storeExpense(Request $request)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'category' => 'nullable|string|max:100',
+            'expense_date' => 'required|date',
+            'remarks' => 'nullable|string',
+        ]);
+
+        Expense::create([
+            ...$data,
+            'created_by' => Auth::id(),
+        ]);
+
+        return back()->with('success', 'Expense created successfully.');
+    }
+
+    public function updateExpense(Request $request, Expense $expense)
+    {
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'category' => 'nullable|string|max:100',
+            'expense_date' => 'required|date',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $expense->update($data);
+
+        return back()->with('success', 'Expense updated successfully.');
+    }
+
+    public function destroyExpense(Expense $expense)
+    {
+        $expense->delete();
+
+        return back()->with('success', 'Expense deleted successfully.');
     }
 }
