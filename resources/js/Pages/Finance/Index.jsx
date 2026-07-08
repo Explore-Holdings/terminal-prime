@@ -38,7 +38,7 @@ export default function Index({
                             </p>
                         </div>
 
-                        {mainTab === 'daily_operations' && (
+                        {(mainTab === 'daily_operations' || mainTab === 'reports') && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {[
                                     { key: 'today', label: 'Today' },
@@ -138,9 +138,13 @@ export default function Index({
                     )}
 
                     {mainTab === 'reports' && (
-                        <EmptyState
-                            title="Reports"
-                            description="Revenue and performance reports will appear here soon."
+                        <ReportsPanel 
+                            trips={trips} 
+                            expenses={expenses} 
+                            rateSetting={rateSetting} 
+                            range={range} 
+                            customStart={customStart} 
+                            customEnd={customEnd} 
                         />
                     )}
 
@@ -1432,6 +1436,264 @@ function ExpensesPanel({ expenses = [] }) {
                     </div>
 
                     <Table columns={columns} data={expenses} empty="No expenses found. Use the form to add one." />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ReportsPanel({ trips, expenses, rateSetting, range, customStart, customEnd }) {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const filterByDate = (dateString) => {
+        const itemDate = dateString ? new Date(dateString) : null;
+        if (!itemDate || Number.isNaN(itemDate.getTime())) return false;
+
+        if (range === 'today') return itemDate >= startOfToday && itemDate <= endOfToday;
+        if (range === 'week') return itemDate >= startOfWeek && itemDate <= endOfWeek;
+        if (range === 'month') return itemDate >= startOfMonth && itemDate <= endOfMonth;
+        if (range === 'custom') {
+            if (!customStart) return false;
+            const from = new Date(customStart);
+            from.setHours(0, 0, 0, 0);
+            const to = customEnd ? new Date(customEnd) : new Date(customStart);
+            to.setHours(23, 59, 59, 999);
+            return itemDate >= from && itemDate <= to;
+        }
+        return false;
+    };
+
+    const filteredTrips = trips.filter(t => filterByDate(t.trip_assigned_at));
+    const filteredExpenses = expenses.filter(e => filterByDate(e.expense_date));
+
+    let grossRevenue = 0;
+    let driverPayouts = 0;
+    let agentPayouts = 0;
+
+    const defaultAgentRate = Number(rateSetting?.agent_rate ?? 0);
+    const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
+
+    filteredTrips.forEach(trip => {
+        const amount = Number(trip.customer?.paid_amount ?? 0);
+        grossRevenue += amount;
+
+        const tf = trip.trip_finance;
+        if (tf && tf.is_custom_rate) {
+            driverPayouts += Number(tf.driver_share ?? 0);
+            agentPayouts += Number(tf.agent_share ?? 0);
+        } else {
+            driverPayouts += amount * defaultDriverRate / 100;
+            agentPayouts += amount * defaultAgentRate / 100;
+        }
+    });
+
+    const netRevenue = grossRevenue - driverPayouts - agentPayouts;
+
+    let totalExpenses = 0;
+    filteredExpenses.forEach(exp => {
+        totalExpenses += Number(exp.amount ?? 0);
+    });
+
+    const netProfit = netRevenue - totalExpenses;
+
+    const formatCurrency = (val) => {
+        return Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const formatDateStr = (dateObj) => {
+        return dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    let dateLabel = 'All Time';
+    if (range === 'today') dateLabel = `${formatDateStr(startOfToday)}`;
+    else if (range === 'week') dateLabel = `${formatDateStr(startOfWeek)} to ${formatDateStr(endOfWeek)}`;
+    else if (range === 'month') dateLabel = `${formatDateStr(startOfMonth)} to ${formatDateStr(endOfMonth)}`;
+    else if (range === 'custom') dateLabel = `${customStart ? formatDateStr(new Date(customStart)) : '-'} to ${customEnd ? formatDateStr(new Date(customEnd)) : customStart ? formatDateStr(new Date(customStart)) : '-'}`;
+
+    const exportToExcel = () => {
+        const html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"></head>
+        <body>
+            <table border="1" cellpadding="5" style="border-collapse: collapse; font-family: Arial, sans-serif;">
+                <thead>
+                    <tr>
+                        <th colspan="2" style="background-color: #1f2937; color: white; font-size: 18px; font-weight: bold; text-align: center; padding: 10px;">TERMINAL PRIME - Profit & Loss Statement</th>
+                    </tr>
+                    <tr>
+                        <th style="background-color: #f3f4f6; text-align: left;">Generated as at</th>
+                        <th style="text-align: right;">${new Date().toLocaleString()}</th>
+                    </tr>
+                    <tr>
+                        <th style="background-color: #f3f4f6; text-align: left;">Period</th>
+                        <th style="text-align: right;">${dateLabel}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="2" style="height: 20px;"></td></tr>
+                    
+                    <tr>
+                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">REVENUE</td>
+                    </tr>
+                    <tr>
+                        <td>Gross Revenue (Trips: ${filteredTrips.length})</td>
+                        <td style="text-align: right; color: #047857; font-weight: bold;">${grossRevenue.toFixed(2)}</td>
+                    </tr>
+                    
+                    <tr><td colspan="2" style="height: 20px;"></td></tr>
+
+                    <tr>
+                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">COST OF SALES (COMMISSIONS)</td>
+                    </tr>
+                    <tr>
+                        <td>Driver Payouts</td>
+                        <td style="text-align: right; color: #dc2626;">-${driverPayouts.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Agent Payouts</td>
+                        <td style="text-align: right; color: #dc2626;">-${agentPayouts.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold; background-color: #f9fafb;">Net Revenue</td>
+                        <td style="text-align: right; font-weight: bold; background-color: #f9fafb;">${netRevenue.toFixed(2)}</td>
+                    </tr>
+
+                    <tr><td colspan="2" style="height: 20px;"></td></tr>
+
+                    <tr>
+                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">OPERATING EXPENSES</td>
+                    </tr>
+                    ${filteredExpenses.map(exp => {
+                        const title = (exp.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                        return '<tr><td>' + title + '</td><td style="text-align: right; color: #dc2626;">-' + Number(exp.amount).toFixed(2) + '</td></tr>';
+                    }).join('')}
+                    <tr>
+                        <td style="font-weight: bold; background-color: #f9fafb;">Total Operating Expenses</td>
+                        <td style="text-align: right; font-weight: bold; color: #dc2626; background-color: #f9fafb;">-${totalExpenses.toFixed(2)}</td>
+                    </tr>
+
+                    <tr><td colspan="2" style="height: 20px;"></td></tr>
+
+                    <tr>
+                        <td style="font-weight: bold; font-size: 16px; background-color: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; color: ${netProfit >= 0 ? '#065f46' : '#991b1b'};">${netProfit >= 0 ? 'NET PROFIT' : 'NET LOSS'}</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 16px; background-color: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; color: ${netProfit >= 0 ? '#065f46' : '#991b1b'};">${Math.abs(netProfit).toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </body>
+        </html>
+        `;
+
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Terminal_Prime_PnL_${new Date().toISOString().split('T')[0]}.xls`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6">
+            <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 p-6 flex flex-col items-center relative">
+                    <h1 className="text-xl font-black text-gray-900 uppercase tracking-widest mb-1">Terminal Prime</h1>
+                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit & Loss Statement</h2>
+                    
+                    <div className="text-sm text-gray-500 mt-3 flex flex-col items-center space-y-1">
+                        <p>For the period: <span className="font-semibold text-gray-700">{dateLabel}</span></p>
+                        <p>Generated as at: <span className="font-semibold text-gray-700">{new Date().toLocaleString()}</span></p>
+                    </div>
+
+                    <div className="absolute top-6 right-6">
+                        <button 
+                            type="button"
+                            onClick={exportToExcel}
+                            className="flex items-center gap-2 bg-white border border-green-600 text-green-700 hover:bg-green-50 px-3 py-1.5 rounded text-sm font-semibold shadow-sm transition"
+                        >
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Export to Excel
+                        </button>
+                    </div>
+                </div>
+                
+                <div className="p-6 md:p-10 space-y-8">
+                    {/* Income Section */}
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                            Revenue
+                        </h3>
+                        <div className="space-y-3 text-gray-700">
+                            <div className="flex justify-between items-center text-lg">
+                                <span>Gross Revenue (Trips: {filteredTrips.length})</span>
+                                <span className="font-semibold text-gray-900">LKR {formatCurrency(grossRevenue)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Cost of Sales Section */}
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                            Cost of Sales (Commissions)
+                        </h3>
+                        <div className="space-y-3 text-gray-700 pl-4 border-l-2 border-gray-100">
+                            <div className="flex justify-between items-center">
+                                <span>Driver Payouts</span>
+                                <span className="font-medium text-red-600">- LKR {formatCurrency(driverPayouts)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span>Agent Payouts</span>
+                                <span className="font-medium text-red-600">- LKR {formatCurrency(agentPayouts)}</span>
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center text-lg font-bold text-gray-900 mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <span>Net Revenue</span>
+                            <span>LKR {formatCurrency(netRevenue)}</span>
+                        </div>
+                    </div>
+
+                    {/* Operating Expenses Section */}
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                            Operating Expenses
+                        </h3>
+                        <div className="space-y-3 text-gray-700 pl-4 border-l-2 border-gray-100">
+                            {filteredExpenses.length === 0 ? (
+                                <div className="text-sm text-gray-400 italic">No expenses recorded for this period.</div>
+                            ) : (
+                                filteredExpenses.map(exp => (
+                                    <div key={exp.id} className="flex justify-between items-center text-sm">
+                                        <span>{exp.title}</span>
+                                        <span className="font-medium text-red-600">- LKR {formatCurrency(exp.amount)}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="flex justify-between items-center text-md font-semibold text-gray-800 mt-4 border-t border-gray-100 pt-3">
+                            <span>Total Operating Expenses</span>
+                            <span className="text-red-600">- LKR {formatCurrency(totalExpenses)}</span>
+                        </div>
+                    </div>
+
+                    {/* Net Profit Section */}
+                    <div className={`p-5 rounded-xl border-2 flex justify-between items-center text-xl font-black uppercase tracking-wide
+                        ${netProfit >= 0 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}
+                    `}>
+                        <span>{netProfit >= 0 ? 'Net Profit' : 'Net Loss'}</span>
+                        <span>LKR {formatCurrency(Math.abs(netProfit))}</span>
+                    </div>
                 </div>
             </div>
         </div>
