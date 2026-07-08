@@ -14,6 +14,9 @@ class TripFinance extends Model
         'trip_id',
         'driver_id',
         'agent_id',
+        'driver_rate',
+        'agent_rate',
+        'is_custom_rate',
         'total_amount',
         'driver_share',
         'agent_share',
@@ -25,6 +28,9 @@ class TripFinance extends Model
     ];
 
     protected $casts = [
+        'driver_rate'     => 'decimal:2',
+        'agent_rate'      => 'decimal:2',
+        'is_custom_rate'  => 'boolean',
         'total_amount'    => 'decimal:2',
         'driver_share'    => 'decimal:2',
         'agent_share'     => 'decimal:2',

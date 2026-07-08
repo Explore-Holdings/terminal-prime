@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agent;
 use App\Models\Customer;
+use App\Models\TripFinance;
 use App\Mail\CustomerInvoiceMail;
 use App\Mail\CustomerSurveyMail;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -178,25 +179,62 @@ class CustomerController extends Controller
     public function assignTrip(Request $request, Customer $customer)
     {
         $data = $request->validate([
-            'driver_id' => 'required|exists:drivers,id',
-            'agent_id' => 'required|exists:agents,id',
-            'remarks' => 'nullable|string',
+            'driver_id'      => 'required|exists:drivers,id',
+            'agent_id'       => 'required|exists:agents,id',
+            'remarks'        => 'nullable|string',
+            'driver_rate'    => 'nullable|numeric|min:0|max:100',
+            'agent_rate'     => 'nullable|numeric|min:0|max:100',
+            'is_custom_rate' => 'nullable|boolean',
+            'total_amount'   => 'nullable|numeric|min:0',
+            'driver_share'   => 'nullable|numeric|min:0',
+            'agent_share'    => 'nullable|numeric|min:0',
+            'balance'        => 'nullable|numeric',
         ]);
 
         DB::transaction(function () use ($data, $customer) {
 
             $trip = Trip::create([
-                'driver_id' => $data['driver_id'],
-                'customer_id' => $customer->id,
-                'agent_id' => $data['agent_id'],
+                'driver_id'        => $data['driver_id'],
+                'customer_id'      => $customer->id,
+                'agent_id'         => $data['agent_id'],
                 'trip_assigned_at' => now(),
                 'trip_assigned_by' => auth()->id(),
-                'remarks' => $data['remarks'] ?? null,
-                'status' => 'Assigned',
+                'remarks'          => $data['remarks'] ?? null,
+                'status'           => 'Assigned',
             ]);
 
             Agent::where('id', $data['agent_id'])->update([
                 'status' => 'Approved',
+            ]);
+
+            $totalAmount = (float) ($data['total_amount'] ?? 0);
+            $driverRate  = (float) ($data['driver_rate']  ?? 0);
+            $agentRate   = (float) ($data['agent_rate']   ?? 0);
+
+            $driverShare = isset($data['driver_share'])
+                ? round((float) $data['driver_share'], 2)
+                : round($totalAmount * $driverRate / 100, 2);
+
+            $agentShare  = isset($data['agent_share'])
+                ? round((float) $data['agent_share'], 2)
+                : round($totalAmount * $agentRate / 100, 2);
+
+            $balance = isset($data['balance'])
+                ? round((float) $data['balance'], 2)
+                : round($totalAmount - $driverShare - $agentShare, 2);
+
+            TripFinance::create([
+                'trip_id'        => $trip->id,
+                'driver_id'      => $data['driver_id'],
+                'agent_id'       => $data['agent_id'],
+                'driver_rate'    => $driverRate,
+                'agent_rate'     => $agentRate,
+                'is_custom_rate' => (bool) ($data['is_custom_rate'] ?? false),
+                'total_amount'   => $totalAmount,
+                'driver_share'   => $driverShare,
+                'agent_share'    => $agentShare,
+                'balance'        => $balance,
+                'received'       => false,
             ]);
 
             $trip->load('customer');

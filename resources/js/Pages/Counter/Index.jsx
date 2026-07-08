@@ -3,7 +3,7 @@ import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null }) {
     const [showModal, setShowModal] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
@@ -198,7 +198,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} />
             )}
         </>
     );
@@ -247,6 +247,7 @@ function Modal({
     setVehicleEnabledAgentId,
     onClose,
     countries,
+    rateSetting,
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -292,7 +293,7 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} />
+                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} />
                     )}
                 </div>
             </div>
@@ -619,42 +620,77 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, customerId, agent,onClose, }) {
-    const assignForm = useForm({
-        driver_id: '',
-        agent_id: agent.id,
-        remarks: '',
-    });
+function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm }) {
+    const [confirmModal, setConfirmModal] = useState(null); // { vehicle }
+    const [useCustomRate, setUseCustomRate] = useState(false);
+    const [customDriverRate, setCustomDriverRate] = useState('');
+    const [customAgentRate, setCustomAgentRate] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
-    const assignTrip = (vehicle) => {
+    const totalAmount       = Number(paymentForm?.data?.price ?? 0);
+    const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
+    const defaultAgentRate  = Number(rateSetting?.agent_rate ?? 0);
+
+    // Effective rates: either what the user typed (custom) or the global defaults
+    const effectiveDriverRate = useCustomRate ? Number(customDriverRate || 0) : defaultDriverRate;
+    const effectiveAgentRate  = useCustomRate ? Number(customAgentRate  || 0) : defaultAgentRate;
+
+    // Calculated shares shown live in the modal
+    const driverShare  = Number(((totalAmount * effectiveDriverRate) / 100).toFixed(2));
+    const agentShare   = Number(((totalAmount * effectiveAgentRate)  / 100).toFixed(2));
+    const companyShare = Number((totalAmount - driverShare - agentShare).toFixed(2));
+
+    const openConfirm = (vehicle) => {
+        setUseCustomRate(false);
+        setCustomDriverRate(String(defaultDriverRate));
+        setCustomAgentRate(String(defaultAgentRate));
+        setConfirmModal({ vehicle });
+    };
+
+    const closeConfirm = () => setConfirmModal(null);
+
+    const confirmAssign = () => {
+        const vehicle  = confirmModal.vehicle;
         const driverId = vehicle.driver_id ?? vehicle.driver?.id;
 
-        if (!customerId) {
-            alert('Customer not found.');
-            return;
-        }
+        if (!customerId) { alert('Customer not found.');              return; }
+        if (!driverId)   { alert('Driver not found for this vehicle.'); return; }
 
-        if (!driverId) {
-            alert('Driver not found for this vehicle.');
-            return;
-        }
+        // Snapshot the rates right now — don't rely on React state updates
+        const finalDriverRate = useCustomRate ? Number(customDriverRate || 0) : defaultDriverRate;
+        const finalAgentRate  = useCustomRate ? Number(customAgentRate  || 0) : defaultAgentRate;
+        const finalDriverShare  = Number(((totalAmount * finalDriverRate) / 100).toFixed(2));
+        const finalAgentShare   = Number(((totalAmount * finalAgentRate)  / 100).toFixed(2));
+        const finalBalance      = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
 
-        assignForm.setData({
-            driver_id: driverId,
-            agent_id: agent.id,
-            remarks: '',
-        });
+        setSubmitting(true);
 
-        assignForm.post(`/customers/${customerId}/assign-trip`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                onClose();
-
-                router.reload({
-                    only: ['pendingAgents', 'vehicles', 'ongoingTrips'],
-                });
+        // Use router.post directly so we send exactly these values — no useForm batching race
+        router.post(
+            `/customers/${customerId}/assign-trip`,
+            {
+                driver_id:      driverId,
+                agent_id:       agent.id,
+                remarks:        '',
+                driver_rate:    finalDriverRate,
+                agent_rate:     finalAgentRate,
+                is_custom_rate: useCustomRate,
+                total_amount:   totalAmount,
+                // Pre-calculated shares sent along for server convenience
+                driver_share:   finalDriverShare,
+                agent_share:    finalAgentShare,
+                balance:        finalBalance,
             },
-        });
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    closeConfirm();
+                    onClose();
+                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips'] });
+                },
+                onFinish: () => setSubmitting(false),
+            }
+        );
     };
 
     return (
@@ -666,9 +702,154 @@ function VehicleTab({ vehicles, customerId, agent,onClose, }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[600px] overflow-y-auto">
                 {vehicles.map((vehicle, i) => (
-                    <VehicleSelectCard key={vehicle.id} vehicle={vehicle} index={i} assigning={assignForm.processing} onAssign={() => assignTrip(vehicle)} />
+                    <VehicleSelectCard key={vehicle.id} vehicle={vehicle} index={i} assigning={submitting} onAssign={() => openConfirm(vehicle)} />
                 ))}
             </div>
+
+            {/* ── Confirmation Modal ── */}
+            {confirmModal && (
+                <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 text-white">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <Car size={20} />
+                                Confirm Vehicle Assignment
+                            </h3>
+                            <p className="text-sm text-blue-100 mt-0.5">
+                                {confirmModal.vehicle.driver?.full_name ?? 'Driver'} — {confirmModal.vehicle.registration_number ?? ''}
+                            </p>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            {/* Trip amount */}
+                            <div className="bg-gray-50 rounded-xl border p-4 flex justify-between items-center">
+                                <span className="text-sm font-medium text-gray-600">Trip Amount</span>
+                                <span className="text-xl font-bold text-gray-900">
+                                    {paymentForm?.data?.currency ?? 'LKR'} {totalAmount.toLocaleString()}
+                                </span>
+                            </div>
+
+                            {/* Rate type toggle */}
+                            <div className="flex rounded-lg border overflow-hidden text-sm font-medium">
+                                <button
+                                    type="button"
+                                    onClick={() => setUseCustomRate(false)}
+                                    className={`flex-1 py-2 transition ${!useCustomRate ? 'bg-blue-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >
+                                    Standard Rate
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUseCustomRate(true)}
+                                    className={`flex-1 py-2 transition ${useCustomRate ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                                >
+                                    Custom Rate
+                                </button>
+                            </div>
+
+                            {/* Rate inputs */}
+                            {useCustomRate ? (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Driver %</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            className="input text-center text-lg font-bold"
+                                            value={customDriverRate}
+                                            onChange={e => setCustomDriverRate(e.target.value)}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Agent %</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            className="input text-center text-lg font-bold"
+                                            value={customAgentRate}
+                                            onChange={e => setCustomAgentRate(e.target.value)}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-100">
+                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Driver Rate</p>
+                                        <p className="text-2xl font-black text-blue-700">{defaultDriverRate}%</p>
+                                    </div>
+                                    <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+                                        <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Agent Rate</p>
+                                        <p className="text-2xl font-black text-green-700">{defaultAgentRate}%</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Breakdown */}
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center py-2 border-b">
+                                    <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                                        Driver Share ({effectiveDriverRate}%)
+                                    </span>
+                                    <span className="font-bold text-blue-700">
+                                        {paymentForm?.data?.currency ?? 'LKR'} {driverShare.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-2 border-b">
+                                    <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>
+                                        Agent Share ({effectiveAgentRate}%)
+                                    </span>
+                                    <span className="font-bold text-green-700">
+                                        {paymentForm?.data?.currency ?? 'LKR'} {agentShare.toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center py-2">
+                                    <span className="text-sm text-gray-600 flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-gray-500 inline-block"></span>
+                                        Company Balance
+                                    </span>
+                                    <span className={`font-bold ${companyShare >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
+                                        {paymentForm?.data?.currency ?? 'LKR'} {companyShare.toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {useCustomRate && (effectiveDriverRate + effectiveAgentRate) > 100 && (
+                                <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                                    ⚠ Driver % + Agent % exceeds 100%. Company balance will be negative.
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex gap-3 px-6 pb-6">
+                            <button
+                                type="button"
+                                onClick={closeConfirm}
+                                className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={submitting}
+                                onClick={confirmAssign}
+                                className="flex-1 py-2.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
+                            >
+                                {submitting ? 'Assigning...' : 'Confirm & Assign'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

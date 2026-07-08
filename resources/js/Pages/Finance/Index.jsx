@@ -301,16 +301,45 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Agent Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Driver Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Balance</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Rate</th>
                                         <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 bg-white">
                                     {pagedRows.map((trip) => {
                                         const amount = Number(trip.customer?.paid_amount ?? 0);
-                                        const agentPortion = (amount * agentRate) / 100;
-                                        const driverPortion = (amount * driverRate) / 100;
-                                        const balance = amount - agentPortion - driverPortion;
-                                        const isReceived = Boolean(trip.cash_received) || Boolean(trip.trip_finance?.received);
+
+                                        // Prefer stored trip_finance data when it exists and uses a custom rate
+                                        const tf             = trip.trip_finance;
+                                        const isCustomRate   = Boolean(tf?.is_custom_rate);
+                                        const hasStoredRates = tf && (Number(tf.driver_share) > 0 || Number(tf.agent_share) > 0 || Number(tf.total_amount) > 0);
+
+                                        let agentPortion, driverPortion, balance, displayDriverRate, displayAgentRate;
+
+                                        if (isCustomRate && hasStoredRates) {
+                                            // Use values saved at assignment time
+                                            agentPortion      = Number(tf.agent_share);
+                                            driverPortion     = Number(tf.driver_share);
+                                            balance           = Number(tf.balance);
+                                            displayDriverRate = Number(tf.driver_rate);
+                                            displayAgentRate  = Number(tf.agent_rate);
+                                        } else if (hasStoredRates) {
+                                            // Standard rate — still prefer stored calculated values for consistency
+                                            agentPortion      = Number(tf.agent_share);
+                                            driverPortion     = Number(tf.driver_share);
+                                            balance           = Number(tf.balance);
+                                            displayDriverRate = Number(tf.driver_rate ?? driverRate);
+                                            displayAgentRate  = Number(tf.agent_rate ?? agentRate);
+                                        } else {
+                                            // Fallback: calculate from global rate setting
+                                            agentPortion      = (amount * agentRate) / 100;
+                                            driverPortion     = (amount * driverRate) / 100;
+                                            balance           = amount - agentPortion - driverPortion;
+                                            displayDriverRate = driverRate;
+                                            displayAgentRate  = agentRate;
+                                        }
+
+                                        const isReceived = Boolean(trip.cash_received) || Boolean(tf?.received);
 
                                         const handleMarkReceived = () => {
                                             if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received?`)) {
@@ -353,9 +382,26 @@ function DailyOperationsPanel({ trips, rateSetting }) {
                                                     <div className="text-xs text-gray-500">{trip.customer?.name ?? '-'}</div>
                                                 </td>
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {amount.toLocaleString()}</td>
-                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</td>
-                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</td>
+                                                <td className="px-3 py-2">
+                                                    <div className="font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</div>
+                                                    <div className="text-[11px] text-gray-400">{displayAgentRate}%</div>
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    <div className="font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</div>
+                                                    <div className="text-[11px] text-gray-400">{displayDriverRate}%</div>
+                                                </td>
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {balance.toLocaleString()}</td>
+                                                <td className="px-3 py-2">
+                                                    {isCustomRate ? (
+                                                        <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                                                            ✦ Custom
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
+                                                            Standard
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-3 py-2">
                                                     {isReceived ? (
                                                         <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
