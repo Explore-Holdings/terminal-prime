@@ -276,4 +276,82 @@ class FinanceController extends Controller
 
         return back()->with('success', 'Expense deleted successfully.');
     }
+
+    public function exportProfitLoss(Request $request)
+    {
+        $range = $request->query('range', 'all');
+        $customStart = $request->query('custom_start');
+        $customEnd = $request->query('custom_end');
+
+        $tripsQuery = Trip::with(['customer', 'tripFinance'])->whereNotNull('trip_assigned_at');
+        $expensesQuery = Expense::query();
+
+        $startDate = null;
+        $endDate = null;
+        $dateLabel = 'All Time';
+
+        if ($range === 'today') {
+            $startDate = now()->startOfDay();
+            $endDate = now()->endOfDay();
+            $dateLabel = $startDate->format('d M Y');
+        } elseif ($range === 'week') {
+            $startDate = now()->startOfWeek();
+            $endDate = now()->endOfWeek();
+            $dateLabel = $startDate->format('d M Y') . ' to ' . $endDate->format('d M Y');
+        } elseif ($range === 'month') {
+            $startDate = now()->startOfMonth();
+            $endDate = now()->endOfMonth();
+            $dateLabel = $startDate->format('d M Y') . ' to ' . $endDate->format('d M Y');
+        } elseif ($range === 'custom') {
+            if ($customStart) {
+                $startDate = \Carbon\Carbon::parse($customStart)->startOfDay();
+                $endDate = $customEnd ? \Carbon\Carbon::parse($customEnd)->endOfDay() : $startDate->copy()->endOfDay();
+                $dateLabel = $startDate->format('d M Y') . ' to ' . $endDate->format('d M Y');
+            }
+        }
+
+        if ($startDate && $endDate) {
+            $tripsQuery->whereBetween('trip_assigned_at', [$startDate, $endDate]);
+            $expensesQuery->whereBetween('expense_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+        }
+
+        $trips = $tripsQuery->get();
+        $expenses = $expensesQuery->get();
+        $rateSetting = \App\Models\RateSetting::first();
+        $defaultDriverRate = $rateSetting ? $rateSetting->driver_rate : 0;
+        $defaultAgentRate = $rateSetting ? $rateSetting->agent_rate : 0;
+
+        $grossRevenue = 0;
+        $driverPayouts = 0;
+        $agentPayouts = 0;
+
+        foreach ($trips as $trip) {
+            $amount = floatval($trip->customer->paid_amount ?? 0);
+            $grossRevenue += $amount;
+
+            $tf = $trip->tripFinance;
+            if ($tf && $tf->is_custom_rate) {
+                $driverPayouts += floatval($tf->driver_share ?? 0);
+                $agentPayouts += floatval($tf->agent_share ?? 0);
+            } else {
+                $driverPayouts += $amount * $defaultDriverRate / 100;
+                $agentPayouts += $amount * $defaultAgentRate / 100;
+            }
+        }
+
+        $netRevenue = $grossRevenue - $driverPayouts - $agentPayouts;
+        $totalExpenses = $expenses->sum('amount');
+        $netProfit = $netRevenue - $totalExpenses;
+        $isProfit = $netProfit >= 0;
+        
+        $html = view('exports.profit_loss', compact(
+            'dateLabel', 'trips', 'grossRevenue', 'driverPayouts', 
+            'agentPayouts', 'netRevenue', 'expenses', 'totalExpenses', 
+            'netProfit', 'isProfit'
+        ))->render();
+
+        return response($html)
+            ->header('Content-Type', 'application/vnd.ms-excel')
+            ->header('Content-Disposition', 'attachment; filename="Terminal_Prime_PnL_'.now()->format('Y-m-d').'.xls"');
+    }
 }

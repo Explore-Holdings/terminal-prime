@@ -113,6 +113,7 @@ Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::c
 Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
+Route::get('/finance/export', [FinanceController::class, 'exportProfitLoss'])->name('finance.export');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 
 

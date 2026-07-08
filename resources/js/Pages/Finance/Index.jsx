@@ -1522,87 +1522,8 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
     else if (range === 'custom') dateLabel = `${customStart ? formatDateStr(new Date(customStart)) : '-'} to ${customEnd ? formatDateStr(new Date(customEnd)) : customStart ? formatDateStr(new Date(customStart)) : '-'}`;
 
     const exportToExcel = () => {
-        const html = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"></head>
-        <body>
-            <table border="1" cellpadding="5" style="border-collapse: collapse; font-family: Arial, sans-serif;">
-                <thead>
-                    <tr>
-                        <th colspan="2" style="background-color: #1f2937; color: white; font-size: 18px; font-weight: bold; text-align: center; padding: 10px;">TERMINAL PRIME - Profit & Loss Statement</th>
-                    </tr>
-                    <tr>
-                        <th style="background-color: #f3f4f6; text-align: left;">Generated as at</th>
-                        <th style="text-align: right;">${new Date().toLocaleString()}</th>
-                    </tr>
-                    <tr>
-                        <th style="background-color: #f3f4f6; text-align: left;">Period</th>
-                        <th style="text-align: right;">${dateLabel}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="2" style="height: 20px;"></td></tr>
-                    
-                    <tr>
-                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">REVENUE</td>
-                    </tr>
-                    <tr>
-                        <td>Gross Revenue (Trips: ${filteredTrips.length})</td>
-                        <td style="text-align: right; color: #047857; font-weight: bold;">${grossRevenue.toFixed(2)}</td>
-                    </tr>
-                    
-                    <tr><td colspan="2" style="height: 20px;"></td></tr>
-
-                    <tr>
-                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">COST OF SALES (COMMISSIONS)</td>
-                    </tr>
-                    <tr>
-                        <td>Driver Payouts</td>
-                        <td style="text-align: right; color: #dc2626;">-${driverPayouts.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td>Agent Payouts</td>
-                        <td style="text-align: right; color: #dc2626;">-${agentPayouts.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight: bold; background-color: #f9fafb;">Net Revenue</td>
-                        <td style="text-align: right; font-weight: bold; background-color: #f9fafb;">${netRevenue.toFixed(2)}</td>
-                    </tr>
-
-                    <tr><td colspan="2" style="height: 20px;"></td></tr>
-
-                    <tr>
-                        <td colspan="2" style="background-color: #374151; color: white; font-weight: bold;">OPERATING EXPENSES</td>
-                    </tr>
-                    ${filteredExpenses.map(exp => {
-                        const title = (exp.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-                        return '<tr><td>' + title + '</td><td style="text-align: right; color: #dc2626;">-' + Number(exp.amount).toFixed(2) + '</td></tr>';
-                    }).join('')}
-                    <tr>
-                        <td style="font-weight: bold; background-color: #f9fafb;">Total Operating Expenses</td>
-                        <td style="text-align: right; font-weight: bold; color: #dc2626; background-color: #f9fafb;">-${totalExpenses.toFixed(2)}</td>
-                    </tr>
-
-                    <tr><td colspan="2" style="height: 20px;"></td></tr>
-
-                    <tr>
-                        <td style="font-weight: bold; font-size: 16px; background-color: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; color: ${netProfit >= 0 ? '#065f46' : '#991b1b'};">${netProfit >= 0 ? 'NET PROFIT' : 'NET LOSS'}</td>
-                        <td style="text-align: right; font-weight: bold; font-size: 16px; background-color: ${netProfit >= 0 ? '#d1fae5' : '#fee2e2'}; color: ${netProfit >= 0 ? '#065f46' : '#991b1b'};">${Math.abs(netProfit).toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </body>
-        </html>
-        `;
-
-        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `Terminal_Prime_PnL_${new Date().toISOString().split('T')[0]}.xls`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const url = `/finance/export?range=${range}&custom_start=${customStart || ''}&custom_end=${customEnd || ''}`;
+        window.location.href = url;
     };
 
     return (
@@ -1613,8 +1534,8 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                     <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit & Loss Statement</h2>
                     
                     <div className="text-sm text-gray-500 mt-3 flex flex-col items-center space-y-1">
-                        <p>For the period: <span className="font-semibold text-gray-700">{dateLabel}</span></p>
-                        <p>Generated as at: <span className="font-semibold text-gray-700">{new Date().toLocaleString()}</span></p>
+                        <p>For the period : <span className="font-semibold text-gray-700">{dateLabel}</span></p>
+                        <p>Generated as at : <span className="font-semibold text-gray-700">{new Date().toLocaleString()}</span></p>
                     </div>
 
                     <div className="absolute top-6 right-6">
