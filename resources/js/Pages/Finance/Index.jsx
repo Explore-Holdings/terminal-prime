@@ -254,13 +254,13 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-semibold text-gray-700">Trip #{trip.id}</span>
-                                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                                {/* <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                                     trip.finance?.status === 'Settled'
                                                         ? 'bg-green-100 text-green-700'
                                                         : 'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                     {trip.finance?.status ?? 'Pending'}
-                                                </span>
+                                                </span> */}
                                             </div>
                                             <p className="mt-1 truncate text-xs text-gray-600">{trip.customer?.name ?? '-'}</p>
                                             <p className="truncate text-[11px] text-gray-500">{trip.driver?.full_name ?? '-'}</p>
@@ -385,11 +385,11 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {amount.toLocaleString()}</td>
                                                 <td className="px-3 py-2">
                                                     <div className="font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</div>
-                                                    <div className="text-[11px] text-gray-400">{displayAgentRate}%</div>
+                                                    {/* <div className="text-[11px] text-gray-400">{displayAgentRate}%</div> */}
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     <div className="font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</div>
-                                                    <div className="text-[11px] text-gray-400">{displayDriverRate}%</div>
+                                                    {/* <div className="text-[11px] text-gray-400">{displayDriverRate}%</div> */}
                                                 </td>
                                                 <td className="px-3 py-2 font-medium text-gray-700">LKR {balance.toLocaleString()}</td>
                                                 <td className="px-3 py-2">
