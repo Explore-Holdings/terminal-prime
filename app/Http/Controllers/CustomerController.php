@@ -223,10 +223,13 @@ class CustomerController extends Controller
                 ? round((float) $data['balance'], 2)
                 : round($totalAmount - $driverShare - $agentShare, 2);
 
+            $agentUserId = Agent::where('id', $data['agent_id'])->value('user_id');
+
             TripFinance::create([
                 'trip_id'        => $trip->id,
                 'driver_id'      => $data['driver_id'],
                 'agent_id'       => $data['agent_id'],
+                'agent_user_id'  => $agentUserId,
                 'driver_rate'    => $driverRate,
                 'agent_rate'     => $agentRate,
                 'is_custom_rate' => (bool) ($data['is_custom_rate'] ?? false),

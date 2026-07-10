@@ -195,7 +195,6 @@ class FinanceController extends Controller
             ]
         );
 
-        // Mark the trip itself as cash received
         $trip->update(['cash_received' => true]);
 
         return back();

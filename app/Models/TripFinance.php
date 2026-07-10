@@ -14,6 +14,7 @@ class TripFinance extends Model
         'trip_id',
         'driver_id',
         'agent_id',
+        'agent_user_id',
         'driver_rate',
         'agent_rate',
         'is_custom_rate',
@@ -53,6 +54,11 @@ class TripFinance extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    public function agentUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'agent_user_id');
     }
 
     public function receiver(): BelongsTo
