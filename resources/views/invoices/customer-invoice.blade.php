@@ -22,11 +22,12 @@
         }
 
         .header {
-            background: #111827;
-            color: #ffffff;
+            background: transparent;
+            color: #111827;
             padding: 12px 12px 10px;
-            border-radius: 10px;
+            border-radius: 0;
             margin-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .brand {
@@ -41,7 +42,7 @@
             font-size: 10px;
             letter-spacing: 2px;
             text-transform: uppercase;
-            color: #d1d5db;
+            color: #6b7280;
             margin-top: 4px;
         }
 
@@ -54,7 +55,7 @@
         .meta-table td {
             border: none;
             padding: 0;
-            color: #e5e7eb;
+            color: #374151;
             font-size: 10px;
         }
 
