@@ -1741,8 +1741,13 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
         <div className="max-w-4xl mx-auto space-y-6">
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 border-b border-gray-200 p-4 flex flex-col items-center relative">
+                    <img
+                        src="/assets/images/logo.png"
+                        alt="Terminal Prime Logo"
+                        className="h-16 w-auto object-contain mb-3"
+                    />
                     <h1 className="text-xl font-black text-gray-900 uppercase tracking-widest mb-1">Terminal Prime</h1>
-                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit & Loss Statement</h2>
+                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit &amp; Loss Statement</h2>
                     
                     <div className="text-sm text-gray-500 mt-3 flex flex-col items-center space-y-1">
                         <p>For the period : <span className="font-semibold text-gray-700">{dateLabel}</span></p>
