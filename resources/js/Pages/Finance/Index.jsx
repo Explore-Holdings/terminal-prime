@@ -1747,7 +1747,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                         className="h-16 w-auto object-contain mb-3"
                     />
                     <h1 className="text-xl font-black text-gray-900 uppercase tracking-widest mb-1">Terminal Prime</h1>
-                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Profit &amp; Loss Statement</h2>
+                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">FINANCIAL STATEMENT</h2>
                     
                     <div className="text-sm text-gray-500 mt-3 flex flex-col items-center space-y-1">
                         <p>For the period : <span className="font-semibold text-gray-700">{dateLabel}</span></p>
