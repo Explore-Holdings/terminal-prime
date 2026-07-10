@@ -319,7 +319,7 @@ function CustomerTab({ agent, form, onSubmit, countries }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
                 <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
+                <Field label="WhatsApp" type="number" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
                 <div>
                     <label className="label">Country</label>
 
@@ -623,27 +623,27 @@ function PaymentTab({
 function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm }) {
     const [confirmModal, setConfirmModal] = useState(null); // { vehicle }
     const [useCustomRate, setUseCustomRate] = useState(false);
-    const [customDriverRate, setCustomDriverRate] = useState('');
-    const [customAgentRate, setCustomAgentRate] = useState('');
+    const [customDriverShare, setCustomDriverShare] = useState('');
+    const [customAgentShare, setCustomAgentShare] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     const totalAmount       = Number(paymentForm?.data?.price ?? 0);
     const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
     const defaultAgentRate  = Number(rateSetting?.agent_rate ?? 0);
 
-    // Effective rates: either what the user typed (custom) or the global defaults
-    const effectiveDriverRate = useCustomRate ? Number(customDriverRate || 0) : defaultDriverRate;
-    const effectiveAgentRate  = useCustomRate ? Number(customAgentRate  || 0) : defaultAgentRate;
-
     // Calculated shares shown live in the modal
-    const driverShare  = Number(((totalAmount * effectiveDriverRate) / 100).toFixed(2));
-    const agentShare   = Number(((totalAmount * effectiveAgentRate)  / 100).toFixed(2));
+    const driverShare  = useCustomRate
+        ? Number(customDriverShare || 0)
+        : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
+    const agentShare   = useCustomRate
+        ? Number(customAgentShare || 0)
+        : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
     const companyShare = Number((totalAmount - driverShare - agentShare).toFixed(2));
 
     const openConfirm = (vehicle) => {
         setUseCustomRate(false);
-        setCustomDriverRate(String(defaultDriverRate));
-        setCustomAgentRate(String(defaultAgentRate));
+        setCustomDriverShare('');
+        setCustomAgentShare('');
         setConfirmModal({ vehicle });
     };
 
@@ -653,15 +653,21 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
         const vehicle  = confirmModal.vehicle;
         const driverId = vehicle.driver_id ?? vehicle.driver?.id;
 
-        if (!customerId) { alert('Customer not found.');              return; }
+        if (!customerId) { alert('Customer not found.');               return; }
         if (!driverId)   { alert('Driver not found for this vehicle.'); return; }
 
-        // Snapshot the rates right now — don't rely on React state updates
-        const finalDriverRate = useCustomRate ? Number(customDriverRate || 0) : defaultDriverRate;
-        const finalAgentRate  = useCustomRate ? Number(customAgentRate  || 0) : defaultAgentRate;
-        const finalDriverShare  = Number(((totalAmount * finalDriverRate) / 100).toFixed(2));
-        const finalAgentShare   = Number(((totalAmount * finalAgentRate)  / 100).toFixed(2));
-        const finalBalance      = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
+        // Snapshot shares — custom mode uses direct amounts, standard mode uses % calculation
+        const finalDriverShare = useCustomRate
+            ? Number(customDriverShare || 0)
+            : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
+        const finalAgentShare = useCustomRate
+            ? Number(customAgentShare || 0)
+            : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
+        const finalBalance = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
+
+        // For custom-amount mode: rates are not applicable, send 0
+        const finalDriverRate = useCustomRate ? 0 : defaultDriverRate;
+        const finalAgentRate  = useCustomRate ? 0 : defaultAgentRate;
 
         setSubmitting(true);
 
@@ -676,7 +682,6 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 agent_rate:     finalAgentRate,
                 is_custom_rate: useCustomRate,
                 total_amount:   totalAmount,
-                // Pre-calculated shares sent along for server convenience
                 driver_share:   finalDriverShare,
                 agent_share:    finalAgentShare,
                 balance:        finalBalance,
@@ -750,32 +755,39 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
                             {/* Rate inputs */}
                             {useCustomRate ? (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Driver %</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            step="0.01"
-                                            className="input text-center text-lg font-bold"
-                                            value={customDriverRate}
-                                            onChange={e => setCustomDriverRate(e.target.value)}
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">Agent %</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            step="0.01"
-                                            className="input text-center text-lg font-bold"
-                                            value={customAgentRate}
-                                            onChange={e => setCustomAgentRate(e.target.value)}
-                                            placeholder="0"
-                                        />
+                                <div className="space-y-3">
+                                    <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-3 py-2 font-medium">
+                                        Enter the actual share amounts in {paymentForm?.data?.currency ?? 'LKR'}.
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+                                                Driver Share ({paymentForm?.data?.currency ?? 'LKR'})
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="input text-center text-lg font-bold"
+                                                value={customDriverShare}
+                                                onChange={e => setCustomDriverShare(e.target.value)}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
+                                                Agent Share ({paymentForm?.data?.currency ?? 'LKR'})
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                className="input text-center text-lg font-bold"
+                                                value={customAgentShare}
+                                                onChange={e => setCustomAgentShare(e.target.value)}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -796,7 +808,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 <div className="flex justify-between items-center py-2 border-b">
                                     <span className="text-sm text-gray-600 flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
-                                        Driver Share ({effectiveDriverRate}%)
+                                        Driver Share
                                     </span>
                                     <span className="font-bold text-blue-700">
                                         {paymentForm?.data?.currency ?? 'LKR'} {driverShare.toLocaleString()}
@@ -805,7 +817,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 <div className="flex justify-between items-center py-2 border-b">
                                     <span className="text-sm text-gray-600 flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span>
-                                        Agent Share ({effectiveAgentRate}%)
+                                        Agent Share
                                     </span>
                                     <span className="font-bold text-green-700">
                                         {paymentForm?.data?.currency ?? 'LKR'} {agentShare.toLocaleString()}
@@ -822,9 +834,9 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 </div>
                             </div>
 
-                            {useCustomRate && (effectiveDriverRate + effectiveAgentRate) > 100 && (
+                            {useCustomRate && companyShare < 0 && (
                                 <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                                    ⚠ Driver % + Agent % exceeds 100%. Company balance will be negative.
+                                    ⚠ Driver + Agent shares exceed the total amount. Company balance will be negative.
                                 </p>
                             )}
                         </div>
