@@ -40,4 +40,9 @@ class Agent extends Model
     {
         return $this->hasMany(Incentive::class);
     }
+
+    public function payouts()
+    {
+        return $this->hasMany(Payout::class);
+    }
 }
