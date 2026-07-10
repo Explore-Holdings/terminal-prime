@@ -105,10 +105,20 @@ Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
 Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
-Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
+Route::post('/finance/rates', [FinanceController::class, 'storeRateSettings'])->name('finance.rates.store');
+Route::post('/finance/payouts/store', [FinanceController::class, 'storePayout'])->name('finance.payouts.store');
 Route::post('/finance/incentives/store', [FinanceController::class, 'storeIncentive'])->name('finance.incentives.store');
+Route::put('/finance/incentives/{incentive}', [FinanceController::class, 'updateIncentive'])->name('finance.incentives.update');
+Route::delete('/finance/incentives/{incentive}', [FinanceController::class, 'destroyIncentive'])->name('finance.incentives.destroy');
 Route::post('/finance/drivers/{driver}/payment', [FinanceController::class, 'updateDriverPayment'])->name('finance.drivers.payment');
 Route::post('/finance/drivers/{driver}/status', [FinanceController::class, 'updateDriverStatus'])->name('finance.drivers.status');
+Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::class, 'markReceived'])->name('finance.trip-finances.mark-received');
+Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
+Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
+Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
+Route::get('/finance/export', [FinanceController::class, 'exportProfitLoss'])->name('finance.export');
+Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
+
 
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
     ->name('survey.show');

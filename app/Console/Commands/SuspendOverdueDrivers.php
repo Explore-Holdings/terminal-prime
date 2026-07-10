@@ -13,12 +13,20 @@ class SuspendOverdueDrivers extends Command
 
     public function handle()
     {
-        Driver::whereDate('due_date', '<', Carbon::today())
-            ->where('payment_received', false)
-            ->where('driver_status', '!=', 'Suspended')
-            ->update([
-                'driver_status' => 'Suspended'
-            ]);
+        Driver::all()->each(function ($driver) {
+            if ($driver->payment_received) {
+                $driver->update([
+                    'driver_status' => 'Active',
+                ]);
+            } elseif (
+                $driver->due_date &&
+                now()->gt(\Carbon\Carbon::parse($driver->due_date))
+            ) {
+                $driver->update([
+                    'driver_status' => 'Suspended',
+                ]);
+            }
+        });
 
         $this->info('Overdue drivers suspended successfully.');
     }
