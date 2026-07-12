@@ -240,20 +240,6 @@ class CustomerController extends Controller
                 'received'       => false,
             ]);
 
-            $trip->load('customer');
-
-            if (
-                $trip->status === 'Assigned' &&
-                $trip->customer?->email &&
-                !$trip->survey_sent_at
-            ) {
-                Mail::to($trip->customer->email)
-                    ->queue(new CustomerSurveyMail($trip));
-
-                $trip->update([
-                    'survey_sent_at' => now(),
-                ]);
-            }
         });
 
         return back()->with('success', 'Trip assigned successfully.');
