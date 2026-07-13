@@ -7,6 +7,7 @@ use App\Models\Trip;
 use App\Models\Country;
 use App\Models\Vehicle;
 use App\Models\RateSetting;
+use App\Models\LocationVehiclePrice;
 use Inertia\Inertia;
 
 class CounterController extends Controller
@@ -40,6 +41,8 @@ class CounterController extends Controller
             'countries' => Country::orderBy('country_name')->get(),
 
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
+
+            'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
         ]);
     }
 }
