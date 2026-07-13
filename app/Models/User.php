@@ -65,4 +65,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Driver::class);
     }
+
+    public function loginLogs()
+    {
+        return $this->hasMany(UserLoginLog::class);
+    }
 }

@@ -28,6 +28,10 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertDatabaseHas('user_login_logs', [
+            'user_id' => $user->id,
+        ]);
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void
@@ -46,9 +50,18 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
+        $log = \App\Models\UserLoginLog::create([
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Symfony',
+            'login_at' => now(),
+        ]);
+
         $response = $this->actingAs($user)->post('/logout');
 
         $this->assertGuest();
         $response->assertRedirect('/');
+
+        $this->assertNotNull($log->fresh()->logout_at);
     }
 }
