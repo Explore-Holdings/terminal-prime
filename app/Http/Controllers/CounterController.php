@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 
 class CounterController extends Controller
 {
@@ -47,6 +48,8 @@ class CounterController extends Controller
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
 
             'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
+
+            'vehicleRates' => DB::table('vehicle_rates')->get(),
         ]);
     }
 
