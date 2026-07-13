@@ -165,7 +165,7 @@
                         <small style="color: #6b7280;">{{ $trip->driver?->vehicle?->vehicle_type ?? '' }}</small>
                     </td>
                     <td>{{ $trip->customer?->dropoff_location ?? '-' }}</td>
-                    <td class="text-right">LKR {{ number_format($trip->trip_finance?->total_amount ?? 0) }}</td>
+                    <td class="text-right">LKR {{ number_format($trip->tripFinance?->total_amount ?? 0) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -185,7 +185,7 @@
             </tr>
             <tr>
                 <td class="totals-label">Total Revenue:</td>
-                <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->trip_finance?->total_amount ?? 0)) }}</td>
+                <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0)) }}</td>
             </tr>
         </table>
     </div>

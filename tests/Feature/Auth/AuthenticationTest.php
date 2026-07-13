@@ -85,4 +85,24 @@ class AuthenticationTest extends TestCase
         $summaryResponse = $this->get(route('counter.checkout-summary', $log->id));
         $summaryResponse->assertStatus(200);
     }
+
+    public function test_manager_reports_page_is_accessible_to_authenticated_user(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/manager-reports');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_manager_can_print_and_download_today_trips_report(): void
+    {
+        $user = User::factory()->create();
+
+        $printResponse = $this->actingAs($user)->get('/manager-reports/today-trips/print');
+        $printResponse->assertStatus(200);
+
+        $pdfResponse = $this->actingAs($user)->get('/manager-reports/today-trips/pdf');
+        $pdfResponse->assertStatus(200);
+    }
 }
