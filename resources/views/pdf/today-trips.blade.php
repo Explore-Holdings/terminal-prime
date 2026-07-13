@@ -124,12 +124,6 @@
             font-weight: bold;
             text-transform: uppercase;
         }
-        .page-number:after {
-            content: counter(page);
-        }
-        .page-count:after {
-            content: counter(pages);
-        }
     </style>
     @if($is_print)
         <script>
@@ -140,6 +134,17 @@
     @endif
 </head>
 <body>
+    <!-- Inline DOMPDF PHP script to print page numbers on every page -->
+    <script type="text/php">
+        if ( isset($pdf) ) {
+            $font = $fontMetrics->getFont("helvetica", "normal");
+            $size = 8;
+            $color = array(0.61, 0.64, 0.69); // #9ca3af
+            // A4 page width is 595.28 pt. x=510 aligns Page X of Y at the right margin
+            $pdf->page_text(500, 812, "Page {PAGE_NUM} of {PAGE_COUNT}", $font, $size, $color);
+        }
+    </script>
+
     <!-- Fixed signature footer for every page -->
     <div class="signature-footer">
         <table class="signature-table">
@@ -163,7 +168,7 @@
                     Generated on {{ now()->format('M d, Y h:i A') }} | Terminal Prime Management System
                 </td>
                 <td style="text-align: right; border: none; padding: 0;">
-                    Page <span class="page-number"></span> of <span class="page-count"></span>
+                    <!-- Page numbers rendered dynamically by DOMPDF page_text -->
                 </td>
             </tr>
         </table>

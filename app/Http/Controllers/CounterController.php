@@ -129,6 +129,7 @@ class CounterController extends Controller
             'user' => $user,
             'trips' => $trips,
         ]);
+        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
 
         return $pdf->download('checkout-summary-' . $userLoginLog->id . '.pdf');
     }
