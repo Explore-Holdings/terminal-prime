@@ -207,7 +207,7 @@ export default function CheckoutSummary({ log, user, trips = [] }) {
                                                         <div className="text-xs text-gray-400">{trip.customer?.customer_code}</div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <div className="font-semibold text-gray-900">{trip.driver?.full_name}</div>
+                                                        <div className="font-semibold text-gray-900">{trip.driver?.first_name + ' ' + trip.driver?.last_name}</div>
                                                         <div className="text-xs text-gray-400">{trip.driver?.mobile_number}</div>
                                                     </td>
                                                     <td className="px-6 py-4">

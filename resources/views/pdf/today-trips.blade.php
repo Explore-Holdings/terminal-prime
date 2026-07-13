@@ -153,7 +153,7 @@
                         <small style="color: #6b7280;">{{ $trip->customer?->customer_code }}</small>
                     </td>
                     <td>
-                        {{ $trip->driver?->full_name }}<br>
+                        {{ $trip->driver?->first_name }} {{ $trip->driver?->last_name }}<br>
                         <small style="color: #6b7280;">{{ $trip->driver?->mobile_number }}</small>
                     </td>
                     <td>
