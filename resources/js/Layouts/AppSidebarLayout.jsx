@@ -18,6 +18,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
         { label: 'Finance', path: '/finance', roles: ['admin', 'finance'] },
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin'] },
         { label: 'Reports', path: '/reports', roles: ['admin'] },
+        { label: 'Manager Reports', path: '/manager-reports', roles: ['admin','manager'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
     ];
 
