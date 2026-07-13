@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4;
-            margin: 15mm 15mm;
+            margin: 15mm 15mm 35mm 15mm;
         }
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -78,6 +78,7 @@
             margin-top: 20px;
             float: right;
             width: 40%;
+            margin-bottom: 30px;
         }
         .totals-table {
             width: 100%;
@@ -96,16 +97,38 @@
             color: #111827;
             font-size: 13px;
         }
-        .footer {
-            margin-top: 50px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 10px;
-            text-align: center;
-            color: #9ca3af;
-            font-size: 9px;
-            position: absolute;
-            bottom: 0;
+        
+        /* Fixed signature footer on every page */
+        .signature-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: -28mm;
+            height: 25mm;
             width: 100%;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+        }
+        .signature-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .signature-line {
+            border-top: 1px dotted #9ca3af;
+            width: 180px;
+            margin-bottom: 4px;
+        }
+        .signature-title {
+            color: #4b5563;
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .page-number:after {
+            content: counter(page);
+        }
+        .page-count:after {
+            content: counter(pages);
         }
     </style>
     @if($is_print)
@@ -117,6 +140,35 @@
     @endif
 </head>
 <body>
+    <!-- Fixed signature footer for every page -->
+    <div class="signature-footer">
+        <table class="signature-table">
+            <tr>
+                <td style="width: 50%; text-align: left; vertical-align: bottom;">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">Manager Signature</div>
+                </td>
+                <td style="width: 50%; text-align: right; vertical-align: bottom;">
+                    <div style="display: inline-block; text-align: left;">
+                        <div class="signature-line"></div>
+                        <div class="signature-title">Finance Officer Signature</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        
+        <table style="width: 100%; border: none; margin-top: 8px; font-size: 8px; color: #9ca3af;">
+            <tr>
+                <td style="text-align: left; border: none; padding: 0;">
+                    Generated on {{ now()->format('M d, Y h:i A') }} | Terminal Prime Management System
+                </td>
+                <td style="text-align: right; border: none; padding: 0;">
+                    Page <span class="page-number"></span> of <span class="page-count"></span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <div class="header">
         <div class="title">{{ strtoupper($title ?? "Today's Trips Report") }}</div>
         <div class="subtitle">Terminal Prime Management System</div>
@@ -184,26 +236,6 @@
                 <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0)) }}</td>
             </tr>
         </table>
-    </div>
-
-    <div style="clear: both; margin-top: 60px;">
-        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
-            <tr>
-                <td style="width: 45%; border-top: 1px dashed #9ca3af; text-align: center; padding-top: 8px; font-size: 11px; color: #4b5563;">
-                    <strong>Manager Signature</strong><br>
-                    <span style="font-size: 9px; color: #9ca3af;">Date: .........................</span>
-                </td>
-                <td style="width: 10%;"></td>
-                <td style="width: 45%; border-top: 1px dashed #9ca3af; text-align: center; padding-top: 8px; font-size: 11px; color: #4b5563;">
-                    <strong>Finance Officer Signature</strong><br>
-                    <span style="font-size: 9px; color: #9ca3af;">Date: .........................</span>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div class="footer">
-        Generated | Terminal Prime Management System
     </div>
 </body>
 </html>
