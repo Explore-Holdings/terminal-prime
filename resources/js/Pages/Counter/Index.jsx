@@ -5,6 +5,7 @@ import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from
 
 export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [] }) {
     const [showModal, setShowModal] = useState(false);
+    const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [createdCustomerId, setCreatedCustomerId] = useState(null);
@@ -120,14 +121,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
 
                     <div className="flex gap-3">
-                        <Link
-                            href="/counter/checkout"
-                            method="post"
-                            as="button"
+                        <button
+                            type="button"
+                            onClick={() => setShowCheckoutConfirm(true)}
                             className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 font-semibold"
                         >
                             🛑 Checkout
-                        </Link>
+                        </button>
                         <Link href="/dashboard" className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800" >
                             <ArrowLeft size={18} />
                             Back
@@ -209,6 +209,35 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
             {showModal && selectedAgent && (
                 <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} />
+            )}
+
+            {showCheckoutConfirm && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h2>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift trips.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowCheckoutConfirm(false)}
+                                className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition font-semibold"
+                            >
+                                Cancel
+                            </button>
+                            <Link
+                                href="/counter/checkout"
+                                method="post"
+                                as="button"
+                                onClick={() => setShowCheckoutConfirm(false)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+                            >
+                                Confirm Checkout
+                            </Link>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );

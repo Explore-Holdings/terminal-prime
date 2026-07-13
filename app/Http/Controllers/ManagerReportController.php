@@ -6,6 +6,8 @@ use App\Models\UserLoginLog;
 use App\Models\Trip;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 
 class ManagerReportController extends Controller
 {
@@ -13,10 +15,8 @@ class ManagerReportController extends Controller
     {
         $range = $request->get('range', 'today');
 
-        // 1. Fetch trips for the main report generator by reusing our helper
         $data = $this->getTripsByRange($request, $range);
 
-        // 2. Fetch all handed over shift reports for the sidebar list
         $reports = UserLoginLog::with('user')
             ->whereNotNull('handed_over_at')
             ->latest('handed_over_at')
@@ -55,7 +55,7 @@ class ManagerReportController extends Controller
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.today-trips', [
+        $pdf = Pdf::loadView('pdf.today-trips', [
             'trips' => $data['trips'],
             'date' => $data['date'],
             'title' => $data['title'],
@@ -123,18 +123,18 @@ class ManagerReportController extends Controller
             if ($from && $to) {
                 $query->where(function ($q) use ($from, $to) {
                     $q->whereBetween('trip_assigned_at', [
-                        \Carbon\Carbon::parse($from)->startOfDay(),
-                        \Carbon\Carbon::parse($to)->endOfDay()
+                        Carbon::parse($from)->startOfDay(),
+                        Carbon::parse($to)->endOfDay()
                     ])->orWhere(function ($sq) use ($from, $to) {
                         $sq->whereNull('trip_assigned_at')
                            ->whereBetween('created_at', [
-                               \Carbon\Carbon::parse($from)->startOfDay(),
-                               \Carbon\Carbon::parse($to)->endOfDay()
+                               Carbon::parse($from)->startOfDay(),
+                               Carbon::parse($to)->endOfDay()
                            ]);
                     });
                 });
                 $title = "Custom Date Trips Report";
-                $dateStr = \Carbon\Carbon::parse($from)->format('M d, Y') . ' to ' . \Carbon\Carbon::parse($to)->format('M d, Y');
+                $dateStr = Carbon::parse($from)->format('M d, Y') . ' to ' . Carbon::parse($to)->format('M d, Y');
             } else {
                 $title = "Custom Date Trips Report";
                 $dateStr = "No Date Selected";

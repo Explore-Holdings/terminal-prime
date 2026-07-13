@@ -12,6 +12,7 @@ use App\Models\UserLoginLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class CounterController extends Controller
 {
@@ -120,7 +121,7 @@ class CounterController extends Controller
             ->latest()
             ->get();
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.checkout-summary', [
+        $pdf = Pdf::loadView('pdf.checkout-summary', [
             'log' => $userLoginLog,
             'user' => $user,
             'trips' => $trips,

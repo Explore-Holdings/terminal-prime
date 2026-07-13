@@ -186,6 +186,22 @@
         </table>
     </div>
 
+    <div style="clear: both; margin-top: 60px;">
+        <table style="width: 100%; border-collapse: collapse; margin-top: 40px;">
+            <tr>
+                <td style="width: 45%; border-top: 1px dashed #9ca3af; text-align: center; padding-top: 8px; font-size: 11px; color: #4b5563;">
+                    <strong>Manager Signature</strong><br>
+                    <span style="font-size: 9px; color: #9ca3af;">Date: .........................</span>
+                </td>
+                <td style="width: 10%;"></td>
+                <td style="width: 45%; border-top: 1px dashed #9ca3af; text-align: center; padding-top: 8px; font-size: 11px; color: #4b5563;">
+                    <strong>Finance Officer Signature</strong><br>
+                    <span style="font-size: 9px; color: #9ca3af;">Date: .........................</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <div class="footer">
         Generated | Terminal Prime Management System
     </div>
