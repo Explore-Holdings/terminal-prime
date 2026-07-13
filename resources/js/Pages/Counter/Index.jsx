@@ -698,10 +698,10 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     // Share calculations
     const useCustomRate = rateMode === 'custom';
     const driverShare = useCustomRate
-        ? Number(customDriverShare || 0)
+        ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
         : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
     const agentShare = useCustomRate
-        ? Number(customAgentShare || 0)
+        ? 0
         : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
 
     const openConfirm = (vehicle) => {
@@ -724,10 +724,10 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
         // Snapshot shares
         const finalDriverShare = useCustomRate
-            ? Number(customDriverShare || 0)
+            ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
             : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
         const finalAgentShare = useCustomRate
-            ? Number(customAgentShare || 0)
+            ? 0
             : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
         const finalBalance = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
 
@@ -952,7 +952,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             </button>
                             <button
                                 type="button"
-                                disabled={submitting}
+                                disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null))}
                                 onClick={confirmAssign}
                                 className="flex-1 py-2.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
                             >
