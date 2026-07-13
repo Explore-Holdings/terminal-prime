@@ -95,8 +95,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter', [CounterController::class, 'index'])->name('counter.index');
     Route::post('/counter/checkout', [CounterController::class, 'checkout'])->name('counter.checkout');
     Route::get('/manager-reports', [\App\Http\Controllers\ManagerReportController::class, 'index'])->name('manager-reports.index');
-    Route::get('/manager-reports/today-trips/print', [\App\Http\Controllers\ManagerReportController::class, 'printTodayTrips'])->name('manager-reports.today-trips-print');
-    Route::get('/manager-reports/today-trips/pdf', [\App\Http\Controllers\ManagerReportController::class, 'pdfTodayTrips'])->name('manager-reports.today-trips-pdf');
+    Route::get('/manager-reports/trips/print', [\App\Http\Controllers\ManagerReportController::class, 'printTrips'])->name('manager-reports.trips-print');
+    Route::get('/manager-reports/trips/pdf', [\App\Http\Controllers\ManagerReportController::class, 'pdfTrips'])->name('manager-reports.trips-pdf');
 });
 
 Route::get('/checkout-summary/{userLoginLog}', [CounterController::class, 'checkoutSummary'])->name('counter.checkout-summary');

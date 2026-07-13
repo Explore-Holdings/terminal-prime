@@ -118,7 +118,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="title">TODAY'S TRIPS REPORT</div>
+        <div class="title">{{ strtoupper($title ?? "Today's Trips Report") }}</div>
         <div class="subtitle">Terminal Prime Management System</div>
     </div>
 

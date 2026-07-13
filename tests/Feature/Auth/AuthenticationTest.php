@@ -99,10 +99,10 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $printResponse = $this->actingAs($user)->get('/manager-reports/today-trips/print');
+        $printResponse = $this->actingAs($user)->get('/manager-reports/trips/print');
         $printResponse->assertStatus(200);
 
-        $pdfResponse = $this->actingAs($user)->get('/manager-reports/today-trips/pdf');
+        $pdfResponse = $this->actingAs($user)->get('/manager-reports/trips/pdf');
         $pdfResponse->assertStatus(200);
     }
 }
