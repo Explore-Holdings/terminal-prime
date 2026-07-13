@@ -14,11 +14,13 @@ class UserLoginLog extends Model
         'user_agent',
         'login_at',
         'logout_at',
+        'handed_over_at',
     ];
 
     protected $casts = [
         'login_at' => 'datetime',
         'logout_at' => 'datetime',
+        'handed_over_at' => 'datetime',
     ];
 
     public function user()

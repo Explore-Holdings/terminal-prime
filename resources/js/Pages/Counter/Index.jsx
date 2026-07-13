@@ -119,10 +119,20 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         <p className="text-gray-500 mt-1">Airport counter customer handling</p>
                     </div>
 
-                    <Link href="/dashboard" className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800" >
-                        <ArrowLeft size={18} />
-                        Back
-                    </Link>
+                    <div className="flex gap-3">
+                        <Link
+                            href="/counter/checkout"
+                            method="post"
+                            as="button"
+                            className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 font-semibold"
+                        >
+                            🛑 Checkout
+                        </Link>
+                        <Link href="/dashboard" className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-lg hover:bg-slate-800" >
+                            <ArrowLeft size={18} />
+                            Back
+                        </Link>
+                    </div>
                 </div>
 
                 <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>

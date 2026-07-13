@@ -64,4 +64,25 @@ class AuthenticationTest extends TestCase
 
         $this->assertNotNull($log->fresh()->logout_at);
     }
+
+    public function test_user_checkout_success(): void
+    {
+        $user = User::factory()->create();
+
+        $log = \App\Models\UserLoginLog::create([
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Symfony',
+            'login_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->post('/counter/checkout');
+
+        $this->assertGuest();
+        $this->assertNotNull($log->fresh()->logout_at);
+        $response->assertRedirect(route('counter.checkout-summary', $log->id));
+
+        $summaryResponse = $this->get(route('counter.checkout-summary', $log->id));
+        $summaryResponse->assertStatus(200);
+    }
 }

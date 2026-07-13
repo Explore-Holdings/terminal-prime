@@ -93,7 +93,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter', [CounterController::class, 'index'])->name('counter.index');
+    Route::post('/counter/checkout', [CounterController::class, 'checkout'])->name('counter.checkout');
 });
+
+Route::get('/checkout-summary/{userLoginLog}', [CounterController::class, 'checkoutSummary'])->name('counter.checkout-summary');
+Route::post('/checkout-summary/{userLoginLog}/handover', [CounterController::class, 'handover'])->name('counter.handover');
+Route::get('/checkout-summary/{userLoginLog}/pdf', [CounterController::class, 'downloadPdf'])->name('counter.checkout-pdf');
 
 Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePayment'])
     ->name('customers.payment');
