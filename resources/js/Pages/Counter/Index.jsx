@@ -996,7 +996,7 @@ function VehicleCard({ vehicle, number }) {
 
             <div>
                 <h3 className="font-semibold text-sm">
-                    {vehicle.driver?.full_name ?? 'Driver'}
+                    {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
                 </h3>
 
                 <p className="text-sm font-medium text-black-800">
@@ -1038,26 +1038,26 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {vehicle.driver?.full_name ?? 'Driver'}
+                        {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
                     </h3>
 
-                    <p className="text-[10px] text-gray-500 truncate">
-                        {vehicle.driver?.mobile_number ?? '-'}
+                    <p className="text-[12px] text-gray-500 truncate">
+                        {vehicle.driver?.mobile_number ?? '-'} | {vehicle.registration_number ?? '-'}
                     </p>
 
-                    <p className="text-[11px] font-bold text-red-700 truncate">
+                    {/* <p className="text-[11px] font-bold text-red-700 truncate">
                         {vehicle.registration_number ?? '-'}
-                    </p>
+                    </p> */}
 
-                    <p className="text-[10px] text-gray-600 truncate">
+                    <p className="text-[12px] text-gray-600 truncate">
                         {vehicle.brand ?? '-'} {vehicle.model ?? ''}
                     </p>
 
-                    <p className="text-[10px] text-gray-600 truncate">
+                    <p className="text-[12px] text-gray-600 truncate">
                         Pax : {vehicle.seating_capacity ?? '-'} | Luggage : {vehicle.luggage_capacity ?? ''}
                     </p>
 
-                    <p className="text-[10px] text-blue-700 truncate">
+                    <p className="text-[12px] text-blue-700 truncate">
                         🌐 {languages}
                     </p>
                 </div>
