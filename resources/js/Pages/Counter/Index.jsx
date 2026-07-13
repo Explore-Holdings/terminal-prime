@@ -3,7 +3,7 @@ import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('customer');
@@ -208,7 +208,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} />
             )}
 
             {showCheckoutConfirm && (
@@ -288,6 +288,7 @@ function Modal({
     countries,
     rateSetting,
     locationVehiclePrices = [],
+    vehicleRates = [],
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -333,7 +334,7 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} />
+                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} />
                     )}
                 </div>
             </div>
@@ -660,7 +661,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [] }) {
+function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [] }) {
     const [confirmModal, setConfirmModal] = useState(null);
     const [rateMode, setRateMode]         = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
@@ -697,11 +698,23 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
     // Share calculations
     const useCustomRate = rateMode === 'custom';
-    const driverShare = useCustomRate
-        ? Number(customDriverShare || 0)
+    const isPerKmRate = rateMode === 'per_km';
+
+    // Get current vehicle type rate for Per KM calculation
+    const lookupType = confirmModal ? (vehicleTypeMap[confirmModal.vehicle?.vehicle_type] || '') : '';
+    const vehicleRateObj = vehicleRates.find(r => r.vehicle_type === lookupType) ?? null;
+    const vehicleRateValue = vehicleRateObj ? Number(vehicleRateObj.rate) : 0;
+
+    const driverShare = isPerKmRate
+        ? Number((Number(agent?.distance_km || 0) * vehicleRateValue * 1.5).toFixed(2))
+        : useCustomRate
+        ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
         : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
-    const agentShare = useCustomRate
-        ? Number(customAgentShare || 0)
+
+    const agentShare = isPerKmRate
+        ? 0
+        : useCustomRate
+        ? 0
         : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
 
     const openConfirm = (vehicle) => {
@@ -723,16 +736,20 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
         if (!driverId)   { alert('Driver not found for this vehicle.'); return; }
 
         // Snapshot shares
-        const finalDriverShare = useCustomRate
-            ? Number(customDriverShare || 0)
+        const finalDriverShare = isPerKmRate
+            ? Number((Number(agent?.distance_km || 0) * vehicleRateValue * 1.5).toFixed(2))
+            : useCustomRate
+            ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
             : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
-        const finalAgentShare = useCustomRate
-            ? Number(customAgentShare || 0)
+        const finalAgentShare = isPerKmRate
+            ? 0
+            : useCustomRate
+            ? 0
             : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
         const finalBalance = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
 
-        const finalDriverRate = useCustomRate ? 0 : defaultDriverRate;
-        const finalAgentRate  = useCustomRate ? 0 : defaultAgentRate;
+        const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
+        const finalAgentRate  = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
         setSubmitting(true);
 
@@ -833,12 +850,19 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                         <span className="text-[10px] text-gray-400">City-based pricing</span>
                                     </label>
 
-                                    {/* Per KM — upcoming */}
-                                    <label className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-dashed border-gray-200 p-3 cursor-not-allowed opacity-50 relative">
-                                        <span className="text-xl text-gray-400">📍</span>
-                                        <span className="text-xs font-semibold text-gray-400">Per KM Rate</span>
-                                        <span className="text-[10px] text-gray-400">Coming soon</span>
-                                        <span className="absolute top-1 right-1 bg-gray-200 text-gray-500 text-[9px] font-bold px-1 rounded">SOON</span>
+                                    {/* Per KM Rate */}
+                                    <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                        <input
+                                            type="radio"
+                                            name="rateMode"
+                                            value="per_km"
+                                            checked={rateMode === 'per_km'}
+                                            onChange={() => setRateMode('per_km')}
+                                            className="sr-only"
+                                        />
+                                        <span className={`text-xl ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-400'}`}>📍</span>
+                                        <span className={`text-xs font-semibold ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-600'}`}>Per KM Rate</span>
+                                        <span className="text-[10px] text-gray-400">Distance-based pricing</span>
                                     </label>
                                 </div>
                             </div>
@@ -939,6 +963,30 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                     )}
                                 </div>
                             )}
+
+                            {/* Panel: Per KM Rate details */}
+                            {/* {rateMode === 'per_km' && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-purple-700 font-medium">Distance (Agent)</span>
+                                        <span className="font-bold text-purple-900">{Number(agent?.distance_km || 0)} KM</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-purple-700 font-medium">Rate per KM for {confirmModal.vehicle.vehicle_type}</span>
+                                        <span className="font-bold text-purple-900">{paymentForm?.data?.currency ?? 'LKR'} {vehicleRateValue.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-purple-700 font-medium">Multiplier</span>
+                                        <span className="font-bold text-purple-900">1.5x</span>
+                                    </div>
+                                    <div className="border-t border-purple-200 pt-2 flex justify-between items-center">
+                                        <span className="text-sm font-bold text-purple-800">Driver Share</span>
+                                        <span className="text-lg font-black text-purple-900">
+                                            {paymentForm?.data?.currency ?? 'LKR'} {driverShare.toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            )} */}
                         </div>
 
                         {/* Footer */}
@@ -952,7 +1000,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             </button>
                             <button
                                 type="button"
-                                disabled={submitting}
+                                disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null)) || (rateMode === 'per_km' && (Number(agent?.distance_km || 0) <= 0 || vehicleRateValue <= 0))}
                                 onClick={confirmAssign}
                                 className="flex-1 py-2.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
                             >
