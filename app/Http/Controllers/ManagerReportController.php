@@ -61,6 +61,7 @@ class ManagerReportController extends Controller
             'title' => $data['title'],
             'is_print' => false,
         ]);
+        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
 
         $filename = str_replace(' ', '-', strtolower($data['title'])) . '-' . now()->format('Y-m-d') . '.pdf';
         return $pdf->download($filename);
