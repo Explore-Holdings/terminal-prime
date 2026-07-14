@@ -795,33 +795,33 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
             {/* ── Confirmation Modal ── */}
             {confirmModal && (
                 <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 text-white">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <Car size={20} />
+                        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-4 py-3 text-white">
+                            <h3 className="text-base font-bold flex items-center gap-2">
+                                <Car size={18} />
                                 Confirm Vehicle Assignment
                             </h3>
-                            <p className="text-sm text-blue-100 mt-0.5">
+                            <p className="text-xs text-blue-100 mt-0.5">
                                 {confirmModal.vehicle.driver?.full_name ?? 'Driver'} — {confirmModal.vehicle.registration_number ?? ''} &nbsp;·&nbsp; {confirmModal.vehicle.vehicle_type ?? ''}
                             </p>
                         </div>
 
-                        <div className="p-6 space-y-5">
+                        <div className="p-4 space-y-3">
                             {/* Trip amount */}
-                            <div className="bg-gray-50 rounded-xl border p-4 flex justify-between items-center">
-                                <span className="text-sm font-medium text-gray-600">Trip Amount</span>
-                                <span className="text-2xl font-black text-gray-900">
-                                    {paymentForm?.data?.currency ?? 'LKR'} {totalAmount.toLocaleString()}
+                            <div className="bg-gray-50 rounded-lg border p-3 flex justify-between items-center">
+                                <span className="text-xs font-medium text-gray-600">Trip Amount</span>
+                                <span className="text-xl font-black text-gray-900">
+                                    {agent?.new_currency ?? agent?.currency ?? 'LKR'} {totalAmount.toLocaleString()}
                                 </span>
                             </div>
 
                             {/* Rate mode radio buttons */}
                             <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Rate Type</p>
-                                <div className="grid grid-cols-3 gap-3">
+                                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
+                                <div className="grid grid-cols-3 gap-2">
                                     {/* Standard Rate */}
-                                    <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition ${rateMode === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
                                         <input
                                             type="radio"
                                             name="rateMode"
@@ -830,13 +830,13 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                             onChange={() => setRateMode('standard')}
                                             className="sr-only"
                                         />
-                                        <span className={`text-xl ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-400'}`}>📊</span>
-                                        <span className={`text-xs font-semibold ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-600'}`}>Standard Rate</span>
-                                        <span className="text-[10px] text-gray-400">Based on % rates</span>
+                                        <span className={`text-lg ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-400'}`}>📊</span>
+                                        <span className={`text-[11px] font-semibold ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-600'}`}>Standard Rate</span>
+                                        <span className="text-[9px] text-gray-400">Based on % rates</span>
                                     </label>
 
                                     {/* Custom Rate */}
-                                    <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition ${rateMode === 'custom' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'custom' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
                                         <input
                                             type="radio"
                                             name="rateMode"
@@ -845,13 +845,13 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                             onChange={() => setRateMode('custom')}
                                             className="sr-only"
                                         />
-                                        <span className={`text-xl ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-400'}`}>🏙️</span>
-                                        <span className={`text-xs font-semibold ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-600'}`}>Custom Rate</span>
-                                        <span className="text-[10px] text-gray-400">City-based pricing</span>
+                                        <span className={`text-lg ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-400'}`}>🏙️</span>
+                                        <span className={`text-[11px] font-semibold ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-600'}`}>Custom Rate</span>
+                                        <span className="text-[9px] text-gray-400">City-based pricing</span>
                                     </label>
 
                                     {/* Per KM Rate */}
-                                    <label className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
                                         <input
                                             type="radio"
                                             name="rateMode"
@@ -860,47 +860,43 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                             onChange={() => setRateMode('per_km')}
                                             className="sr-only"
                                         />
-                                        <span className={`text-xl ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-400'}`}>📍</span>
-                                        <span className={`text-xs font-semibold ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-600'}`}>Per KM Rate</span>
-                                        <span className="text-[10px] text-gray-400">Distance-based pricing</span>
+                                        <span className={`text-lg ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-400'}`}>📍</span>
+                                        <span className={`text-[11px] font-semibold ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-600'}`}>Per KM Rate</span>
+                                        <span className="text-[9px] text-gray-400">Distance-based pricing</span>
                                     </label>
                                 </div>
                             </div>
 
                             {/* Panel: Standard Rate */}
-                            {/* {rateMode === 'standard' && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-100">
-                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Driver Rate</p>
-                                        <p className="text-2xl font-black text-blue-700">{defaultDriverRate}%</p>
-                                    </div>
-                                    <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
-                                        <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Agent Rate</p>
-                                        <p className="text-2xl font-black text-green-700">{defaultAgentRate}%</p>
-                                    </div>
+                            {rateMode === 'standard' && (
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex justify-between items-center text-xs">
+                                    <span className="text-blue-600 font-semibold uppercase tracking-wide">Driver Rate ({defaultDriverRate}%)</span>
+                                    <span className="font-bold text-blue-700">
+                                        Driver Share: LKR {driverShare.toLocaleString()}
+                                    </span>
                                 </div>
-                            )} */}
+                            )}
 
                             {/* Panel: Custom Rate — city picker */}
                             {rateMode === 'custom' && (
-                                <div className="space-y-3">
-                                    <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-3 py-2 font-medium">
+                                <div className="space-y-2">
+                                    <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-2.5 py-1.5 font-medium">
                                         Select the destination city to load the price for this vehicle type ({confirmModal.vehicle.vehicle_type ?? 'Unknown'}).
                                     </p>
 
                                     {cityPrices.length === 0 ? (
-                                        <p className="text-sm text-gray-500 text-center py-4">No city prices available.</p>
+                                        <p className="text-xs text-gray-500 text-center py-3">No city prices available.</p>
                                     ) : (
                                         <>
                                             {/* Search bar */}
                                             <div className="relative">
-                                                <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none text-sm">🔍</span>
+                                                <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none text-xs">🔍</span>
                                                 <input
                                                     type="text"
                                                     placeholder="Search city, district or province…"
                                                     value={citySearch}
                                                     onChange={e => setCitySearch(e.target.value)}
-                                                    className="w-full pl-8 pr-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                                    className="w-full pl-8 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
                                                 />
                                                 {citySearch && (
                                                     <button
@@ -911,7 +907,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                                 )}
                                             </div>
 
-                                            <div className="max-h-52 overflow-y-auto rounded-xl border divide-y">
+                                            <div className="max-h-[102px] overflow-y-auto rounded-lg border divide-y">
                                                 {cityPrices
                                                     .filter(row => {
                                                         const q = citySearch.trim().toLowerCase();
@@ -927,14 +923,14 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                                             key={row.id}
                                                             type="button"
                                                             onClick={() => setSelectedCityId(String(row.id))}
-                                                            className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
+                                                            className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
                                                         >
                                                             <div>
-                                                                <p className="text-sm font-semibold text-gray-800">{row.city}</p>
-                                                                <p className="text-xs text-gray-400">{row.district}{row.province ? ` · ${row.province}` : ''}{row.zone ? ` · Zone ${row.zone}` : ''}</p>
+                                                                <p className="text-xs font-semibold text-gray-800">{row.city}</p>
+                                                                <p className="text-[10px] text-gray-400">{row.district}{row.province ? ` · ${row.province}` : ''}{row.zone ? ` · Zone ${row.zone}` : ''}</p>
                                                             </div>
-                                                            <span className={`text-sm font-bold ${row.price !== null ? 'text-orange-600' : 'text-gray-400'}`}>
-                                                                {row.price !== null ? `${paymentForm?.data?.currency ?? 'LKR'} ${Number(row.price).toLocaleString()}` : 'N/A'}
+                                                            <span className={`text-xs font-bold ${row.price !== null ? 'text-orange-600' : 'text-gray-400'}`}>
+                                                                {row.price !== null ? `LKR ${Number(row.price).toLocaleString()}` : 'N/A'}
                                                             </span>
                                                         </button>
                                                     ))}
@@ -947,16 +943,16 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                                         (row.province ?? '').toLowerCase().includes(q)
                                                     );
                                                 }).length === cityPrices.length && (
-                                                    <p className="text-sm text-gray-400 text-center py-4">No results for "{citySearch}"</p>
+                                                    <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
                                                 )}
                                             </div>
                                         </>
                                     )}
 
                                     {selectedCity && selectedCity.price !== null && (
-                                        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 flex justify-between items-center">
-                                            <span className="text-sm font-semibold text-orange-700">Selected: {selectedCity.city}</span>
-                                            <span className="text-lg font-black text-orange-700">
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
+                                            <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
+                                            <span className="font-bold text-orange-700">
                                                 {paymentForm?.data?.currency ?? 'LKR'} {Number(selectedCity.price).toLocaleString()}
                                             </span>
                                         </div>
@@ -965,36 +961,36 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             )}
 
                             {/* Panel: Per KM Rate details */}
-                            {/* {rateMode === 'per_km' && (
-                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-2">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="text-purple-700 font-medium">Distance (Agent)</span>
+                            {rateMode === 'per_km' && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2.5 space-y-1.5 text-xs">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-purple-700 font-medium">Distance</span>
                                         <span className="font-bold text-purple-900">{Number(agent?.distance_km || 0)} KM</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-sm">
+                                    <div className="flex justify-between items-center">
                                         <span className="text-purple-700 font-medium">Rate per KM for {confirmModal.vehicle.vehicle_type}</span>
-                                        <span className="font-bold text-purple-900">{paymentForm?.data?.currency ?? 'LKR'} {vehicleRateValue.toLocaleString()}</span>
+                                        <span className="font-bold text-purple-900">LKR {vehicleRateValue.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between items-center text-sm">
+                                    <div className="flex justify-between items-center">
                                         <span className="text-purple-700 font-medium">Multiplier</span>
                                         <span className="font-bold text-purple-900">1.5x</span>
                                     </div>
-                                    <div className="border-t border-purple-200 pt-2 flex justify-between items-center">
-                                        <span className="text-sm font-bold text-purple-800">Driver Share</span>
-                                        <span className="text-lg font-black text-purple-900">
-                                            {paymentForm?.data?.currency ?? 'LKR'} {driverShare.toLocaleString()}
+                                    <div className="border-t border-purple-200 pt-1.5 flex justify-between items-center">
+                                        <span className="font-bold text-purple-800">Driver Share</span>
+                                        <span className="font-bold text-purple-900">
+                                            LKR {driverShare.toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
-                            )} */}
+                            )}
                         </div>
 
                         {/* Footer */}
-                        <div className="flex gap-3 px-6 pb-6">
+                        <div className="flex gap-2 px-4 pb-4">
                             <button
                                 type="button"
                                 onClick={closeConfirm}
-                                className="flex-1 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
                             >
                                 Cancel
                             </button>
@@ -1002,7 +998,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 type="button"
                                 disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null)) || (rateMode === 'per_km' && (Number(agent?.distance_km || 0) <= 0 || vehicleRateValue <= 0))}
                                 onClick={confirmAssign}
-                                className="flex-1 py-2.5 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
+                                className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
                             >
                                 {submitting ? 'Assigning...' : 'Confirm & Assign'}
                             </button>
