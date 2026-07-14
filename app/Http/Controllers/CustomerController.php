@@ -142,11 +142,16 @@ class CustomerController extends Controller
             'payment_status' => $paidAmount >= (float) $data['price'] ? 'Paid' : 'Partial',
         ]);
 
-        $customer->agent()->update([
+        $agent = $customer->agent;
+        $agentUpdate = [
             'new_currency'        => $data['currency'],
             'new_price'           => $data['price'],
             'currency_updated_by' => auth()->id(),
-        ]);
+        ];
+        if ($agent->booking_type === 'Rent a Car') {
+            $agentUpdate['status'] = 'Approved';
+        }
+        $agent->update($agentUpdate);
 
         $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
         $invoicePath   = "invoices/{$invoiceNumber}.pdf";
