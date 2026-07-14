@@ -217,16 +217,16 @@ class CustomerController extends Controller
             $agentRate   = (float) ($data['agent_rate']   ?? 0);
 
             $driverShare = isset($data['driver_share'])
-                ? round((float) $data['driver_share'], 2)
-                : round($totalAmount * $driverRate / 100, 2);
+                ? round((float) $data['driver_share'])
+                : round($totalAmount * $driverRate / 100);
 
             $agentShare  = isset($data['agent_share'])
-                ? round((float) $data['agent_share'], 2)
-                : round($totalAmount * $agentRate / 100, 2);
+                ? round((float) $data['agent_share'])
+                : round($totalAmount * $agentRate / 100);
 
             $balance = isset($data['balance'])
-                ? round((float) $data['balance'], 2)
-                : round($totalAmount - $driverShare - $agentShare, 2);
+                ? round((float) $data['balance'])
+                : round($totalAmount - $driverShare - $agentShare);
 
             $agentUserId = Agent::where('id', $data['agent_id'])->value('user_id');
 
