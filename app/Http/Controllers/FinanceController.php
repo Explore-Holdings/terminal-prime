@@ -392,8 +392,8 @@ class FinanceController extends Controller
                 $driverPayouts += floatval($tf->driver_share ?? 0);
                 $agentPayouts += floatval($tf->agent_share ?? 0);
             } else {
-                $driverPayouts += $amount * $defaultDriverRate / 100;
-                $agentPayouts += $amount * $defaultAgentRate / 100;
+                $driverPayouts += round($amount * $defaultDriverRate / 100);
+                $agentPayouts += round($amount * $defaultAgentRate / 100);
             }
         }
 

@@ -1,8 +1,18 @@
 import { Head, useForm, router } from '@inertiajs/react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
+
+const getAmountInLkr = (amount, currency, rates) => {
+    const fromCurrency = (currency ?? 'LKR').toLowerCase();
+    if (fromCurrency === 'lkr') return Number(amount ?? 0);
+    if (!rates) return Number(amount ?? 0);
+    const rateFrom = rates[fromCurrency];
+    const rateLkr = rates['lkr'];
+    if (!rateFrom || !rateLkr) return Number(amount ?? 0);
+    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+};
 
 export default function Index({
     trips = [],
@@ -17,6 +27,18 @@ export default function Index({
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
+    const [eurRates, setEurRates] = useState(null);
+
+    useEffect(() => {
+        fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.eur) {
+                    setEurRates(data.eur);
+                }
+            })
+            .catch(err => console.error('Failed to fetch currency rates:', err));
+    }, []);
 
     // Date-range filter — lifted here so it lives in the header
     const [range, setRange] = useState('today');
@@ -98,7 +120,7 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} />
+                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -138,6 +160,7 @@ export default function Index({
                             range={range} 
                             customStart={customStart} 
                             customEnd={customEnd} 
+                            eurRates={eurRates}
                         />
                     )}
 
@@ -157,7 +180,7 @@ export default function Index({
     );
 }
 
-function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd }) {
+function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 8;
@@ -209,7 +232,16 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
         return false;
     });
 
-    const totalAmount = filteredTrips.reduce((sum, trip) => sum + Number(trip.customer?.paid_amount ?? 0), 0);
+    const totalAmount = filteredTrips.reduce((sum, trip) => {
+        const tf = trip.trip_finance;
+        const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
+        const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+        const amountInLkr = tf?.total_amount
+            ? Number(tf.total_amount)
+            : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+        return sum + amountInLkr;
+    }, 0);
+
     const agentRate = Number(rateSetting?.agent_rate ?? 0);
     const driverRate = Number(rateSetting?.driver_rate ?? 0);
 
@@ -254,13 +286,6 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm font-semibold text-gray-700">Trip #{trip.id}</span>
-                                                {/* <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                                    trip.finance?.status === 'Settled'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                    {trip.finance?.status ?? 'Pending'}
-                                                </span> */}
                                             </div>
                                             <p className="mt-1 truncate text-xs text-gray-600">{trip.customer?.name ?? '-'}</p>
                                             <p className="truncate text-[11px] text-gray-500">{trip.driver?.full_name ?? '-'}</p>
@@ -268,7 +293,25 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                         </div>
                                         <div className="text-right">
                                             <p className="text-[10px] uppercase tracking-wide text-gray-400">Amt</p>
-                                            <p className="text-sm font-semibold text-gray-800">LKR {Number(trip.customer?.paid_amount ?? 0).toLocaleString()}</p>
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                LKR {(() => {
+                                                    const tf = trip.trip_finance;
+                                                    const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
+                                                    const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+                                                    return (tf?.total_amount
+                                                        ? Number(tf.total_amount)
+                                                        : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates))).toLocaleString();
+                                                })()}
+                                            </p>
+                                            {(() => {
+                                                const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
+                                                const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+                                                return originalCurrency !== 'LKR' ? (
+                                                    <span className="inline-block text-[9px] font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-100 mt-0.5">
+                                                        {originalCurrency} {originalAmount.toLocaleString()}
+                                                    </span>
+                                                ) : null;
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -308,10 +351,14 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 bg-white">
                                     {pagedRows.map((trip) => {
-                                        const amount = Number(trip.customer?.paid_amount ?? 0);
+                                        const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
+                                        const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+                                        const tf             = trip.trip_finance;
+                                        const amountInLkr    = tf?.total_amount
+                                            ? Number(tf.total_amount)
+                                            : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
 
                                         // Prefer stored trip_finance data when it exists and uses a custom rate
-                                        const tf             = trip.trip_finance;
                                         const isCustomRate   = Boolean(tf?.is_custom_rate);
                                         const hasStoredRates = tf && (Number(tf.driver_share) > 0 || Number(tf.agent_share) > 0 || Number(tf.total_amount) > 0);
 
@@ -333,9 +380,9 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             displayAgentRate  = Number(tf.agent_rate ?? agentRate);
                                         } else {
                                             // Fallback: calculate from global rate setting
-                                            agentPortion      = (amount * agentRate) / 100;
-                                            driverPortion     = (amount * driverRate) / 100;
-                                            balance           = amount - agentPortion - driverPortion;
+                                            agentPortion      = Math.round((amountInLkr * agentRate) / 100);
+                                            driverPortion     = Math.round((amountInLkr * driverRate) / 100);
+                                            balance           = amountInLkr - agentPortion - driverPortion;
                                             displayDriverRate = driverRate;
                                             displayAgentRate  = agentRate;
                                         }
@@ -352,17 +399,17 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             router.post(
                                                 `/finance/trip-finances/${trip.id}/mark-received`,
                                                 {
-                                                    total_amount:    amount,
+                                                    total_amount:    amountInLkr,
                                                     driver_share:    driverPortion,
                                                     agent_share:     agentPortion,
                                                     balance:         balance,
-                                                    received_amount: amount,
+                                                    received_amount: amountInLkr,
                                                 },
                                                 {
                                                     preserveScroll: true,
                                                     onSuccess: () => {
                                                         toast.success(
-                                                            `Trip #${trip.id} marked as received — LKR ${amount.toLocaleString()}`,
+                                                            `Trip #${trip.id} marked as received — LKR ${amountInLkr.toLocaleString()}`,
                                                             { id: toastId }
                                                         );
                                                     },
@@ -382,7 +429,14 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                     <div className="font-semibold text-gray-800">#{trip.id}</div>
                                                     <div className="text-xs text-gray-500">{trip.customer?.name ?? '-'}</div>
                                                 </td>
-                                                <td className="px-3 py-2 font-medium text-gray-700">LKR {amount.toLocaleString()}</td>
+                                                <td className="px-3 py-2 font-medium text-gray-700">
+                                                    <div>LKR {amountInLkr.toLocaleString()}</div>
+                                                    {originalCurrency !== 'LKR' && (
+                                                        <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1">
+                                                            {originalCurrency} {originalAmount.toLocaleString()}
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-3 py-2">
                                                     <div className="font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</div>
                                                     {/* <div className="text-[11px] text-gray-400">{displayAgentRate}%</div> */}
@@ -481,10 +535,34 @@ function SettlementsTable({ trips, onSettle }) {
         },
         {
             name: 'Trip Amount',
-            selector: row => Number(row.customer?.paid_amount ?? 0),
+            selector: row => {
+                const tf = row.trip_finance;
+                const originalCurrency = row.customer?.agent?.new_currency ?? row.customer?.agent?.currency ?? 'LKR';
+                const originalAmount = Number(row.customer?.paid_amount ?? 0);
+                return tf?.total_amount
+                    ? Number(tf.total_amount)
+                    : originalAmount;
+            },
             sortable: true,
             right: true,
-            cell: row => `LKR ${money(row.customer?.paid_amount)}`,
+            cell: row => {
+                const tf = row.trip_finance;
+                const originalCurrency = row.customer?.agent?.new_currency ?? row.customer?.agent?.currency ?? 'LKR';
+                const originalAmount = Number(row.customer?.paid_amount ?? 0);
+                const amountInLkr = tf?.total_amount
+                    ? Number(tf.total_amount)
+                    : originalAmount;
+                return (
+                    <div className="text-right">
+                        <div className="font-semibold text-gray-800">LKR {amountInLkr.toLocaleString()}</div>
+                        {originalCurrency !== 'LKR' && (
+                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1">
+                                {originalCurrency} {originalAmount.toLocaleString()}
+                            </span>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             name: 'Status',
@@ -1653,7 +1731,7 @@ function ExpensesPanel({ expenses = [] }) {
     );
 }
 
-function ReportsPanel({ trips, expenses, rateSetting, range, customStart, customEnd }) {
+function ReportsPanel({ trips, expenses, rateSetting, range, customStart, customEnd, eurRates }) {
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
@@ -1696,16 +1774,21 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
     const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
 
     filteredTrips.forEach(trip => {
-        const amount = Number(trip.customer?.paid_amount ?? 0);
-        grossRevenue += amount;
-
         const tf = trip.trip_finance;
-        if (tf && tf.is_custom_rate) {
+        const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
+        const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+        const amountLkr = tf?.total_amount
+            ? Number(tf.total_amount)
+            : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+        grossRevenue += amountLkr;
+
+        if (tf && (Number(tf.driver_share) > 0 || Number(tf.agent_share) > 0)) {
             driverPayouts += Number(tf.driver_share ?? 0);
             agentPayouts += Number(tf.agent_share ?? 0);
         } else {
-            driverPayouts += amount * defaultDriverRate / 100;
-            agentPayouts += amount * defaultAgentRate / 100;
+            driverPayouts += Math.round(amountLkr * defaultDriverRate / 100);
+            agentPayouts += Math.round(amountLkr * defaultAgentRate / 100);
         }
     });
 
