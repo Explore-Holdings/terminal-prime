@@ -155,8 +155,8 @@ export default function CheckoutSummary({ log, user, trips = [] }) {
                                 <tr>
                                     <td className="font-bold py-1">Officer Name:</td>
                                     <td>{user.name}</td>
-                                    <td className="font-bold py-1">IP Address:</td>
-                                    <td>{log.ip_address ?? '-'}</td>
+                                    {/* <td className="font-bold py-1">IP Address:</td>
+                                    <td>{log.ip_address ?? '-'}</td> */}
                                 </tr>
                                 <tr>
                                     <td className="font-bold py-1">Checked In:</td>
