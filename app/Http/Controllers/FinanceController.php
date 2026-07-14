@@ -14,6 +14,7 @@ use App\Models\Payout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class FinanceController extends Controller
 {
@@ -264,8 +265,8 @@ class FinanceController extends Controller
 
         if ($request->hasFile('payment_attachment')) {
             // Delete old file if exists
-            if ($driver->payment_attachment && \Illuminate\Support\Facades\Storage::disk('public')->exists($driver->payment_attachment)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($driver->payment_attachment);
+            if ($driver->payment_attachment && Storage::disk('public')->exists($driver->payment_attachment)) {
+                Storage::disk('public')->delete($driver->payment_attachment);
             }
 
             $file = $request->file('payment_attachment');

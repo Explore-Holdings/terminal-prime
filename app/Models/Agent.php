@@ -11,6 +11,7 @@ class Agent extends Model
 
     protected $fillable = [
         'user_id',
+        'booking_type',
         'customer_passport',
         'name',
         'currency',

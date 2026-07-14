@@ -251,9 +251,16 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
                 <span className="text-red-600 font-bold">{agent.distance_km ?? '-'} KM</span>
             </h3>
 
-            <p className="text-xs text-gray-600 mt-1 truncate">
-                {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {agent.dropoff_location ?? '-'}
-            </p>
+            <div className="flex items-center justify-between gap-2 mt-1">
+                <p className="text-xs text-gray-600 truncate flex-1 min-w-0">
+                    {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {agent.dropoff_location ?? '-'}
+                </p>
+                {agent.booking_type && (
+                    <span className="shrink-0 text-[10px] bg-blue-50 text-black-900 px-1.5 py-0.5 rounded font-medium border border-blue-100 uppercase tracking-wide">
+                        {agent.booking_type}
+                    </span>
+                )}
+            </div>
 
             <div className="flex gap-1 mt-3">
                 <CardButton color="blue" onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
@@ -264,9 +271,11 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
                     Payment
                 </CardButton>
 
-                <CardButton color="purple" disabled={!vehicleEnabled} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
-                    Vehicle
-                </CardButton>
+                {agent.booking_type !== 'Rent a Car' && (
+                    <CardButton color="purple" disabled={!vehicleEnabled} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
+                        Vehicle
+                    </CardButton>
+                )}
             </div>
         </div>
     );
@@ -319,9 +328,11 @@ function Modal({
                         Payment
                     </TabButton>
 
-                    <TabButton active={activeTab === 'vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('vehicle')} >
-                        Vehicle
-                    </TabButton>
+                    {agent.booking_type !== 'Rent a Car' && (
+                        <TabButton active={activeTab === 'vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('vehicle')} >
+                            Vehicle
+                        </TabButton>
+                    )}
                 </div>
 
                 <div className="p-6 min-h-[500px]">
@@ -330,7 +341,7 @@ function Modal({
                     )}
 
                     {activeTab === 'payment' && (
-                        <PaymentTab agent={agent} customerId={customerId} form={paymentForm} invoicePath={invoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} />
+                        <PaymentTab agent={agent} customerId={customerId} form={paymentForm} invoicePath={invoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
                     )}
 
                     {activeTab === 'vehicle' && (
@@ -431,7 +442,7 @@ function CustomerTab({ agent, form, onSubmit, countries }) {
 
 function PaymentTab({
     agent, customerId, form, invoicePath,
-    setInvoicePath, setActiveTab, setVehicleEnabledAgentId,
+    setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose,
 }) {
     const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
     const payments = form.data.payments ?? [];
@@ -519,8 +530,10 @@ function PaymentTab({
                 : null,
         }));
 
-        setVehicleEnabledAgentId(agent.id);
-        setActiveTab('vehicle');
+        const isRentACar = agent.booking_type === 'Rent a Car';
+        if (!isRentACar) {
+            setVehicleEnabledAgentId(agent.id);
+        }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
         form.post(`/customers/${customerId}/payment`, {
@@ -529,8 +542,20 @@ function PaymentTab({
             onSuccess: (page) => {
                 const path = page.props.invoicePath ?? page.props.flash?.invoice_path ?? null;
                 if (path) setInvoicePath(path);
+
+                if (isRentACar) {
+                    onClose?.();
+                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips'] });
+                } else {
+                    setActiveTab('vehicle');
+                }
             },
-            onError: () => { alert('Payment save failed.'); setActiveTab('payment'); },
+            onError: () => {
+                alert('Payment save failed.');
+                if (!isRentACar) {
+                    setActiveTab('payment');
+                }
+            },
         });
     };
 
@@ -654,7 +679,7 @@ function PaymentTab({
             <div className="flex justify-end">
                 <button disabled={!canSubmit}
                     className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
-                    Continue to Vehicle
+                    {agent.booking_type === 'Rent a Car' ? 'Confirm & Finish' : 'Continue to Vehicle'}
                 </button>
             </div>
         </form>
