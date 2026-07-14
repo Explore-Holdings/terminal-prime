@@ -3,15 +3,54 @@ import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
 
+const convertToLkr = (amount, currency, rates) => {
+    if (!rates) return null;
+    const fromCurrency = (currency ?? 'USD').toLowerCase();
+    if (fromCurrency === 'lkr') return null;
+    const rateFrom = rates[fromCurrency];
+    const rateLkr = rates['lkr'];
+    if (!rateFrom || !rateLkr) return null;
+    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+};
+
+const getAmountInLkr = (amount, currency, rates) => {
+    const fromCurrency = (currency ?? 'LKR').toLowerCase();
+    if (fromCurrency === 'lkr') return Number(amount ?? 0);
+    if (!rates) return Number(amount ?? 0);
+    const rateFrom = rates[fromCurrency];
+    const rateLkr = rates['lkr'];
+    if (!rateFrom || !rateLkr) return Number(amount ?? 0);
+    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+};
+
+const formatToLkrString = (amount, currency, rates) => {
+    const converted = convertToLkr(amount, currency, rates);
+    if (converted === null) return null;
+    return `LKR ${Math.round(converted).toLocaleString()}`;
+};
+
 export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
+    const [checkoutInput, setCheckoutInput] = useState('');
     const [activeTab, setActiveTab] = useState('customer');
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [createdCustomerId, setCreatedCustomerId] = useState(null);
     const [invoicePath, setInvoicePath] = useState(null);
     const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
+    const [eurRates, setEurRates] = useState(null);
+
+    useEffect(() => {
+        fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.eur) {
+                    setEurRates(data.eur);
+                }
+            })
+            .catch(err => console.error('Failed to fetch currency rates:', err));
+    }, []);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -67,13 +106,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         });
 
         paymentForm.setData({
-            currency: agent.new_currency ?? agent.currency ?? 'LKR',
-            price: agent.new_price ?? agent.price ?? 0,
+            currency: agent.currency ?? 'LKR',
+            price: agent.price ?? 0,
             payments: [{
                 method: 'Cash',
-                currency: agent.new_currency ?? agent.currency ?? 'LKR',
+                currency: agent.currency ?? 'LKR',
                 amount: 0,
-                notes: [{ amount: '', count: '', currency: agent.new_currency ?? agent.currency ?? 'LKR' }],
+                notes: [{ amount: '', count: '', currency: agent.currency ?? 'LKR' }],
             }],
         });
 
@@ -123,7 +162,10 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     <div className="flex gap-3">
                         <button
                             type="button"
-                            onClick={() => setShowCheckoutConfirm(true)}
+                            onClick={() => {
+                                setCheckoutInput('');
+                                setShowCheckoutConfirm(true);
+                            }}
                             className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 font-semibold"
                         >
                             🛑 Checkout
@@ -208,33 +250,56 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} />
             )}
 
             {showCheckoutConfirm && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h2>
-                        <p className="text-sm text-gray-600 mb-6">
+                        <p className="text-sm text-gray-600 mb-4">
                             Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift trips.
                         </p>
+                        
+                        <div className="mb-5">
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                Please type <span className="font-bold select-none text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">CHECKOUT</span> to confirm:
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Type CHECKOUT..."
+                                value={checkoutInput}
+                                onChange={(e) => setCheckoutInput(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mt-1"
+                            />
+                        </div>
+
                         <div className="flex justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={() => setShowCheckoutConfirm(false)}
-                                className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition font-semibold"
+                                className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
                             >
                                 Cancel
                             </button>
-                            <Link
-                                href="/counter/checkout"
-                                method="post"
-                                as="button"
-                                onClick={() => setShowCheckoutConfirm(false)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
-                            >
-                                Confirm Checkout
-                            </Link>
+                            {checkoutInput.trim().toUpperCase() !== 'CHECKOUT' ? (
+                                <button
+                                    disabled
+                                    className="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-semibold cursor-not-allowed opacity-75"
+                                >
+                                    Confirm Checkout
+                                </button>
+                            ) : (
+                                <Link
+                                    href="/counter/checkout"
+                                    method="post"
+                                    as="button"
+                                    onClick={() => setShowCheckoutConfirm(false)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+                                >
+                                    Confirm Checkout
+                                </Link>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -298,6 +363,7 @@ function Modal({
     rateSetting,
     locationVehiclePrices = [],
     vehicleRates = [],
+    eurRates,
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -337,7 +403,7 @@ function Modal({
 
                 <div className="p-6 min-h-[500px]">
                     {activeTab === 'customer' && (
-                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} />
+                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} />
                     )}
 
                     {activeTab === 'payment' && (
@@ -345,7 +411,7 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} />
+                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} />
                     )}
                 </div>
             </div>
@@ -353,17 +419,27 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries }) {
+function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
     return (
         <form onSubmit={onSubmit} className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
                 <ImageBox path={agent.customer_passport} className="w-32 h-24" />
                 <div className="text-sm">
                     <p className="font-bold">Agent : {agent.user?.name ?? '-'}</p>
-                    <p className="font-bold text-red-900">
-                        Price : {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
-                    </p>
-                    <p className="text-gray-500">Dropoff : {agent.dropoff_location ?? '-'}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="font-bold text-red-900">
+                            Price : {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
+                        </span>
+                        {(() => {
+                            const lkrVal = formatToLkrString(agent.price, agent.currency, eurRates);
+                            return lkrVal ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                                    ≈ {lkrVal}
+                                </span>
+                            ) : null;
+                        })()}
+                    </div>
+                    <p className="text-gray-500 mt-1">Dropoff : {agent.dropoff_location ?? '-'}</p>
                     <p className="text-gray-500">Remarks : {agent.remarks ?? '-'}</p>
                 </div>
             </div>
@@ -686,7 +762,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [] }) {
+function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates }) {
     const [confirmModal, setConfirmModal] = useState(null);
     const [rateMode, setRateMode]         = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
@@ -696,6 +772,8 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const [submitting, setSubmitting] = useState(false);
 
     const totalAmount       = Number(paymentForm?.data?.price ?? 0);
+    const currentCurrency   = paymentForm?.data?.currency ?? 'LKR';
+    const totalAmountInLkr  = getAmountInLkr(totalAmount, currentCurrency, eurRates);
     const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
     const defaultAgentRate  = Number(rateSetting?.agent_rate ?? 0);
 
@@ -731,16 +809,16 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const vehicleRateValue = vehicleRateObj ? Number(vehicleRateObj.rate) : 0;
 
     const driverShare = isPerKmRate
-        ? Number((Number(agent?.distance_km || 0) * vehicleRateValue * 1.5).toFixed(2))
+        ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
         : useCustomRate
-        ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
-        : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
+        ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+        : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
 
     const agentShare = isPerKmRate
         ? 0
         : useCustomRate
         ? 0
-        : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
+        : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
 
     const openConfirm = (vehicle) => {
         setRateMode('standard');
@@ -762,16 +840,16 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
         // Snapshot shares
         const finalDriverShare = isPerKmRate
-            ? Number((Number(agent?.distance_km || 0) * vehicleRateValue * 1.5).toFixed(2))
+            ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
-            ? (selectedCity && selectedCity.price !== null ? Number(selectedCity.price) : 0)
-            : Number(((totalAmount * defaultDriverRate) / 100).toFixed(2));
+            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
         const finalAgentShare = isPerKmRate
             ? 0
             : useCustomRate
             ? 0
-            : Number(((totalAmount * defaultAgentRate) / 100).toFixed(2));
-        const finalBalance = Number((totalAmount - finalDriverShare - finalAgentShare).toFixed(2));
+            : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
+        const finalBalance = Math.round(totalAmountInLkr - finalDriverShare - finalAgentShare);
 
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
         const finalAgentRate  = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
@@ -787,7 +865,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 driver_rate:    finalDriverRate,
                 agent_rate:     finalAgentRate,
                 is_custom_rate: useCustomRate,
-                total_amount:   totalAmount,
+                total_amount:   totalAmountInLkr,
                 driver_share:   finalDriverShare,
                 agent_share:    finalAgentShare,
                 balance:        finalBalance,
@@ -836,9 +914,20 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             {/* Trip amount */}
                             <div className="bg-gray-50 rounded-lg border p-3 flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-600">Trip Amount</span>
-                                <span className="text-xl font-black text-gray-900">
-                                    {agent?.new_currency ?? agent?.currency ?? 'LKR'} {totalAmount.toLocaleString()}
-                                </span>
+                                <div className="text-right">
+                                    <span className="text-xl font-black text-gray-900 block">
+                                        {paymentForm?.data?.currency ?? 'LKR'} {totalAmount.toLocaleString()}
+                                    </span>
+                                    {(() => {
+                                        const cur = paymentForm?.data?.currency ?? 'LKR';
+                                        const lkrVal = formatToLkrString(totalAmount, cur, eurRates);
+                                        return lkrVal ? (
+                                            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block mt-1">
+                                                ≈ {lkrVal}
+                                              </span>
+                                        ) : null;
+                                    })()}
+                                </div>
                             </div>
 
                             {/* Rate mode radio buttons */}
@@ -896,9 +985,19 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             {rateMode === 'standard' && (
                                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex justify-between items-center text-xs">
                                     <span className="text-blue-600 font-semibold uppercase tracking-wide">Driver Rate ({defaultDriverRate}%)</span>
-                                    <span className="font-bold text-blue-700">
-                                        Driver Share: LKR {driverShare.toLocaleString()}
-                                    </span>
+                                    <div className="text-right">
+                                        <span className="font-bold text-blue-700 block">
+                                            Driver Share: LKR {driverShare.toLocaleString()}
+                                        </span>
+                                        {(() => {
+                                            const lkrVal = formatToLkrString(driverShare, 'LKR', eurRates);
+                                            return lkrVal ? (
+                                                <span className="text-[10px] text-blue-600 font-semibold block mt-0.5">
+                                                    ≈ {lkrVal}
+                                                </span>
+                                            ) : null;
+                                        })()}
+                                    </div>
                                 </div>
                             )}
 
@@ -977,9 +1076,20 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                     {selectedCity && selectedCity.price !== null && (
                                         <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
                                             <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
-                                            <span className="font-bold text-orange-700">
-                                                {paymentForm?.data?.currency ?? 'LKR'} {Number(selectedCity.price).toLocaleString()}
-                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-bold text-orange-700 block">
+                                                    {paymentForm?.data?.currency ?? 'LKR'} {Number(selectedCity.price).toLocaleString()}
+                                                </span>
+                                                {(() => {
+                                                    const cur = paymentForm?.data?.currency ?? 'LKR';
+                                                    const lkrVal = formatToLkrString(selectedCity.price, cur, eurRates);
+                                                    return lkrVal ? (
+                                                        <span className="text-[10px] text-orange-600 font-semibold block mt-0.5">
+                                                            ≈ {lkrVal}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1002,9 +1112,19 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                     </div>
                                     <div className="border-t border-purple-200 pt-1.5 flex justify-between items-center">
                                         <span className="font-bold text-purple-800">Driver Share</span>
-                                        <span className="font-bold text-purple-900">
-                                            LKR {driverShare.toLocaleString()}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className="font-bold text-purple-900 block">
+                                                LKR {driverShare.toLocaleString()}
+                                            </span>
+                                            {(() => {
+                                                const lkrVal = formatToLkrString(driverShare, 'LKR', eurRates);
+                                                return lkrVal ? (
+                                                    <span className="text-[10px] text-purple-650 font-semibold block mt-0.5">
+                                                        ≈ {lkrVal}
+                                                    </span>
+                                                ) : null;
+                                            })()}
+                                        </div>
                                     </div>
                                 </div>
                             )}
