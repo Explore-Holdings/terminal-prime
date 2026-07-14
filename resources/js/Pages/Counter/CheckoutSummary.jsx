@@ -128,13 +128,23 @@ export default function CheckoutSummary({ log, user, trips = [] }) {
                                 Download PDF
                             </a>
 
-                            <Link
-                                href="/login"
-                                className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-slate-800 transition text-sm"
-                            >
-                                <LogIn size={16} />
-                                Login Page
-                            </Link>
+                            {!log.handed_over_at ? (
+                                <button
+                                    disabled
+                                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm opacity-50 cursor-not-allowed"
+                                >
+                                    <LogIn size={16} />
+                                    Login Page
+                                </button>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-slate-800 transition text-sm"
+                                >
+                                    <LogIn size={16} />
+                                    Login Page
+                                </Link>
+                            )}
                         </div>
                     </div>
 
@@ -145,8 +155,8 @@ export default function CheckoutSummary({ log, user, trips = [] }) {
                                 <tr>
                                     <td className="font-bold py-1">Officer Name:</td>
                                     <td>{user.name}</td>
-                                    <td className="font-bold py-1">IP Address:</td>
-                                    <td>{log.ip_address ?? '-'}</td>
+                                    {/* <td className="font-bold py-1">IP Address:</td>
+                                    <td>{log.ip_address ?? '-'}</td> */}
                                 </tr>
                                 <tr>
                                     <td className="font-bold py-1">Checked In:</td>
