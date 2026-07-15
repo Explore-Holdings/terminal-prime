@@ -1106,12 +1106,12 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                         <span className="text-purple-700 font-medium">Rate per KM for {confirmModal.vehicle.vehicle_type}</span>
                                         <span className="font-bold text-purple-900">LKR {vehicleRateValue.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between items-center">
+                                    {/* <div className="flex justify-between items-center">
                                         <span className="text-purple-700 font-medium">Multiplier</span>
                                         <span className="font-bold text-purple-900">1.5x</span>
-                                    </div>
+                                    </div> */}
                                     <div className="border-t border-purple-200 pt-1.5 flex justify-between items-center">
-                                        <span className="font-bold text-purple-800">Driver Share</span>
+                                        <span className="font-bold text-purple-800">Driver : </span>
                                         <div className="text-right">
                                             <span className="font-bold text-purple-900 block">
                                                 LKR {driverShare.toLocaleString()}
