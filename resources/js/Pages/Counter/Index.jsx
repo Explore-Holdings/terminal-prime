@@ -191,16 +191,20 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title="Vehicles Checked In" icon={<CarFront className="text-green-700" size={22} />}>
-                    {vehicles.length ? (
-                        <div className="flex gap-3 overflow-x-auto pb-2">
-                            {vehicles.map((vehicle, index) => (
-                                <VehicleCard key={vehicle.id} vehicle={vehicle} number={index + 1} />
-                            ))}
-                        </div>
-                    ) : (
-                        <Empty text="No vehicles found." />
-                    )}
+                <Section title={`Vehicles Checked In (${vehicles.length} / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                        {Array.from({ length: 100 }, (_, i) => {
+                            const vehicle = vehicles[i];
+                            if (vehicle) {
+                                return <VehicleCard key={vehicle.id} vehicle={vehicle} number={i + 1} />;
+                            }
+                            return (
+                                <div key={`empty-${i}`} className="min-w-[60px] min-h-[80px] border border-dashed border-gray-200 bg-gray-50/50 rounded-lg flex items-center justify-center shrink-0">
+                                    <span className="text-[10px] text-gray-300 font-medium">{i + 1}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </Section>
 
                 <Section
@@ -262,7 +266,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         <p className="text-sm text-gray-600 mb-4">
                             Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift trips.
                         </p>
-                        
+
                         <div className="mb-5">
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                                 Please type <span className="font-bold select-none text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">CHECKOUT</span> to confirm:
@@ -378,12 +382,12 @@ function Modal({
                         </p>
                     </div>
 
-                  <button
+                    <button
                         onClick={onClose}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
                     >
                         <X size={16} />
-                        
+
                     </button>
                 </div>
 
@@ -476,7 +480,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
                             {form.errors.country}
                         </p>
                     )}
-                </div>         
+                </div>
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                 <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
                 <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
@@ -766,28 +770,28 @@ function PaymentTab({
 
 function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates }) {
     const [confirmModal, setConfirmModal] = useState(null);
-    const [rateMode, setRateMode]         = useState('standard');
+    const [rateMode, setRateMode] = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
-    const [customAgentShare, setCustomAgentShare]   = useState('');
-    const [selectedCityId, setSelectedCityId]       = useState('');
-    const [citySearch, setCitySearch]               = useState('');
+    const [customAgentShare, setCustomAgentShare] = useState('');
+    const [selectedCityId, setSelectedCityId] = useState('');
+    const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    const totalAmount       = Number(paymentForm?.data?.price ?? 0);
-    const currentCurrency   = paymentForm?.data?.currency ?? 'LKR';
-    const totalAmountInLkr  = getAmountInLkr(totalAmount, currentCurrency, eurRates);
+    const totalAmount = Number(paymentForm?.data?.price ?? 0);
+    const currentCurrency = paymentForm?.data?.currency ?? 'LKR';
+    const totalAmountInLkr = getAmountInLkr(totalAmount, currentCurrency, eurRates);
     const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
-    const defaultAgentRate  = Number(rateSetting?.agent_rate ?? 0);
+    const defaultAgentRate = Number(rateSetting?.agent_rate ?? 0);
 
     // Map vehicle_type string → column name in location_vehicle_prices
     const vehicleTypeMap = {
-        'Sedan':        'sedan',
-        'SUV':          'suv',
-        'Van':          'van',
-        'Luxury SUV':   'luxury_suv',
+        'Sedan': 'sedan',
+        'SUV': 'suv',
+        'Van': 'van',
+        'Luxury SUV': 'luxury_suv',
         'Luxury Sedan': 'luxury_sedan',
-        'Mini Coach':   'mini_coach',
-        'Economy':      'economy',
+        'Mini Coach': 'mini_coach',
+        'Economy': 'economy',
     };
 
     // Price rows filtered/mapped for the selected vehicle type
@@ -813,14 +817,14 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const driverShare = isPerKmRate
         ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
         : useCustomRate
-        ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-        : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
 
     const agentShare = isPerKmRate
         ? 0
         : useCustomRate
-        ? 0
-        : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
+            ? 0
+            : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
 
     const openConfirm = (vehicle) => {
         setRateMode('standard');
@@ -834,43 +838,43 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const closeConfirm = () => setConfirmModal(null);
 
     const confirmAssign = () => {
-        const vehicle  = confirmModal.vehicle;
+        const vehicle = confirmModal.vehicle;
         const driverId = vehicle.driver_id ?? vehicle.driver?.id;
 
-        if (!customerId) { alert('Customer not found.');               return; }
-        if (!driverId)   { alert('Driver not found for this vehicle.'); return; }
+        if (!customerId) { alert('Customer not found.'); return; }
+        if (!driverId) { alert('Driver not found for this vehicle.'); return; }
 
         // Snapshot shares
         const finalDriverShare = isPerKmRate
             ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
-            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+                ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+                : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
         const finalAgentShare = isPerKmRate
             ? 0
             : useCustomRate
-            ? 0
-            : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
+                ? 0
+                : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
         const finalBalance = Math.round(totalAmountInLkr - finalDriverShare - finalAgentShare);
 
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
-        const finalAgentRate  = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
+        const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
         setSubmitting(true);
 
         router.post(
             `/customers/${customerId}/assign-trip`,
             {
-                driver_id:      driverId,
-                agent_id:       agent.id,
-                remarks:        '',
-                driver_rate:    finalDriverRate,
-                agent_rate:     finalAgentRate,
+                driver_id: driverId,
+                agent_id: agent.id,
+                remarks: '',
+                driver_rate: finalDriverRate,
+                agent_rate: finalAgentRate,
                 is_custom_rate: useCustomRate,
-                total_amount:   totalAmountInLkr,
-                driver_share:   finalDriverShare,
-                agent_share:    finalAgentShare,
-                balance:        finalBalance,
+                total_amount: totalAmountInLkr,
+                driver_share: finalDriverShare,
+                agent_share: finalAgentShare,
+                balance: finalBalance,
             },
             {
                 preserveScroll: true,
@@ -926,7 +930,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                         return lkrVal ? (
                                             <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block mt-1">
                                                 ≈ {lkrVal}
-                                              </span>
+                                            </span>
                                         ) : null;
                                     })()}
                                 </div>
@@ -1069,8 +1073,8 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                                         (row.province ?? '').toLowerCase().includes(q)
                                                     );
                                                 }).length === cityPrices.length && (
-                                                    <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
-                                                )}
+                                                        <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
+                                                    )}
                                             </div>
                                         </>
                                     )}
@@ -1178,9 +1182,8 @@ function TripCard({ trip }) {
 
     return (
         <div
-            className={`border-l-4 rounded-lg shadow-sm p-2 ${
-                cardColor[status] ?? 'bg-gray-50 border-gray-300'
-            }`}
+            className={`border-l-4 rounded-lg shadow-sm p-2 ${cardColor[status] ?? 'bg-gray-50 border-gray-300'
+                }`}
         >
             <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
@@ -1194,10 +1197,9 @@ function TripCard({ trip }) {
                 </div>
 
                 <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
-                        badgeColor[status] ??
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${badgeColor[status] ??
                         'bg-gray-500 text-white'
-                    }`}
+                        }`}
                 >
                     {status}
                 </span>
@@ -1211,7 +1213,7 @@ function TripCard({ trip }) {
 
                 <div className="truncate">
                     <span className="font-semibold">Agent :</span>{' '}
-                     {trip.agent?.user?.name ??
+                    {trip.agent?.user?.name ??
                         trip.agent?.name ??
                         '-'}
                 </div>
@@ -1222,8 +1224,8 @@ function TripCard({ trip }) {
                     <span className="text-[10px]">
                         {trip.trip_assigned_at
                             ? new Date(
-                                  trip.trip_assigned_at
-                              ).toLocaleDateString()
+                                trip.trip_assigned_at
+                            ).toLocaleDateString()
                             : '-'}
                     </span>
                 </div>
@@ -1276,8 +1278,8 @@ function VehicleCard({ vehicle, number }) {
     return (
         <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
 
-            <div className="absolute top-2 left-2 bg-blue-700 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-                {number}
+            <div className="absolute top-2 left-2 bg-blue-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center">
+                {(vehicle.driver?.registration_number ?? '').replace(/^[a-zA-Z]+-/, '') || number}
             </div>
 
             <ImageBox
@@ -1287,7 +1289,7 @@ function VehicleCard({ vehicle, number }) {
 
             <div>
                 <h3 className="font-semibold text-sm">
-                    {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
+                    {vehicle.driver?.first_name + ' ' + vehicle.driver?.last_name ?? 'Driver'}
                 </h3>
 
                 <p className="text-sm font-medium text-black-800">
@@ -1329,7 +1331,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
+                        {vehicle.driver?.first_name + ' ' + vehicle.driver?.last_name ?? 'Driver'}
                     </h3>
 
                     <p className="text-[12px] text-gray-500 truncate">
@@ -1391,9 +1393,8 @@ function CardButton({ children, icon, onClick, disabled, color }) {
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${
-                disabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : `${colors[color]} text-white`
-            }`}
+            className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${disabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : `${colors[color]} text-white`
+                }`}
         >
             {icon}
             {children}
@@ -1407,13 +1408,12 @@ function TabButton({ active, disabled, children, onClick }) {
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className={`px-6 py-3 font-medium transition ${
-                disabled
+            className={`px-6 py-3 font-medium transition ${disabled
                     ? 'text-gray-300 cursor-not-allowed'
                     : active
                         ? 'border-b-2 border-blue-700 text-blue-700'
                         : 'text-gray-500 hover:text-gray-800'
-            }`}
+                }`}
         >
             {children}
         </button>
