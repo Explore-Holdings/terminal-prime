@@ -160,6 +160,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
 
                     <div className="flex gap-3">
+                        <style>{`@keyframes blink-checkout { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
                         <button
                             type="button"
                             onClick={() => {
@@ -167,6 +168,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                 setShowCheckoutConfirm(true);
                             }}
                             className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 font-semibold"
+                            style={{ animation: 'blink-checkout 1.2s ease-in-out infinite' }}
                         >
                             🛑 Checkout
                         </button>
@@ -447,7 +449,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
                 <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" type="number" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
+                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="+94771234567" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
                 <div>
                     <label className="label">Country</label>
 
@@ -1418,11 +1420,11 @@ function TabButton({ active, disabled, children, onClick }) {
     );
 }
 
-function Field({ label, value, onChange, error, type = 'text' }) {
+function Field({ label, value, onChange, error, type = 'text', ...rest }) {
     return (
         <div>
             <label className="label">{label}</label>
-            <input type={type} value={value ?? ''} onChange={onChange} className="input" />
+            <input type={type} value={value ?? ''} onChange={onChange} className="input" {...rest} />
             {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>
     );
