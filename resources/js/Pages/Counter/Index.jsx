@@ -1324,7 +1324,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     if (!vehicle) {
         return (
             <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
-                <span className="absolute rotate-[-35deg] text-[14px] font-bold text-gray-200/40 select-none tracking-wide">NR</span>
+                <span className="absolute rotate-[-35deg] text-[20px] font-bold text-black-200/40 select-none tracking-wide">NR</span>
                 {number}
             </div>
         );
@@ -1340,8 +1340,8 @@ function VehicleSlot({ vehicle, number, onHover }) {
                 onMouseEnter={() => onHover?.(vehicle)}
                 onMouseLeave={() => onHover?.(null)}
             >
-                <span className="text-[10px] leading-none">{number}</span>
-                <span className="text-[6px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
+                <span className="text-[14px] leading-none">{number}</span>
+                <span className="text-[10px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
             </div>
         );
     }
@@ -1349,7 +1349,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     // On-duty vehicle
     return (
         <div
-            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[20px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
             onMouseEnter={() => onHover?.(vehicle)}
             onMouseLeave={() => onHover?.(null)}
         >
