@@ -33,10 +33,10 @@ class CounterController extends Controller
             'vehicles' => Vehicle::with(['driver.languages', 'pictures'])
                 ->select('vehicles.*')
                 ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
-                ->where('drivers.duty_status', 'on_duty')
                 ->whereDoesntHave('driver.trips', fn ($t) =>
                     $t->where('status', '!=', 'Completed')
                 )
+                ->orderByRaw("CASE WHEN drivers.duty_status = 'on_duty' THEN 0 ELSE 1 END")
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
 
