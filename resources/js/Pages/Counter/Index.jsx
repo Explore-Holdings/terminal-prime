@@ -194,7 +194,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
                 <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
                     {/* Vehicle detail area – always visible to prevent layout shift */}
-                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden">
+                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2">
                         {hoveredVehicle ? (
                             <div className="p-3 flex gap-4 items-start w-full">
                                 <div className="relative shrink-0">
@@ -1324,7 +1324,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     if (!isOnDuty) {
         return (
             <div
-                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[7px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
+                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
                 onMouseEnter={() => onHover?.(vehicle)}
                 onMouseLeave={() => onHover?.(null)}
             >
@@ -1337,7 +1337,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     // On-duty vehicle
     return (
         <div
-            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[8px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[9px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
             onMouseEnter={() => onHover?.(vehicle)}
             onMouseLeave={() => onHover?.(null)}
         >
