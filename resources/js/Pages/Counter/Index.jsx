@@ -40,6 +40,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
     const [eurRates, setEurRates] = useState(null);
+    const [hoveredVehicle, setHoveredVehicle] = useState(null);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -160,6 +161,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
 
                     <div className="flex gap-3">
+                        <style>{`@keyframes blink-checkout { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
                         <button
                             type="button"
                             onClick={() => {
@@ -167,6 +169,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                 setShowCheckoutConfirm(true);
                             }}
                             className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 font-semibold"
+                            style={{ animation: 'blink-checkout 1.2s ease-in-out infinite' }}
                         >
                             🛑 Checkout
                         </button>
@@ -189,16 +192,69 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title="Vehicles Checked In" icon={<CarFront className="text-green-700" size={22} />}>
-                    {vehicles.length ? (
-                        <div className="flex gap-3 overflow-x-auto pb-2">
-                            {vehicles.map((vehicle, index) => (
-                                <VehicleCard key={vehicle.id} vehicle={vehicle} number={index + 1} />
-                            ))}
-                        </div>
-                    ) : (
-                        <Empty text="No vehicles found." />
-                    )}
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
+                    {/* Vehicle detail area – always visible to prevent layout shift */}
+                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2">
+                        {hoveredVehicle ? (
+                            <div className="p-3 flex gap-4 items-start w-full">
+                                <div className="relative shrink-0">
+                                    <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
+                                        {hoveredVehicle._slotNumber}
+                                    </div>
+                                    <ImageBox
+                                        path={hoveredVehicle.pictures?.front_view ?? hoveredVehicle.front_view}
+                                        className="w-28 h-20"
+                                    />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-semibold text-sm">
+                                        {(hoveredVehicle.driver?.first_name ?? '') + ' ' + (hoveredVehicle.driver?.last_name ?? '') || 'Driver'}
+                                    </h3>
+                                    <p className="text-xs text-gray-600">
+                                        {hoveredVehicle.driver?.mobile_number ?? '-'}
+                                    </p>
+                                    <p className="text-xs font-bold text-red-700 mt-0.5">
+                                        {hoveredVehicle.registration_number ?? '-'}
+                                    </p>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                        {hoveredVehicle.vehicle_type ?? '-'} : {hoveredVehicle.brand ?? '-'} {hoveredVehicle.model ?? ''}
+                                    </p>
+                                    <p className="text-[11px] font-semibold mt-0.5">
+                                        🌐 {hoveredVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-300 w-full text-center">Hover a vehicle slot to see details</p>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                        {(() => {
+                            const vehicleMap = {};
+                            vehicles.forEach((v) => {
+                                const reg = v.driver?.registration_number ?? '';
+                                const match = reg.match(/\d+/);
+                                const num = match ? parseInt(match[0], 10) : NaN;
+                                if (!isNaN(num) && num >= 1 && num <= 100) {
+                                    vehicleMap[num] = v;
+                                }
+                            });
+
+                            return Array.from({ length: 100 }, (_, i) => {
+                                const slotNum = i + 1;
+                                const vehicle = vehicleMap[slotNum] ?? null;
+                                return (
+                                    <VehicleSlot
+                                        key={`slot-${slotNum}`}
+                                        vehicle={vehicle}
+                                        number={slotNum}
+                                        onHover={(v) => setHoveredVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                    />
+                                );
+                            });
+                        })()}
+                    </div>
                 </Section>
 
                 <Section
@@ -260,7 +316,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         <p className="text-sm text-gray-600 mb-4">
                             Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift trips.
                         </p>
-                        
+
                         <div className="mb-5">
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                                 Please type <span className="font-bold select-none text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">CHECKOUT</span> to confirm:
@@ -376,12 +432,12 @@ function Modal({
                         </p>
                     </div>
 
-                  <button
+                    <button
                         onClick={onClose}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
                     >
                         <X size={16} />
-                        
+
                     </button>
                 </div>
 
@@ -447,7 +503,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
                 <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" type="number" value={form.data.whatsapp_number} onChange={(e) => form.setData('whatsapp_number', e.target.value)} error={form.errors.whatsapp_number} />
+                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="+94771234567" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
                 <div>
                     <label className="label">Country</label>
 
@@ -474,7 +530,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
                             {form.errors.country}
                         </p>
                     )}
-                </div>         
+                </div>
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                 <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
                 <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
@@ -764,28 +820,28 @@ function PaymentTab({
 
 function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates }) {
     const [confirmModal, setConfirmModal] = useState(null);
-    const [rateMode, setRateMode]         = useState('standard');
+    const [rateMode, setRateMode] = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
-    const [customAgentShare, setCustomAgentShare]   = useState('');
-    const [selectedCityId, setSelectedCityId]       = useState('');
-    const [citySearch, setCitySearch]               = useState('');
+    const [customAgentShare, setCustomAgentShare] = useState('');
+    const [selectedCityId, setSelectedCityId] = useState('');
+    const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    const totalAmount       = Number(paymentForm?.data?.price ?? 0);
-    const currentCurrency   = paymentForm?.data?.currency ?? 'LKR';
-    const totalAmountInLkr  = getAmountInLkr(totalAmount, currentCurrency, eurRates);
+    const totalAmount = Number(paymentForm?.data?.price ?? 0);
+    const currentCurrency = paymentForm?.data?.currency ?? 'LKR';
+    const totalAmountInLkr = getAmountInLkr(totalAmount, currentCurrency, eurRates);
     const defaultDriverRate = Number(rateSetting?.driver_rate ?? 0);
-    const defaultAgentRate  = Number(rateSetting?.agent_rate ?? 0);
+    const defaultAgentRate = Number(rateSetting?.agent_rate ?? 0);
 
     // Map vehicle_type string → column name in location_vehicle_prices
     const vehicleTypeMap = {
-        'Sedan':        'sedan',
-        'SUV':          'suv',
-        'Van':          'van',
-        'Luxury SUV':   'luxury_suv',
+        'Sedan': 'sedan',
+        'SUV': 'suv',
+        'Van': 'van',
+        'Luxury SUV': 'luxury_suv',
         'Luxury Sedan': 'luxury_sedan',
-        'Mini Coach':   'mini_coach',
-        'Economy':      'economy',
+        'Mini Coach': 'mini_coach',
+        'Economy': 'economy',
     };
 
     // Price rows filtered/mapped for the selected vehicle type
@@ -811,14 +867,14 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const driverShare = isPerKmRate
         ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
         : useCustomRate
-        ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-        : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
 
     const agentShare = isPerKmRate
         ? 0
         : useCustomRate
-        ? 0
-        : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
+            ? 0
+            : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
 
     const openConfirm = (vehicle) => {
         setRateMode('standard');
@@ -832,43 +888,43 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const closeConfirm = () => setConfirmModal(null);
 
     const confirmAssign = () => {
-        const vehicle  = confirmModal.vehicle;
+        const vehicle = confirmModal.vehicle;
         const driverId = vehicle.driver_id ?? vehicle.driver?.id;
 
-        if (!customerId) { alert('Customer not found.');               return; }
-        if (!driverId)   { alert('Driver not found for this vehicle.'); return; }
+        if (!customerId) { alert('Customer not found.'); return; }
+        if (!driverId) { alert('Driver not found for this vehicle.'); return; }
 
         // Snapshot shares
         const finalDriverShare = isPerKmRate
             ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
-            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+                ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+                : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
         const finalAgentShare = isPerKmRate
             ? 0
             : useCustomRate
-            ? 0
-            : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
+                ? 0
+                : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
         const finalBalance = Math.round(totalAmountInLkr - finalDriverShare - finalAgentShare);
 
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
-        const finalAgentRate  = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
+        const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
         setSubmitting(true);
 
         router.post(
             `/customers/${customerId}/assign-trip`,
             {
-                driver_id:      driverId,
-                agent_id:       agent.id,
-                remarks:        '',
-                driver_rate:    finalDriverRate,
-                agent_rate:     finalAgentRate,
+                driver_id: driverId,
+                agent_id: agent.id,
+                remarks: '',
+                driver_rate: finalDriverRate,
+                agent_rate: finalAgentRate,
                 is_custom_rate: useCustomRate,
-                total_amount:   totalAmountInLkr,
-                driver_share:   finalDriverShare,
-                agent_share:    finalAgentShare,
-                balance:        finalBalance,
+                total_amount: totalAmountInLkr,
+                driver_share: finalDriverShare,
+                agent_share: finalAgentShare,
+                balance: finalBalance,
             },
             {
                 preserveScroll: true,
@@ -924,7 +980,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                         return lkrVal ? (
                                             <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-block mt-1">
                                                 ≈ {lkrVal}
-                                              </span>
+                                            </span>
                                         ) : null;
                                     })()}
                                 </div>
@@ -1067,8 +1123,8 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                                         (row.province ?? '').toLowerCase().includes(q)
                                                     );
                                                 }).length === cityPrices.length && (
-                                                    <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
-                                                )}
+                                                        <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
+                                                    )}
                                             </div>
                                         </>
                                     )}
@@ -1176,9 +1232,8 @@ function TripCard({ trip }) {
 
     return (
         <div
-            className={`border-l-4 rounded-lg shadow-sm p-2 ${
-                cardColor[status] ?? 'bg-gray-50 border-gray-300'
-            }`}
+            className={`border-l-4 rounded-lg shadow-sm p-2 ${cardColor[status] ?? 'bg-gray-50 border-gray-300'
+                }`}
         >
             <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
@@ -1192,10 +1247,9 @@ function TripCard({ trip }) {
                 </div>
 
                 <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
-                        badgeColor[status] ??
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${badgeColor[status] ??
                         'bg-gray-500 text-white'
-                    }`}
+                        }`}
                 >
                     {status}
                 </span>
@@ -1209,7 +1263,7 @@ function TripCard({ trip }) {
 
                 <div className="truncate">
                     <span className="font-semibold">Agent :</span>{' '}
-                     {trip.agent?.user?.name ??
+                    {trip.agent?.user?.name ??
                         trip.agent?.name ??
                         '-'}
                 </div>
@@ -1220,8 +1274,8 @@ function TripCard({ trip }) {
                     <span className="text-[10px]">
                         {trip.trip_assigned_at
                             ? new Date(
-                                  trip.trip_assigned_at
-                              ).toLocaleDateString()
+                                trip.trip_assigned_at
+                            ).toLocaleDateString()
                             : '-'}
                     </span>
                 </div>
@@ -1265,46 +1319,41 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleCard({ vehicle, number }) {
-    const languages =
-        vehicle.driver?.languages
-            ?.map((l) => l.language_name)
-            .join(', ') || '-';
-
-    return (
-        <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
-
-            <div className="absolute top-2 left-2 bg-blue-700 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+function VehicleSlot({ vehicle, number, onHover }) {
+    // No vehicle registered in this slot
+    if (!vehicle) {
+        return (
+            <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
+                <span className="absolute rotate-[-35deg] text-[20px] font-bold text-black-200/40 select-none tracking-wide">NR</span>
                 {number}
             </div>
+        );
+    }
 
-            <ImageBox
-                path={vehicle.pictures?.front_view ?? vehicle.front_view}
-                className="w-32 h-24"
-            />
+    const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
 
-            <div>
-                <h3 className="font-semibold text-sm">
-                    {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
-                </h3>
-
-                <p className="text-sm font-medium text-black-800">
-                    {vehicle.driver?.mobile_number ?? '-'}
-                </p>
-
-                <p className="text-sm font-medium text-red-800">
-                    {vehicle.registration_number ?? '-'}
-                </p>
-
-                <p className="text-xs text-gray-600">
-                    {vehicle.vehicle_type ?? '-'} :{' '}
-                    {vehicle.brand ?? '-'} {vehicle.model ?? ''}
-                </p>
-
-                <p className="text-xs font-bold">
-                    🌐 {languages}
-                </p>
+    // Off-duty vehicle
+    if (!isOnDuty) {
+        return (
+            <div
+                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
+                onMouseEnter={() => onHover?.(vehicle)}
+                onMouseLeave={() => onHover?.(null)}
+            >
+                <span className="text-[14px] leading-none">{number}</span>
+                <span className="text-[10px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
             </div>
+        );
+    }
+
+    // On-duty vehicle
+    return (
+        <div
+            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[20px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            onMouseEnter={() => onHover?.(vehicle)}
+            onMouseLeave={() => onHover?.(null)}
+        >
+            {number}
         </div>
     );
 }
@@ -1327,7 +1376,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {vehicle.driver?.first_name +' ' +vehicle.driver?.last_name  ?? 'Driver'}
+                        {vehicle.driver?.first_name + ' ' + vehicle.driver?.last_name ?? 'Driver'}
                     </h3>
 
                     <p className="text-[12px] text-gray-500 truncate">
@@ -1363,7 +1412,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
 function Section({ title, icon, children, actions }) {
     return (
-        <section className="bg-white rounded-xl shadow p-5 mb-6">
+        <section className="bg-white rounded-xl shadow p-5 mb-6 overflow-visible">
             <div className="flex items-center gap-2 mb-4 justify-between">
                 <div className="flex items-center gap-2">
                     {icon}
@@ -1389,9 +1438,8 @@ function CardButton({ children, icon, onClick, disabled, color }) {
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${
-                disabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : `${colors[color]} text-white`
-            }`}
+            className={`flex-1 inline-flex items-center justify-center gap-1 rounded py-1.5 text-[11px] font-medium ${disabled ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : `${colors[color]} text-white`
+                }`}
         >
             {icon}
             {children}
@@ -1405,24 +1453,23 @@ function TabButton({ active, disabled, children, onClick }) {
             type="button"
             disabled={disabled}
             onClick={onClick}
-            className={`px-6 py-3 font-medium transition ${
-                disabled
+            className={`px-6 py-3 font-medium transition ${disabled
                     ? 'text-gray-300 cursor-not-allowed'
                     : active
                         ? 'border-b-2 border-blue-700 text-blue-700'
                         : 'text-gray-500 hover:text-gray-800'
-            }`}
+                }`}
         >
             {children}
         </button>
     );
 }
 
-function Field({ label, value, onChange, error, type = 'text' }) {
+function Field({ label, value, onChange, error, type = 'text', ...rest }) {
     return (
         <div>
             <label className="label">{label}</label>
-            <input type={type} value={value ?? ''} onChange={onChange} className="input" />
+            <input type={type} value={value ?? ''} onChange={onChange} className="input" {...rest} />
             {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>
     );
