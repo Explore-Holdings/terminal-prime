@@ -192,7 +192,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.length} / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
                     {/* Vehicle detail area – always visible to prevent layout shift */}
                     <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden">
                         {hoveredVehicle ? (
@@ -1307,16 +1307,34 @@ function TripCard({ trip }) {
 }
 
 function VehicleSlot({ vehicle, number, onHover }) {
+    // No vehicle registered in this slot
     if (!vehicle) {
         return (
-            <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300">
+            <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
+                <span className="absolute rotate-[-35deg] text-[7px] font-bold text-gray-200 select-none tracking-wide">NR</span>
                 {number}
             </div>
         );
     }
 
     const driverNumber = vehicle.driver?.registration_number ?? '-';
+    const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
 
+    // Off-duty vehicle
+    if (!isOnDuty) {
+        return (
+            <div
+                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[7px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
+                onMouseEnter={() => onHover?.(vehicle)}
+                onMouseLeave={() => onHover?.(null)}
+            >
+                <span className="text-[7px] leading-none">{driverNumber}</span>
+                <span className="text-[6px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
+            </div>
+        );
+    }
+
+    // On-duty vehicle
     return (
         <div
             className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[8px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
