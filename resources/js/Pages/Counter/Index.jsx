@@ -230,17 +230,30 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
 
                     <div className="flex flex-wrap gap-1.5">
-                        {Array.from({ length: 100 }, (_, i) => {
-                            const vehicle = vehicles[i] ?? null;
-                            return (
-                                <VehicleSlot
-                                    key={`slot-${i}`}
-                                    vehicle={vehicle}
-                                    number={i + 1}
-                                    onHover={(v) => setHoveredVehicle(v ? { ...v, _slotNumber: i + 1 } : null)}
-                                />
-                            );
-                        })}
+                        {(() => {
+                            const vehicleMap = {};
+                            vehicles.forEach((v) => {
+                                const reg = v.driver?.registration_number ?? '';
+                                const match = reg.match(/\d+/);
+                                const num = match ? parseInt(match[0], 10) : NaN;
+                                if (!isNaN(num) && num >= 1 && num <= 100) {
+                                    vehicleMap[num] = v;
+                                }
+                            });
+
+                            return Array.from({ length: 100 }, (_, i) => {
+                                const slotNum = i + 1;
+                                const vehicle = vehicleMap[slotNum] ?? null;
+                                return (
+                                    <VehicleSlot
+                                        key={`slot-${slotNum}`}
+                                        vehicle={vehicle}
+                                        number={slotNum}
+                                        onHover={(v) => setHoveredVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                    />
+                                );
+                            });
+                        })()}
                     </div>
                 </Section>
 
@@ -1311,13 +1324,12 @@ function VehicleSlot({ vehicle, number, onHover }) {
     if (!vehicle) {
         return (
             <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
-                <span className="absolute rotate-[-35deg] text-[16px] font-bold text-black-600 select-none tracking-wide">NR</span>
+                <span className="absolute rotate-[-35deg] text-[14px] font-bold text-gray-200/40 select-none tracking-wide">NR</span>
                 {number}
             </div>
         );
     }
 
-    const driverNumber = vehicle.driver?.registration_number ?? '-';
     const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
 
     // Off-duty vehicle
@@ -1328,7 +1340,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
                 onMouseEnter={() => onHover?.(vehicle)}
                 onMouseLeave={() => onHover?.(null)}
             >
-                <span className="text-[7px] leading-none">{driverNumber}</span>
+                <span className="text-[10px] leading-none">{number}</span>
                 <span className="text-[6px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
             </div>
         );
@@ -1337,11 +1349,11 @@ function VehicleSlot({ vehicle, number, onHover }) {
     // On-duty vehicle
     return (
         <div
-            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[9px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
             onMouseEnter={() => onHover?.(vehicle)}
             onMouseLeave={() => onHover?.(null)}
         >
-            {driverNumber}
+            {number}
         </div>
     );
 }
