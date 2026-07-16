@@ -981,7 +981,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                             <button 
                                 type="button" 
-                                disabled={selectedVehicle.driver?.duty_status !== 'on_duty'}
+                                disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
                                 onClick={() => openConfirm(selectedVehicle)} 
                                 className="px-4 py-2 bg-blue-700 text-white rounded-lg text-xs font-semibold hover:bg-blue-800 transition shadow-sm disabled:opacity-50"
                             >
@@ -1401,6 +1401,20 @@ function VehicleSlot({ vehicle, number, onClick }) {
     }
 
     const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
+    const hasOngoingTrip = vehicle.driver?.trips && vehicle.driver.trips.length > 0;
+
+    // Vehicle on a trip
+    if (hasOngoingTrip) {
+        return (
+            <div
+                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100"
+                onClick={() => onClick?.(vehicle)}
+            >
+                <span className="text-[14px] leading-none">{number}</span>
+                <span className="text-[9px] font-bold text-blue-600 mt-0.5 uppercase tracking-tighter">Trip</span>
+            </div>
+        );
+    }
 
     // Off-duty vehicle
     if (!isOnDuty) {
