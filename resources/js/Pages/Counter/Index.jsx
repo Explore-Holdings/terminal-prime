@@ -1311,7 +1311,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     if (!vehicle) {
         return (
             <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
-                <span className="absolute rotate-[-35deg] text-[7px] font-bold text-gray-200 select-none tracking-wide">NR</span>
+                <span className="absolute rotate-[-35deg] text-[16px] font-bold text-black-600 select-none tracking-wide">NR</span>
                 {number}
             </div>
         );
