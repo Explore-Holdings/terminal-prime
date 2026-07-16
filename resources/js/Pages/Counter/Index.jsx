@@ -40,7 +40,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
     const [eurRates, setEurRates] = useState(null);
-    const [hoveredVehicle, setHoveredVehicle] = useState(null);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -195,37 +195,37 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
                     {/* Vehicle detail area – always visible to prevent layout shift */}
                     <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2">
-                        {hoveredVehicle ? (
-                            <div className="p-3 flex gap-4 items-start w-full">
+                        {selectedVehicle ? (
+                            <div className="p-3 flex gap-4 items-start w-full relative">
                                 <div className="relative shrink-0">
                                     <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
-                                        {hoveredVehicle._slotNumber}
+                                        {selectedVehicle._slotNumber}
                                     </div>
                                     <ImageBox
-                                        path={hoveredVehicle.pictures?.front_view ?? hoveredVehicle.front_view}
+                                        path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
                                         className="w-28 h-20"
                                     />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <h3 className="font-semibold text-sm">
-                                        {(hoveredVehicle.driver?.first_name ?? '') + ' ' + (hoveredVehicle.driver?.last_name ?? '') || 'Driver'}
+                                        {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
                                     </h3>
                                     <p className="text-xs text-gray-600">
-                                        {hoveredVehicle.driver?.mobile_number ?? '-'}
+                                        {selectedVehicle.driver?.mobile_number ?? '-'}
                                     </p>
                                     <p className="text-xs font-bold text-red-700 mt-0.5">
-                                        {hoveredVehicle.registration_number ?? '-'}
+                                        {selectedVehicle.registration_number ?? '-'}
                                     </p>
                                     <p className="text-[11px] text-gray-500 mt-0.5">
-                                        {hoveredVehicle.vehicle_type ?? '-'} : {hoveredVehicle.brand ?? '-'} {hoveredVehicle.model ?? ''}
+                                        {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
                                     </p>
                                     <p className="text-[11px] font-semibold mt-0.5">
-                                        🌐 {hoveredVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
+                                        🌐 {selectedVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
                                     </p>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-300 w-full text-center">Hover a vehicle slot to see details</p>
+                            <p className="text-sm text-gray-300 w-full text-center">Click a vehicle slot to see details</p>
                         )}
                     </div>
 
@@ -249,7 +249,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         key={`slot-${slotNum}`}
                                         vehicle={vehicle}
                                         number={slotNum}
-                                        onHover={(v) => setHoveredVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
                                     />
                                 );
                             });
@@ -820,6 +820,7 @@ function PaymentTab({
 
 function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates }) {
     const [confirmModal, setConfirmModal] = useState(null);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [rateMode, setRateMode] = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -942,13 +943,82 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
         <div>
             <div className="flex justify-between mb-3">
                 <h3 className="font-bold text-lg">Select Vehicle</h3>
-                <span className="text-sm text-gray-500">{vehicles.length} Vehicle(s)</span>
+                <span className="text-sm text-gray-500">
+                    {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered / 100
+                </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[600px] overflow-y-auto">
-                {vehicles.map((vehicle, i) => (
-                    <VehicleSelectCard key={vehicle.id} vehicle={vehicle} index={i} assigning={submitting} onAssign={() => openConfirm(vehicle)} />
-                ))}
+            {/* Vehicle detail area – always visible to prevent layout shift */}
+            <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2 relative">
+                {selectedVehicle ? (
+                    <div className="p-3 flex gap-4 items-start w-full relative">
+                        <div className="relative shrink-0">
+                            <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
+                                {selectedVehicle._slotNumber}
+                            </div>
+                            <ImageBox
+                                path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
+                                className="w-28 h-20"
+                            />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-sm">
+                                {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
+                            </h3>
+                            <p className="text-xs text-gray-600">
+                                {selectedVehicle.driver?.mobile_number ?? '-'}
+                            </p>
+                            <p className="text-xs font-bold text-red-700 mt-0.5">
+                                {selectedVehicle.registration_number ?? '-'}
+                            </p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                                {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
+                            </p>
+                            <p className="text-[11px] font-semibold mt-0.5">
+                                🌐 {selectedVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
+                            </p>
+                        </div>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <button 
+                                type="button" 
+                                disabled={selectedVehicle.driver?.duty_status !== 'on_duty'}
+                                onClick={() => openConfirm(selectedVehicle)} 
+                                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-xs font-semibold hover:bg-blue-800 transition shadow-sm disabled:opacity-50"
+                            >
+                                Assign
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-300 w-full text-center">Click an active vehicle slot to see details</p>
+                )}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 max-h-[400px] overflow-y-auto pb-4">
+                {(() => {
+                    const vehicleMap = {};
+                    vehicles.forEach((v) => {
+                        const reg = v.driver?.registration_number ?? '';
+                        const match = reg.match(/\d+/);
+                        const num = match ? parseInt(match[0], 10) : NaN;
+                        if (!isNaN(num) && num >= 1 && num <= 100) {
+                            vehicleMap[num] = v;
+                        }
+                    });
+
+                    return Array.from({ length: 100 }, (_, i) => {
+                        const slotNum = i + 1;
+                        const vehicle = vehicleMap[slotNum] ?? null;
+                        return (
+                            <VehicleSlot
+                                key={`slot-${slotNum}`}
+                                vehicle={vehicle}
+                                number={slotNum}
+                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                            />
+                        );
+                    });
+                })()}
             </div>
 
             {/* ── Confirmation Modal ── */}
@@ -1319,7 +1389,7 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleSlot({ vehicle, number, onHover }) {
+function VehicleSlot({ vehicle, number, onClick }) {
     // No vehicle registered in this slot
     if (!vehicle) {
         return (
@@ -1337,8 +1407,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
         return (
             <div
                 className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
-                onMouseEnter={() => onHover?.(vehicle)}
-                onMouseLeave={() => onHover?.(null)}
+                onClick={() => onClick?.(vehicle)}
             >
                 <span className="text-[14px] leading-none">{number}</span>
                 <span className="text-[10px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
@@ -1350,8 +1419,7 @@ function VehicleSlot({ vehicle, number, onHover }) {
     return (
         <div
             className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[20px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
-            onMouseEnter={() => onHover?.(vehicle)}
-            onMouseLeave={() => onHover?.(null)}
+            onClick={() => onClick?.(vehicle)}
         >
             {number}
         </div>
