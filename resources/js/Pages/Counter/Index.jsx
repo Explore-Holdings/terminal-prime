@@ -40,6 +40,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [paymentEnabledAgentId, setPaymentEnabledAgentId] = useState(null);
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
     const [eurRates, setEurRates] = useState(null);
+    const [hoveredVehicle, setHoveredVehicle] = useState(null);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -192,16 +193,52 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 </Section>
 
                 <Section title={`Vehicles Checked In (${vehicles.length} / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
-                    <div className="flex gap-3 overflow-x-auto pb-2">
-                        {Array.from({ length: 100 }, (_, i) => {
-                            const vehicle = vehicles[i];
-                            if (vehicle) {
-                                return <VehicleCard key={vehicle.id} vehicle={vehicle} number={i + 1} />;
-                            }
-                            return (
-                                <div key={`empty-${i}`} className="min-w-[60px] min-h-[80px] border border-dashed border-gray-200 bg-gray-50/50 rounded-lg flex items-center justify-center shrink-0">
-                                    <span className="text-[10px] text-gray-300 font-medium">{i + 1}</span>
+                    {/* Vehicle detail area – always visible to prevent layout shift */}
+                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden">
+                        {hoveredVehicle ? (
+                            <div className="p-3 flex gap-4 items-start w-full">
+                                <div className="relative shrink-0">
+                                    <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
+                                        {hoveredVehicle._slotNumber}
+                                    </div>
+                                    <ImageBox
+                                        path={hoveredVehicle.pictures?.front_view ?? hoveredVehicle.front_view}
+                                        className="w-28 h-20"
+                                    />
                                 </div>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="font-semibold text-sm">
+                                        {(hoveredVehicle.driver?.first_name ?? '') + ' ' + (hoveredVehicle.driver?.last_name ?? '') || 'Driver'}
+                                    </h3>
+                                    <p className="text-xs text-gray-600">
+                                        {hoveredVehicle.driver?.mobile_number ?? '-'}
+                                    </p>
+                                    <p className="text-xs font-bold text-red-700 mt-0.5">
+                                        {hoveredVehicle.registration_number ?? '-'}
+                                    </p>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                        {hoveredVehicle.vehicle_type ?? '-'} : {hoveredVehicle.brand ?? '-'} {hoveredVehicle.model ?? ''}
+                                    </p>
+                                    <p className="text-[11px] font-semibold mt-0.5">
+                                        🌐 {hoveredVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-300 w-full text-center">Hover a vehicle slot to see details</p>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                        {Array.from({ length: 100 }, (_, i) => {
+                            const vehicle = vehicles[i] ?? null;
+                            return (
+                                <VehicleSlot
+                                    key={`slot-${i}`}
+                                    vehicle={vehicle}
+                                    number={i + 1}
+                                    onHover={(v) => setHoveredVehicle(v ? { ...v, _slotNumber: i + 1 } : null)}
+                                />
                             );
                         })}
                     </div>
@@ -1269,46 +1306,24 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleCard({ vehicle, number }) {
-    const languages =
-        vehicle.driver?.languages
-            ?.map((l) => l.language_name)
-            .join(', ') || '-';
+function VehicleSlot({ vehicle, number, onHover }) {
+    if (!vehicle) {
+        return (
+            <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300">
+                {number}
+            </div>
+        );
+    }
+
+    const driverNumber = vehicle.driver?.registration_number ?? '-';
 
     return (
-        <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm flex gap-3 relative">
-
-            <div className="absolute top-2 left-2 bg-blue-700 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center justify-center">
-                {(vehicle.driver?.registration_number ?? '').replace(/^[a-zA-Z]+-/, '') || number}
-            </div>
-
-            <ImageBox
-                path={vehicle.pictures?.front_view ?? vehicle.front_view}
-                className="w-32 h-24"
-            />
-
-            <div>
-                <h3 className="font-semibold text-sm">
-                    {vehicle.driver?.first_name + ' ' + vehicle.driver?.last_name ?? 'Driver'}
-                </h3>
-
-                <p className="text-sm font-medium text-black-800">
-                    {vehicle.driver?.mobile_number ?? '-'}
-                </p>
-
-                <p className="text-sm font-medium text-red-800">
-                    {vehicle.registration_number ?? '-'}
-                </p>
-
-                <p className="text-xs text-gray-600">
-                    {vehicle.vehicle_type ?? '-'} :{' '}
-                    {vehicle.brand ?? '-'} {vehicle.model ?? ''}
-                </p>
-
-                <p className="text-xs font-bold">
-                    🌐 {languages}
-                </p>
-            </div>
+        <div
+            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[8px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            onMouseEnter={() => onHover?.(vehicle)}
+            onMouseLeave={() => onHover?.(null)}
+        >
+            {driverNumber}
         </div>
     );
 }
@@ -1367,7 +1382,7 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
 function Section({ title, icon, children, actions }) {
     return (
-        <section className="bg-white rounded-xl shadow p-5 mb-6">
+        <section className="bg-white rounded-xl shadow p-5 mb-6 overflow-visible">
             <div className="flex items-center gap-2 mb-4 justify-between">
                 <div className="flex items-center gap-2">
                     {icon}
