@@ -1426,7 +1426,7 @@ function TripCard({ trip }) {
             <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {trip.driver?.first_name + ' ' + trip.driver?.last_name ?? 'Driver'}
+                        {(trip.driver?.first_name || trip.driver?.last_name) ? `${trip.driver?.first_name ?? ''} ${trip.driver?.last_name ?? ''}`.trim() : 'Driver'}
                     </h3>
 
                     <p className="text-[10px] text-black-800 truncate">
