@@ -1058,85 +1058,145 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 </span>
             </div>
 
-            {/* Vehicle detail area – always visible to prevent layout shift */}
-            <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2 relative">
-                {selectedVehicle ? (
-                    <div className="p-3 flex gap-4 items-start w-full relative">
-                        <div className="relative shrink-0">
-                            <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
-                                {selectedVehicle._slotNumber}
-                            </div>
-                            <ImageBox
-                                path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
-                                className="w-28 h-20"
-                            />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-sm">
-                                {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
-                            </h3>
-                            <p className="text-xs text-gray-600">
-                                {selectedVehicle.driver?.mobile_number ?? '-'}
-                            </p>
-                            <p className="text-xs font-bold text-red-700 mt-0.5">
-                                {selectedVehicle.registration_number ?? '-'}
-                            </p>
-                            <p className="text-[11px] text-gray-500 mt-0.5">
-                                {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
-                            </p>
-                            <div className="flex flex-wrap gap-1 items-center mt-0.5">
-                                <span className="text-[11px] font-semibold text-gray-500">🌐</span>
-                                {selectedVehicle.driver?.languages?.length > 0 ? (
-                                    selectedVehicle.driver.languages.map((l) => (
-                                        <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
-                                    ))
-                                ) : (
-                                    <span className="text-[11px] text-gray-400">-</span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <button 
-                                type="button" 
-                                disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
-                                onClick={() => openConfirm(selectedVehicle)} 
-                                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-xs font-semibold hover:bg-blue-800 transition shadow-sm disabled:opacity-50"
-                            >
-                                Assign
-                            </button>
-                        </div>
+            <div className="flex gap-4 items-start">
+                {/* Left Side: Vehicle Grid */}
+                <div className="flex-1">
+                    <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
+                        {(() => {
+                            const vehicleMap = {};
+                            vehicles.forEach((v) => {
+                                const reg = v.driver?.registration_number ?? '';
+                                const match = reg.match(/\d+/);
+                                const num = match ? parseInt(match[0], 10) : NaN;
+                                if (!isNaN(num) && num >= 1 && num <= 100) {
+                                    vehicleMap[num] = v;
+                                }
+                            });
+
+                            return Array.from({ length: 100 }, (_, i) => {
+                                const slotNum = i + 1;
+                                const vehicle = vehicleMap[slotNum] ?? null;
+                                return (
+                                    <VehicleSlot
+                                        key={`slot-${slotNum}`}
+                                        vehicle={vehicle}
+                                        number={slotNum}
+                                        selectedLanguageFilter={selectedLanguageFilter}
+                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                    />
+                                );
+                            });
+                        })()}
                     </div>
-                ) : (
-                    <p className="text-sm text-gray-300 w-full text-center">Click an active vehicle slot to see details</p>
-                )}
-            </div>
+                </div>
 
-            <div className="flex flex-wrap gap-1.5 max-h-[400px] overflow-y-auto pb-4">
-                {(() => {
-                    const vehicleMap = {};
-                    vehicles.forEach((v) => {
-                        const reg = v.driver?.registration_number ?? '';
-                        const match = reg.match(/\d+/);
-                        const num = match ? parseInt(match[0], 10) : NaN;
-                        if (!isNaN(num) && num >= 1 && num <= 100) {
-                            vehicleMap[num] = v;
-                        }
-                    });
+                {/* Right Side: Vehicle Details Side Panel */}
+                <div className="w-[280px] shrink-0 border border-gray-200 rounded-xl bg-gray-50 flex flex-col shadow-sm max-h-[420px] overflow-hidden">
+                    {selectedVehicle ? (
+                        <div className="flex flex-col h-full">
+                            {/* Image Header */}
+                            <div className="relative h-[110px] w-full bg-gray-200 shrink-0">
+                                <div className="absolute top-2 left-2 bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow">
+                                    Slot {selectedVehicle._slotNumber}
+                                </div>
+                                <ImageBox
+                                    path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                <div className="absolute bottom-2 left-2 right-2 text-white">
+                                    <p className="text-[13px] font-bold leading-tight truncate">
+                                        {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
+                                    </p>
+                                    <p className="text-[10px] text-gray-200 truncate">
+                                        {selectedVehicle.driver?.mobile_number ?? '-'}
+                                    </p>
+                                </div>
+                            </div>
 
-                    return Array.from({ length: 100 }, (_, i) => {
-                        const slotNum = i + 1;
-                        const vehicle = vehicleMap[slotNum] ?? null;
-                        return (
-                            <VehicleSlot
-                                key={`slot-${slotNum}`}
-                                vehicle={vehicle}
-                                number={slotNum}
-                                selectedLanguageFilter={selectedLanguageFilter}
-                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                            />
-                        );
-                    });
-                })()}
+                            {/* Details Body */}
+                            <div className="p-3 space-y-3 overflow-y-auto flex-1">
+                                <div className="flex justify-between items-center bg-white border rounded p-1.5">
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase">Registration</span>
+                                    <span className="text-[11px] font-bold text-red-700">{selectedVehicle.registration_number ?? '-'}</span>
+                                </div>
+
+                                <div>
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Vehicle Info</span>
+                                    <div className="bg-white border rounded p-2 text-[11px] space-y-1.5">
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Type</span>
+                                            <span className="font-semibold text-gray-800">{selectedVehicle.vehicle_type ?? '-'}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Model</span>
+                                            <span className="font-semibold text-gray-800 truncate max-w-[120px] text-right">{selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Passengers / Luggage</span>
+                                            <span className="font-semibold text-gray-800">{selectedVehicle.seating_capacity ?? '-'} / {selectedVehicle.luggage_capacity ?? '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Languages ({selectedVehicle.driver?.languages?.length || 0})</span>
+                                    <div className="bg-white border rounded p-2 space-y-2 min-h-[36px]">
+                                        {selectedVehicle.driver?.languages?.length > 0 ? (
+                                            selectedVehicle.driver.languages.map((l) => (
+                                                <div key={l.id || l.language_name} className="flex flex-col gap-1 border-b last:border-0 pb-1.5 last:pb-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <LanguageBadge language={l.language_name} size="sm" />
+                                                    </div>
+                                                    <div className="flex gap-4 text-[9px] text-black-500 pl-0.5">
+                                                        <span className="flex items-center gap-1">
+                                                            <span>Speaking :</span>
+                                                            <span className="font-bold text-gray-700">{l.speaking_level || '-'}</span>
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <span>Reading :</span>
+                                                            <span className="font-bold text-gray-700">{l.reading_level || '-'}</span>
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <span>Writing :</span>
+                                                            <span className="font-bold text-gray-700">{l.writing_level || '-'}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <span className="text-[10px] text-gray-400 italic">No languages listed</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Footer */}
+                            <div className="p-3 border-t bg-white shrink-0">
+                                <button 
+                                    type="button" 
+                                    disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
+                                    onClick={() => openConfirm(selectedVehicle)} 
+                                    className="w-full py-2 bg-blue-700 text-white rounded-lg text-[12px] font-bold hover:bg-blue-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                                >
+                                    {selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0 ? (
+                                        <>On a Trip</>
+                                    ) : selectedVehicle.driver?.duty_status !== 'on_duty' ? (
+                                        <>Off Duty</>
+                                    ) : (
+                                        <>Assign Trip</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center p-6 text-center text-gray-400">
+                            <Car size={32} className="mb-2 opacity-50" />
+                            <p className="text-xs font-medium">No Vehicle Selected</p>
+                            <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ── Confirmation Modal ── */}
