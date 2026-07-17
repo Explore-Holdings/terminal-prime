@@ -193,35 +193,131 @@
         </table>
     </div>
 
+    <!-- Financial Overview & Payment Collection Summary -->
+    <div style="margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 49%; vertical-align: top; padding-right: 1%;">
+                    <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 11px; text-transform: uppercase;">
+                        Collection by Payment Method
+                    </h4>
+                    <table class="trips-table" style="margin-top: 0;">
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th class="text-right">Collection Breakdown</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if(isset($paymentSummary['byMethod']) && count($paymentSummary['byMethod']) > 0)
+                                @foreach($paymentSummary['byMethod'] as $method => $data)
+                                    <tr>
+                                        <td><strong>{{ $method }}</strong> ({{ $data['count'] }} txns)</td>
+                                        <td class="text-right">
+                                            @foreach($data['currencies'] as $cur => $amt)
+                                                <span style="display: inline-block; background: #f3f4f6; padding: 2px 5px; border-radius: 3px; font-weight: bold; margin-left: 3px;">
+                                                    {{ $cur }} {{ number_format($amt) }}
+                                                </span>
+                                            @endforeach
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @else
+                                <tr>
+                                    <td colspan="2" style="text-align: center; color: #9ca3af;">No collection data</td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </td>
+                <td style="width: 49%; vertical-align: top; padding-left: 1%;">
+                    <h4 style="margin: 0 0 6px 0; color: #065f46; font-size: 11px; text-transform: uppercase;">
+                        Cash Notes Handover Breakdown
+                    </h4>
+                    <table class="trips-table" style="margin-top: 0;">
+                        <thead>
+                            <tr>
+                                <th>Currency</th>
+                                <th>Note Value</th>
+                                <th style="text-align: center;">Qty</th>
+                                <th class="text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if(isset($paymentSummary['cashNotes']) && count($paymentSummary['cashNotes']) > 0)
+                                @foreach($paymentSummary['cashNotes'] as $cn)
+                                    <tr>
+                                        <td><strong>{{ $cn['currency'] }}</strong></td>
+                                        <td>{{ number_format($cn['note_value']) }}</td>
+                                        <td style="text-align: center; font-weight: bold; color: #059669;">× {{ $cn['count'] }}</td>
+                                        <td class="text-right"><strong>{{ $cn['currency'] }} {{ number_format($cn['total']) }}</strong></td>
+                                    </tr>
+                                @endforeach
+                            @else
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: #9ca3af;">No cash notes recorded</td>
+                                </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+
     <h3>Assigned Trips Summary</h3>
     <table class="trips-table">
         <thead>
             <tr>
                 <th>Time</th>
                 <th>Customer</th>
-                <th>Driver</th>
-                <th>Vehicle / Reg No</th>
+                <th>Driver / Vehicle</th>
+                <th>Payment & Cash Notes</th>
                 <th>Dropoff Location</th>
                 <th class="text-right">Amount</th>
             </tr>
         </thead>
         <tbody>
             @forelse($trips as $trip)
+                @php
+                    $customer = $trip->customer;
+                    $paymentNotes = $customer?->payment_notes;
+                    if (is_string($paymentNotes)) {
+                        $paymentNotes = json_decode($paymentNotes, true);
+                    }
+                @endphp
                 <tr>
                     <td>{{ $trip->trip_assigned_at ? \Carbon\Carbon::parse($trip->trip_assigned_at)->format('h:i A') : '-' }}</td>
                     <td>
-                        {{ $trip->customer?->name ?? 'Guest' }}<br>
-                        <small style="color: #6b7280;">{{ $trip->customer?->customer_code }}</small>
+                        {{ $customer?->name ?? 'Guest' }}<br>
+                        <small style="color: #6b7280;">{{ $customer?->customer_code }}</small>
                     </td>
                     <td>
                         {{ $trip->driver?->first_name }} {{ $trip->driver?->last_name }}<br>
-                        <small style="color: #6b7280;">{{ $trip->driver?->mobile_number }}</small>
+                        <small style="color: #6b7280;">{{ $trip->driver?->vehicle?->registration_number ?? '-' }} ({{ $trip->driver?->vehicle?->vehicle_type ?? '' }})</small>
                     </td>
                     <td>
-                        {{ $trip->driver?->vehicle?->registration_number ?? '-' }}<br>
-                        <small style="color: #6b7280;">{{ $trip->driver?->vehicle?->vehicle_type ?? '' }}</small>
+                        @if(is_array($paymentNotes) && count($paymentNotes) > 0)
+                            @foreach($paymentNotes as $p)
+                                <div style="font-size: 10px; margin-bottom: 2px;">
+                                    <strong>[{{ $p['method'] ?? 'Paid' }}]</strong> {{ $p['currency'] ?? 'LKR' }} {{ number_format($p['amount'] ?? 0) }}
+                                    @if(!empty($p['notes']) && is_array($p['notes']))
+                                        <br><small style="color: #059669;">
+                                            @foreach($p['notes'] as $n)
+                                                💵 {{ $n['amount'] }}×{{ $n['count'] }} ({{ $n['currency'] ?? ($p['currency'] ?? 'LKR') }}) &nbsp;
+                                            @endforeach
+                                        </small>
+                                    @endif
+                                    @if(!empty($p['transaction_id']))
+                                        <br><small style="color: #2563eb;">TXN: {{ $p['transaction_id'] }}</small>
+                                    @endif
+                                </div>
+                            @endforeach
+                        @else
+                            {{ $customer?->payment_method ?? 'Cash' }}
+                        @endif
                     </td>
-                    <td>{{ $trip->customer?->dropoff_location ?? '-' }}</td>
+                    <td>{{ $customer?->dropoff_location ?? '-' }}</td>
                     <td class="text-right">LKR {{ number_format($trip->tripFinance?->total_amount ?? 0) }}</td>
                 </tr>
             @empty
@@ -240,6 +336,10 @@
                 <td class="totals-label">Total Trips:</td>
                 <td class="text-right">{{ count($trips) }}</td>
             </tr>
+            <!-- <tr>
+                <td class="totals-label">Total Driver Share:</td>
+                <td class="text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->driver_share ?? 0)) }}</td>
+            </tr> -->
             <tr>
                 <td class="totals-label">Total Revenue:</td>
                 <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0)) }}</td>
