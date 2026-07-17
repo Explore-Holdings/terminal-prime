@@ -1012,7 +1012,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
                         <span>🌐</span>
-                        <span>Driver Languages (from DB)</span>
+                        <span>Driver Languages</span>
                     </div>
 
                     {customerPrefLang && (
@@ -1426,7 +1426,7 @@ function TripCard({ trip }) {
             <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {trip.driver?.full_name ?? 'Driver'}
+                        {(trip.driver?.first_name || trip.driver?.last_name) ? `${trip.driver?.first_name ?? ''} ${trip.driver?.last_name ?? ''}`.trim() : 'Driver'}
                     </h3>
 
                     <p className="text-[10px] text-black-800 truncate">

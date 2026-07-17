@@ -16,6 +16,7 @@ class ManagerReportController extends Controller
         $range = $request->get('range', 'today');
 
         $data = $this->getTripsByRange($request, $range);
+        $paymentSummary = $this->buildPaymentSummary($data['trips']);
 
         $reports = UserLoginLog::with('user')
             ->whereNotNull('handed_over_at')
@@ -40,6 +41,7 @@ class ManagerReportController extends Controller
 
         return Inertia::render('Reports/ManagerReports', [
             'trips' => $data['trips'],
+            'paymentSummary' => $paymentSummary,
             'reports' => $reports,
             'filters' => [
                 'range' => $range,
@@ -54,9 +56,11 @@ class ManagerReportController extends Controller
     {
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
+        $paymentSummary = $this->buildPaymentSummary($data['trips']);
 
         $pdf = Pdf::loadView('pdf.today-trips', [
             'trips' => $data['trips'],
+            'paymentSummary' => $paymentSummary,
             'date' => $data['date'],
             'title' => $data['title'],
             'is_print' => false,
@@ -71,9 +75,11 @@ class ManagerReportController extends Controller
     {
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
+        $paymentSummary = $this->buildPaymentSummary($data['trips']);
 
         return view('pdf.today-trips', [
             'trips' => $data['trips'],
+            'paymentSummary' => $paymentSummary,
             'date' => $data['date'],
             'title' => $data['title'],
             'is_print' => true,
@@ -149,6 +155,116 @@ class ManagerReportController extends Controller
             'trips' => $query->latest('trip_assigned_at')->get(),
             'title' => $title,
             'date' => $dateStr,
+        ];
+    }
+
+    private function buildPaymentSummary($trips)
+    {
+        $byMethod = [];
+        $currencies = [];
+        $cashNotesMap = [];
+        $posTransactions = [];
+
+        foreach ($trips as $trip) {
+            $customer = $trip->customer;
+            if (!$customer) continue;
+
+            $paymentNotes = $customer->payment_notes;
+            if (is_string($paymentNotes)) {
+                $paymentNotes = json_decode($paymentNotes, true);
+            }
+
+            if (!is_array($paymentNotes) || empty($paymentNotes)) {
+                if ($customer->payment_method) {
+                    $method = $customer->payment_method;
+                    $paid = (float)($customer->paid_amount ?? 0);
+                    $cur = $customer->agent?->currency ?? 'LKR';
+
+                    if (!isset($byMethod[$method])) {
+                        $byMethod[$method] = ['total' => 0, 'currencies' => [], 'count' => 0];
+                    }
+                    $byMethod[$method]['total'] += $paid;
+                    $byMethod[$method]['count'] += 1;
+                    $byMethod[$method]['currencies'][$cur] = ($byMethod[$method]['currencies'][$cur] ?? 0) + $paid;
+                    $currencies[$cur] = ($currencies[$cur] ?? 0) + $paid;
+                }
+                continue;
+            }
+
+            foreach ($paymentNotes as $p) {
+                $method = $p['method'] ?? 'Other';
+                $currency = strtoupper($p['currency'] ?? 'LKR');
+                $amount = (float)($p['amount'] ?? 0);
+
+                if (!isset($byMethod[$method])) {
+                    $byMethod[$method] = [
+                        'total' => 0,
+                        'currencies' => [],
+                        'count' => 0,
+                    ];
+                }
+                $byMethod[$method]['total'] += $amount;
+                $byMethod[$method]['count'] += 1;
+                $byMethod[$method]['currencies'][$currency] = ($byMethod[$method]['currencies'][$currency] ?? 0) + $amount;
+
+                $currencies[$currency] = ($currencies[$currency] ?? 0) + $amount;
+
+                if ($method === 'POS' || !empty($p['transaction_id']) || !empty($p['card_number'])) {
+                    $posTransactions[] = [
+                        'customer_name' => $customer->name,
+                        'customer_code' => $customer->customer_code,
+                        'method' => $method,
+                        'amount' => $amount,
+                        'currency' => $currency,
+                        'transaction_id' => $p['transaction_id'] ?? $customer->transaction_id,
+                        'card_number' => $p['card_number'] ?? $customer->card_number,
+                    ];
+                }
+
+                if ($method === 'Cash' && !empty($p['notes']) && is_array($p['notes'])) {
+                    foreach ($p['notes'] as $note) {
+                        $noteVal = (float)($note['amount'] ?? 0);
+                        $noteQty = (int)($note['count'] ?? 0);
+                        $noteCur = strtoupper($note['currency'] ?? $currency);
+
+                        if ($noteVal > 0 && $noteQty > 0) {
+                            $key = $noteCur . '_' . $noteVal;
+                            if (!isset($cashNotesMap[$key])) {
+                                $cashNotesMap[$key] = [
+                                    'currency' => $noteCur,
+                                    'note_value' => $noteVal,
+                                    'count' => 0,
+                                    'total' => 0,
+                                ];
+                            }
+                            $cashNotesMap[$key]['count'] += $noteQty;
+                            $cashNotesMap[$key]['total'] += ($noteVal * $noteQty);
+                        }
+                    }
+                }
+            }
+        }
+
+        $cashNotes = array_values($cashNotesMap);
+        usort($cashNotes, function ($a, $b) {
+            if ($a['currency'] === $b['currency']) {
+                return $b['note_value'] <=> $a['note_value'];
+            }
+            return strcmp($a['currency'], $b['currency']);
+        });
+
+        return [
+            'byMethod' => $byMethod,
+            'currencies' => $currencies,
+            'cashNotes' => $cashNotes,
+            'posTransactions' => $posTransactions,
+            'totals' => [
+                'trips_count' => count($trips),
+                'total_amount' => $trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0),
+                'driver_share' => $trips->sum(fn($t) => $t->tripFinance?->driver_share ?? 0),
+                'agent_share' => $trips->sum(fn($t) => $t->tripFinance?->agent_share ?? 0),
+                'balance' => $trips->sum(fn($t) => $t->tripFinance?->balance ?? 0),
+            ],
         ];
     }
 }
