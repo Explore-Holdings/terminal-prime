@@ -244,75 +244,113 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
-                    {/* Vehicle detail area – always visible to prevent layout shift */}
-                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2">
-                        {selectedVehicle ? (
-                            <div className="p-3 flex gap-4 items-start w-full relative">
-                                <div className="relative shrink-0">
-                                    <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
-                                        {selectedVehicle._slotNumber}
-                                    </div>
-                                    <ImageBox
-                                        path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
-                                        className="w-28 h-20"
-                                    />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <h3 className="font-semibold text-sm">
-                                        {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
-                                    </h3>
-                                    <p className="text-xs text-gray-600">
-                                        {selectedVehicle.driver?.mobile_number ?? '-'}
-                                    </p>
-                                    <p className="text-xs font-bold text-red-700 mt-0.5">
-                                        {selectedVehicle.registration_number ?? '-'}
-                                    </p>
-                                    <p className="text-[11px] text-gray-500 mt-0.5">
-                                        {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 items-center mt-0.5">
-                                        <span className="text-[11px] font-semibold text-gray-500">🌐</span>
-                                        {selectedVehicle.driver?.languages?.length > 0 ? (
-                                            selectedVehicle.driver.languages.map((l) => (
-                                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
-                                            ))
-                                        ) : (
-                                            <span className="text-[11px] text-gray-400">-</span>
-                                        )}
-                                    </div>
-                                </div>
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
+                    <div className="flex gap-4 items-start">
+                        {/* Left Side: Vehicle Grid */}
+                        <div className="flex-1">
+                            <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
+                                {(() => {
+                                    const vehicleMap = {};
+                                    vehicles.forEach((v) => {
+                                        const reg = v.driver?.registration_number ?? '';
+                                        const match = reg.match(/\d+/);
+                                        const num = match ? parseInt(match[0], 10) : NaN;
+                                        if (!isNaN(num) && num >= 1 && num <= 95) {
+                                            vehicleMap[num] = v;
+                                        }
+                                    });
+
+                                    return Array.from({ length: 95 }, (_, i) => {
+                                        const slotNum = i + 1;
+                                        const vehicle = vehicleMap[slotNum] ?? null;
+                                        return (
+                                            <VehicleSlot
+                                                key={`slot-${slotNum}`}
+                                                vehicle={vehicle}
+                                                number={slotNum}
+                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                            />
+                                        );
+                                    });
+                                })()}
                             </div>
-                        ) : (
-                            <p className="text-sm text-gray-300 w-full text-center">Click a vehicle slot to see details</p>
-                        )}
-                    </div>
+                        </div>
 
-                    <div className="flex flex-wrap gap-1.5">
-                        {(() => {
-                            const vehicleMap = {};
-                            vehicles.forEach((v) => {
-                                const reg = v.driver?.registration_number ?? '';
-                                const match = reg.match(/\d+/);
-                                const num = match ? parseInt(match[0], 10) : NaN;
-                                if (!isNaN(num) && num >= 1 && num <= 100) {
-                                    vehicleMap[num] = v;
-                                }
-                            });
+                        {/* Right Side: Vehicle Details Side Panel */}
+                        <div className="w-[280px] shrink-0 border border-gray-200 rounded-xl bg-gray-50 flex flex-col shadow-sm max-h-[420px] overflow-hidden">
+                            {selectedVehicle ? (
+                                <div className="flex flex-col h-full">
+                                    {/* Image Header */}
+                                    <div className="relative h-[200px] w-full bg-gray-200 shrink-0 rounded-t-xl overflow-hidden">
+                                        {/* Slot Number - Top Left */}
+                                        <div className="absolute top-2 left-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
+                                            Slot {selectedVehicle._slotNumber}
+                                        </div>
 
-                            return Array.from({ length: 100 }, (_, i) => {
-                                const slotNum = i + 1;
-                                const vehicle = vehicleMap[slotNum] ?? null;
-                                return (
-                                    <VehicleSlot
-                                        key={`slot-${slotNum}`}
-                                        vehicle={vehicle}
-                                        number={slotNum}
-                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                    />
-                                );
-                            });
-                        })()}
+                                        <ImageBox
+                                            path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
+                                            className="w-full h-full object-cover"
+                                        />
+
+                                        {/* Gradient Overlay */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
+
+                                        {/* Content overlaid on image */}
+                                        <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2 pointer-events-none">
+                                            
+                                            {/* Driver & Reg Details */}
+                                            <div className="text-white pl-1 drop-shadow-md flex-1 min-w-0">
+                                                <p className="text-[14px] font-bold leading-tight truncate">
+                                                    {(selectedVehicle.driver?.first_name ?? '') || 'Driver'}
+                                                </p>
+                                                <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                                    <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                                    {/* <span className="opacity-50">|</span>
+                                                    <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span> */}
+                                                </p>
+                                                <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                                    {/* <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                                    <span className="opacity-50">|</span> */}
+                                                    <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span>
+                                                </p>
+                                            </div>
+
+                                            {/* Vehicle Info Transparent Card */}
+                                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-1.5 text-white shadow-sm shrink-0 min-w-[110px]">
+                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px]">
+                                                    <div>
+                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span>
+                                                        <div className="font-bold truncate" title={selectedVehicle.vehicle_type}>{selectedVehicle.vehicle_type ?? '-'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span>
+                                                        <div className="font-bold truncate" title={`${selectedVehicle.brand ?? '-'} ${selectedVehicle.model ?? ''}`}>
+                                                            {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-2 border-t border-white/20 pt-1 mt-0.5 flex justify-between items-center">
+                                                        <div className="flex items-center gap-1">
+                                                            <span title="Passengers">👥</span>
+                                                            <span className="font-bold">: {selectedVehicle.seating_capacity ?? '-'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span title="Luggage">🧳</span>
+                                                            <span className="font-bold">: {selectedVehicle.luggage_capacity ?? '-'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center p-6 text-center text-gray-400">
+                                    <Car size={32} className="mb-2 opacity-50" />
+                                    <p className="text-xs font-medium">No Vehicle Selected</p>
+                                    <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </Section>
 
@@ -1140,12 +1178,12 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 const reg = v.driver?.registration_number ?? '';
                                 const match = reg.match(/\d+/);
                                 const num = match ? parseInt(match[0], 10) : NaN;
-                                if (!isNaN(num) && num >= 1 && num <= 100) {
+                                if (!isNaN(num) && num >= 1 && num <= 95) {
                                     vehicleMap[num] = v;
                                 }
                             });
 
-                            return Array.from({ length: 100 }, (_, i) => {
+                            return Array.from({ length: 95 }, (_, i) => {
                                 const slotNum = i + 1;
                                 const vehicle = vehicleMap[slotNum] ?? null;
                                 return (
@@ -1170,8 +1208,8 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                         <div className="flex flex-col h-full">
                             {/* Image Header */}
                             <div className="relative h-[200px] w-full bg-gray-200 shrink-0 rounded-t-xl overflow-hidden">
-                                {/* Slot Number - Top Right */}
-                                <div className="absolute top-2 right-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
+                                {/* Slot Number - Top Left */}
+                                <div className="absolute top-2 left-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
                                     Slot {selectedVehicle._slotNumber}
                                 </div>
 
@@ -1184,75 +1222,64 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
 
                                 {/* Content overlaid on image */}
-                                <div className="absolute bottom-2 left-2 right-2 flex flex-col gap-2 pointer-events-none">
+                                <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2 pointer-events-none">
+                                    
+                                    {/* Driver & Reg Details */}
+                                    <div className="text-white pl-1 drop-shadow-md flex-1 min-w-0">
+                                        <p className="text-[14px] font-bold leading-tight truncate">
+                                            {(selectedVehicle.driver?.first_name ?? '') || 'Driver'}
+                                        </p>
+                                        <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                            <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                            {/* <span className="opacity-50">|</span>
+                                            <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span> */}
+                                        </p>
+                                        <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                            {/* <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span> */}
+                                            {/* <span className="opacity-50">|</span> */}
+                                            <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span>
+                                        </p>
+                                    </div>
+
                                     {/* Vehicle Info Transparent Card */}
-                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-2 text-white shadow-sm">
-                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[10px]">
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-1.5 text-white shadow-sm shrink-0 min-w-[110px]">
+                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px]">
                                             <div>
-                                                <span className="opacity-70 text-[9px] uppercase tracking-wider block">Type</span>
-                                                <div className="font-bold">{selectedVehicle.vehicle_type ?? '-'}</div>
+                                                {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span> */}
+                                                <div className="font-bold truncate" title={selectedVehicle.vehicle_type}>{selectedVehicle.vehicle_type ?? '-'}</div>
                                             </div>
                                             <div>
-                                                <span className="opacity-70 text-[9px] uppercase tracking-wider block">Model</span>
+                                                {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span> */}
                                                 <div className="font-bold truncate" title={`${selectedVehicle.brand ?? '-'} ${selectedVehicle.model ?? ''}`}>
                                                     {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
                                                 </div>
                                             </div>
-                                            <div className="col-span-2 border-t border-white/20 pt-1.5 mt-0.5 flex justify-between items-center">
-                                                <div className="flex items-center gap-1.5">
+                                            <div className="col-span-2 border-t border-white/20 pt-1 mt-0.5 flex justify-between items-center">
+                                                <div className="flex items-center gap-1">
                                                     <span title="Passengers">👥</span>
                                                     <span className="font-bold">: {selectedVehicle.seating_capacity ?? '-'}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex items-center gap-1">
                                                     <span title="Luggage">🧳</span>
                                                     <span className="font-bold">: {selectedVehicle.luggage_capacity ?? '-'}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Driver & Reg Details */}
-                                    <div className="text-white pl-1 drop-shadow-md">
-                                        <p className="text-[14px] font-bold leading-tight truncate">
-                                            {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
-                                        </p>
-                                        <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
-                                            <span>{selectedVehicle.driver?.mobile_number ?? '-'}</span>
-                                            <span className="opacity-50">|</span>
-                                            <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span>
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
 
                             {/* Details Body */}
                             <div className="p-3 space-y-3 overflow-y-auto flex-1 bg-white">
-
                                 <div>
                                     <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Languages ({selectedVehicle.driver?.languages?.length || 0})</span>
-                                    <div className="bg-white border rounded p-2 space-y-2 min-h-[36px]">
+                                    <div className="bg-white border rounded p-2 min-h-[36px]">
                                         {selectedVehicle.driver?.languages?.length > 0 ? (
-                                            selectedVehicle.driver.languages.map((l) => (
-                                                <div key={l.id || l.language_name} className="flex flex-col gap-1 border-b last:border-0 pb-1.5 last:pb-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <LanguageBadge language={l.language_name} size="sm" />
-                                                    </div>
-                                                    <div className="flex gap-4 text-[9px] text-black-500 pl-0.5">
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Speaking :</span>
-                                                            <span className="font-bold text-gray-700">{l.speaking_level || '-'}</span>
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Reading :</span>
-                                                            <span className="font-bold text-gray-700">{l.reading_level || '-'}</span>
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Writing :</span>
-                                                            <span className="font-bold text-gray-700">{l.writing_level || '-'}</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedVehicle.driver.languages.map((l) => (
+                                                    <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                                ))}
+                                            </div>
                                         ) : (
                                             <span className="text-[10px] text-gray-400 italic">No languages listed</span>
                                         )}
@@ -1261,7 +1288,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             </div>
 
                             {/* Action Footer */}
-                            <div className="p-3 border-t bg-white shrink-0">
+                            <div className="p-3 pt-0 bg-white shrink-0">
                                 <button 
                                     type="button" 
                                     disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
