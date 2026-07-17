@@ -1012,7 +1012,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
                         <span>🌐</span>
-                        <span>Driver Languages (from DB)</span>
+                        <span>Driver Languages</span>
                     </div>
 
                     {customerPrefLang && (
