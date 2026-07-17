@@ -1,9 +1,9 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { Clock, Eye, Printer, FileText, Calendar, CheckCircle } from 'lucide-react';
+import { Clock, Eye, Printer, FileText, Calendar, CheckCircle, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
-export default function ManagerReports({ trips = [], reports = [], filters = {} }) {
+export default function ManagerReports({ trips = [], reports = [], filters = {}, paymentSummary = null }) {
     const currentRange = filters.range || 'today';
     const [fromDate, setFromDate] = useState(filters.from || '');
     const [toDate, setToDate] = useState(filters.to || '');
@@ -50,6 +50,10 @@ export default function ManagerReports({ trips = [], reports = [], filters = {} 
 
     const totalTrips = trips.length;
     const totalRevenue = trips.reduce((sum, t) => sum + Number(t.trip_finance?.total_amount ?? 0), 0);
+
+    const cashNotes = paymentSummary?.cashNotes ?? [];
+    const byMethod = paymentSummary?.byMethod ?? {};
+    const posTransactions = paymentSummary?.posTransactions ?? [];
 
     const exportQuery = currentRange === 'custom'
         ? `?range=custom&from=${filters.from || ''}&to=${filters.to || ''}`
@@ -144,6 +148,98 @@ export default function ManagerReports({ trips = [], reports = [], filters = {} 
                         )}
                     </div>
 
+                    {/* Collection & Cash Handover Summary Panel for Selected Range */}
+                    <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-4">
+                        <div className="border-b pb-3 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                                    <Wallet size={18} className="text-blue-700" />
+                                    Payment Collections & Cash Notes Summary ({currentRange.toUpperCase()})
+                                </h2>
+                                <p className="text-xs text-gray-500 mt-0.5">Aggregated breakdown of payment methods and cash note denominations</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Card 1: Collection by Payment Method & Currency */}
+                            <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
+                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <CreditCard size={15} className="text-blue-600" />
+                                    Collection by Payment Method
+                                </h3>
+
+                                <div className="space-y-2 text-xs">
+                                    {Object.keys(byMethod).length > 0 ? (
+                                        Object.entries(byMethod).map(([method, data]) => (
+                                            <div key={method} className="bg-white border rounded-lg p-2.5 space-y-1">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-gray-900 flex items-center gap-1.5">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-extrabold ${method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                            {method}
+                                                        </span>
+                                                        <span>({data.count} txns)</span>
+                                                    </span>
+                                                    <span className="font-black text-slate-900">
+                                                        LKR {data.total.toLocaleString()}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-1 pt-1 border-t">
+                                                    {Object.entries(data.currencies || {}).map(([cur, amt]) => (
+                                                        <span key={cur} className="bg-slate-100 text-slate-700 border px-2 py-0.5 rounded font-semibold text-[10px]">
+                                                            {cur} {Number(amt).toLocaleString()}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-400 italic">No collections recorded.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Card 2: Cash Denominations Handover */}
+                            <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
+                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <Banknote size={15} className="text-emerald-600" />
+                                    Cash Notes Denomination Summary
+                                </h3>
+
+                                {cashNotes.length > 0 ? (
+                                    <div className="overflow-hidden rounded-lg border bg-white">
+                                        <table className="w-full text-left text-xs">
+                                            <thead className="bg-slate-100 border-b text-slate-600 font-bold uppercase text-[10px]">
+                                                <tr>
+                                                    <th className="px-2.5 py-1.5">Currency</th>
+                                                    <th className="px-2.5 py-1.5">Note</th>
+                                                    <th className="px-2.5 py-1.5 text-center">Qty</th>
+                                                    <th className="px-2.5 py-1.5 text-right">Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y text-slate-700">
+                                                {cashNotes.map((cn, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50">
+                                                        <td className="px-2.5 py-1.5 font-bold text-slate-900">{cn.currency}</td>
+                                                        <td className="px-2.5 py-1.5 font-semibold">{Number(cn.note_value).toLocaleString()}</td>
+                                                        <td className="px-2.5 py-1.5 text-center font-bold text-emerald-700">× {cn.count}</td>
+                                                        <td className="px-2.5 py-1.5 text-right font-black text-slate-900">
+                                                            {cn.currency} {Number(cn.total).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="p-3 bg-white border rounded-lg text-center text-xs text-gray-400 italic">
+                                        No cash notes recorded for this range.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Trips List Panel */}
                     <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
                         <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
@@ -152,7 +248,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {} 
                                     <Calendar size={18} className="text-blue-700" />
                                     Trips list for this range ({totalTrips})
                                 </h2>
-                                <p className="text-xs text-gray-500 mt-0.5">Assigned trips during this period</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Assigned trips during this period with payment details</p>
                             </div>
 
                             <div className="text-right">
@@ -166,20 +262,25 @@ export default function ManagerReports({ trips = [], reports = [], filters = {} 
                                 <table className="w-full text-left text-sm whitespace-nowrap">
                                     <thead>
                                         <tr className="bg-gray-50 border-b text-gray-600 font-semibold uppercase text-[10px]">
-                                            <th className="px-6 py-3">Date & Time</th>
-                                            <th className="px-6 py-3">Customer</th>
-                                            <th className="px-6 py-3">Driver</th>
-                                            <th className="px-6 py-3">Vehicle</th>
-                                            <th className="px-6 py-3">Dropoff</th>
-                                            <th className="px-6 py-3 text-right">Amount</th>
+                                            <th className="px-5 py-3">Date & Time</th>
+                                            <th className="px-5 py-3">Customer</th>
+                                            <th className="px-5 py-3">Driver & Vehicle</th>
+                                            <th className="px-5 py-3">Payment & Cash Notes</th>
+                                            <th className="px-5 py-3">Dropoff</th>
+                                            <th className="px-5 py-3 text-right">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y text-gray-700">
                                         {trips.map((trip) => {
                                             const tripTime = new Date(trip.trip_assigned_at ?? trip.created_at);
+                                            const customer = trip.customer;
+                                            const paymentNotes = Array.isArray(customer?.payment_notes)
+                                                ? customer.payment_notes
+                                                : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer.payment_notes || '[]') : []);
+
                                             return (
                                                 <tr key={trip.id} className="hover:bg-gray-50/50 transition">
-                                                    <td className="px-6 py-4 text-xs">
+                                                    <td className="px-5 py-4 text-xs">
                                                         <div className="font-semibold text-gray-800">
                                                             {tripTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                                         </div>
@@ -187,22 +288,46 @@ export default function ManagerReports({ trips = [], reports = [], filters = {} 
                                                             {tripTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="font-semibold text-gray-900">{trip.customer?.name ?? 'Guest'}</div>
-                                                        <div className="text-xs text-gray-400">{trip.customer?.customer_code}</div>
+                                                    <td className="px-5 py-4">
+                                                        <div className="font-semibold text-gray-900">{customer?.name ?? 'Guest'}</div>
+                                                        <div className="text-xs text-gray-400">{customer?.customer_code}</div>
                                                     </td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-5 py-4">
                                                         <div className="font-semibold text-gray-900">{trip.driver?.first_name + ' ' + trip.driver?.last_name}</div>
-                                                        <div className="text-xs text-gray-400">{trip.driver?.mobile_number}</div>
+                                                        <div className="text-xs text-gray-400">{trip.driver?.vehicle?.registration_number ?? '-'} ({trip.driver?.vehicle?.vehicle_type ?? ''})</div>
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="font-semibold text-gray-900">{trip.driver?.vehicle?.registration_number ?? '-'}</div>
-                                                        <div className="text-xs text-gray-400">{trip.driver?.vehicle?.vehicle_type ?? ''}</div>
+                                                    <td className="px-5 py-4">
+                                                        {paymentNotes.length > 0 ? (
+                                                            <div className="space-y-1">
+                                                                {paymentNotes.map((p, pi) => (
+                                                                    <div key={pi} className="flex flex-wrap items-center gap-1 text-xs">
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                                            {p.method}
+                                                                        </span>
+                                                                        <span className="font-semibold text-gray-800">
+                                                                            {p.currency} {Number(p.amount).toLocaleString()}
+                                                                        </span>
+                                                                        {p.method === 'Cash' && Array.isArray(p.notes) && p.notes.map((n, ni) => (
+                                                                            <span key={ni} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] border">
+                                                                                💵 {n.amount} x {n.count} ({n.currency || p.currency})
+                                                                            </span>
+                                                                        ))}
+                                                                        {p.transaction_id && (
+                                                                            <span className="text-[10px] text-blue-600 font-mono">
+                                                                                TXN: {p.transaction_id}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">{customer?.payment_method ?? 'Cash'}</span>
+                                                        )}
                                                     </td>
-                                                    <td className="px-6 py-4 max-w-[150px] truncate" title={trip.customer?.dropoff_location}>
-                                                        {trip.customer?.dropoff_location ?? '-'}
+                                                    <td className="px-5 py-4 max-w-[150px] truncate" title={customer?.dropoff_location}>
+                                                        {customer?.dropoff_location ?? '-'}
                                                     </td>
-                                                    <td className="px-6 py-4 text-right font-bold text-gray-900">
+                                                    <td className="px-5 py-4 text-right font-bold text-gray-900">
                                                         LKR {Number(trip.trip_finance?.total_amount ?? 0).toLocaleString()}
                                                     </td>
                                                 </tr>
