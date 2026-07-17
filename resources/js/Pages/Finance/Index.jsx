@@ -341,8 +341,13 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             </td>
                                         </tr>
                                         {expandedDates.includes(group.date) && group.trips.map((trip) => {
-                                            const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
-                                            const originalAmount = Number(trip.customer?.paid_amount ?? 0);
+                                            const customer = trip.customer;
+                                            const paymentNotes = Array.isArray(customer?.payment_notes)
+                                                ? customer.payment_notes
+                                                : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer.payment_notes || '[]') : []);
+
+                                            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+                                            const originalAmount = Number(customer?.paid_amount ?? 0);
                                             const tf             = trip.trip_finance;
                                             const amountInLkr    = tf?.total_amount
                                                 ? Number(tf.total_amount)
@@ -405,14 +410,30 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                 <tr key={trip.id} className="hover:bg-blue-50/50 bg-white">
                                                     <td className="px-3 py-2 border-l-2 border-blue-500">
                                                         <div className="font-semibold text-gray-800">#{trip.id}</div>
-                                                        <div className="text-xs text-gray-500">{trip.customer?.name ?? '-'}</div>
+                                                        <div className="text-xs text-gray-500">{customer?.name ?? '-'}</div>
                                                     </td>
                                                     <td className="px-3 py-2 font-medium text-gray-700">
                                                         <div>LKR {amountInLkr.toLocaleString()}</div>
                                                         {originalCurrency !== 'LKR' && (
-                                                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1">
+                                                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1 mb-1">
                                                                 {originalCurrency} {originalAmount.toLocaleString()}
                                                             </span>
+                                                        )}
+                                                        {paymentNotes.length > 0 && (
+                                                            <div className="mt-1 space-y-1">
+                                                                {paymentNotes.map((p, pi) => (
+                                                                    <div key={pi} className="flex flex-wrap items-center gap-1 text-[10px]">
+                                                                        <span className={`px-1 py-0.5 rounded font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                                            {p.method}
+                                                                        </span>
+                                                                        {p.method === 'Cash' && Array.isArray(p.notes) && p.notes.map((n, ni) => (
+                                                                            <span key={ni} className="bg-slate-100 text-slate-700 px-1 py-0.5 rounded border font-semibold">
+                                                                                💵 {n.amount} x {n.count} ({n.currency || p.currency})
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
