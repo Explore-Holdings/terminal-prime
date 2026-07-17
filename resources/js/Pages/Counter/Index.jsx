@@ -29,7 +29,59 @@ const formatToLkrString = (amount, currency, rates) => {
     return `LKR ${Math.round(converted).toLocaleString()}`;
 };
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [] }) {
+const LANGUAGE_COLOR_PALETTES = [
+    { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', dot: '#3b82f6', activeBg: 'bg-blue-600 text-white' },
+    { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', dot: '#10b981', activeBg: 'bg-emerald-600 text-white' },
+    { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', dot: '#f59e0b', activeBg: 'bg-amber-600 text-white' },
+    { bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-300', dot: '#14b8a6', activeBg: 'bg-teal-600 text-white' },
+    { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', dot: '#a855f7', activeBg: 'bg-purple-600 text-white' },
+    { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300', dot: '#f43f5e', activeBg: 'bg-rose-600 text-white' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-300', dot: '#6366f1', activeBg: 'bg-indigo-600 text-white' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300', dot: '#06b6d4', activeBg: 'bg-cyan-600 text-white' },
+    { bg: 'bg-violet-100', text: 'text-violet-800', border: 'border-violet-300', dot: '#8b5cf6', activeBg: 'bg-violet-600 text-white' },
+    { bg: 'bg-sky-100', text: 'text-sky-800', border: 'border-sky-300', dot: '#0284c7', activeBg: 'bg-sky-600 text-white' },
+    { bg: 'bg-lime-100', text: 'text-lime-800', border: 'border-lime-300', dot: '#84cc16', activeBg: 'bg-lime-600 text-white' },
+    { bg: 'bg-pink-100', text: 'text-pink-800', border: 'border-pink-300', dot: '#ec4899', activeBg: 'bg-pink-600 text-white' },
+    { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', dot: '#f97316', activeBg: 'bg-orange-600 text-white' },
+    { bg: 'bg-fuchsia-100', text: 'text-fuchsia-800', border: 'border-fuchsia-300', dot: '#d946ef', activeBg: 'bg-fuchsia-600 text-white' },
+];
+
+const getLanguageStyle = (langName) => {
+    if (!langName) return LANGUAGE_COLOR_PALETTES[0];
+    const str = String(langName).trim().toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % LANGUAGE_COLOR_PALETTES.length;
+    return LANGUAGE_COLOR_PALETTES[index];
+};
+
+function LanguageBadge({ language, className = '', size = 'md', active = false, onClick = null, count = null }) {
+    const style = getLanguageStyle(language);
+    const isSmall = size === 'sm';
+    
+    return (
+        <span
+            onClick={onClick}
+            className={`inline-flex items-center gap-1 rounded-full border font-medium transition ${
+                isSmall ? 'px-1.5 py-0.2 text-[10px]' : 'px-2.5 py-0.5 text-xs'
+            } ${
+                active ? style.activeBg + ' border-transparent shadow-sm scale-105 font-bold' : `${style.bg} ${style.text} ${style.border}`
+            } ${onClick ? 'cursor-pointer hover:opacity-90 hover:scale-105 select-none' : ''} ${className}`}
+        >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? '#ffffff' : style.dot }} />
+            <span>{language}</span>
+            {count !== null && (
+                <span className={`text-[9px] px-1 rounded-full font-bold ml-0.5 ${active ? 'bg-white/30 text-white' : 'bg-black/10 text-current'}`}>
+                    {count}
+                </span>
+            )}
+        </span>
+    );
+}
+
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [checkoutInput, setCheckoutInput] = useState('');
@@ -219,9 +271,16 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                     <p className="text-[11px] text-gray-500 mt-0.5">
                                         {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
                                     </p>
-                                    <p className="text-[11px] font-semibold mt-0.5">
-                                        🌐 {selectedVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
-                                    </p>
+                                    <div className="flex flex-wrap gap-1 items-center mt-0.5">
+                                        <span className="text-[11px] font-semibold text-gray-500">🌐</span>
+                                        {selectedVehicle.driver?.languages?.length > 0 ? (
+                                            selectedVehicle.driver.languages.map((l) => (
+                                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                            ))
+                                        ) : (
+                                            <span className="text-[11px] text-gray-400">-</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -306,7 +365,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
             )}
 
             {showCheckoutConfirm && (
@@ -420,6 +479,7 @@ function Modal({
     locationVehiclePrices = [],
     vehicleRates = [],
     eurRates,
+    dbLanguages = [],
 }) {
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -459,7 +519,7 @@ function Modal({
 
                 <div className="p-6 min-h-[500px]">
                     {activeTab === 'customer' && (
-                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} />
+                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} />
                     )}
 
                     {activeTab === 'payment' && (
@@ -467,7 +527,7 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} />
+                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
                     )}
                 </div>
             </div>
@@ -475,7 +535,7 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
+function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages = [] }) {
     return (
         <form onSubmit={onSubmit} className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
@@ -546,14 +606,9 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates }) {
                     />
 
                     <datalist id="language-list">
-                        <option value="English" />
-                        <option value="Sinhala" />
-                        <option value="Tamil" />
-                        <option value="Arabic" />
-                        <option value="Chinese" />
-                        <option value="Russian" />
-                        <option value="German" />
-                        <option value="French" />
+                        {(dbLanguages || []).map((lang) => (
+                            <option key={lang} value={lang} />
+                        ))}
                     </datalist>
                 </div>
             </div>
@@ -818,7 +873,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates }) {
+function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm }) {
     const [confirmModal, setConfirmModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [rateMode, setRateMode] = useState('standard');
@@ -827,6 +882,17 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const [selectedCityId, setSelectedCityId] = useState('');
     const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
+
+    // Collect all unique languages from DB prop + vehicle driver languages
+    const allDbLanguages = Array.from(
+        new Set([
+            ...(dbLanguages || []),
+            ...vehicles.flatMap(v => v.driver?.languages?.map(l => l.language_name) || [])
+        ])
+    ).filter(Boolean);
+
+    const customerPrefLang = customerForm?.data?.language_preference || agent?.language_preference || '';
 
     const totalAmount = Number(paymentForm?.data?.price ?? 0);
     const currentCurrency = paymentForm?.data?.currency ?? 'LKR';
@@ -941,6 +1007,50 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
     return (
         <div>
+            {/* Language Legend & Filter Bar from DB */}
+            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <span>🌐</span>
+                        <span>Driver Languages (from DB)</span>
+                    </div>
+
+                    {customerPrefLang && (
+                        <div className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                            <span>⭐ Customer Preference:</span>
+                            <LanguageBadge language={customerPrefLang} size="sm" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <button
+                        type="button"
+                        onClick={() => setSelectedLanguageFilter(null)}
+                        className={`px-2.5 py-0.5 text-xs rounded-full font-semibold border transition ${
+                            selectedLanguageFilter === null
+                                ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                        }`}
+                    >
+                        All Languages ({vehicles.length})
+                    </button>
+
+                    {allDbLanguages.map((lang) => {
+                        const count = vehicles.filter(v => v.driver?.languages?.some(l => l.language_name === lang)).length;
+                        return (
+                            <LanguageBadge
+                                key={lang}
+                                language={lang}
+                                count={count}
+                                active={selectedLanguageFilter === lang}
+                                onClick={() => setSelectedLanguageFilter(selectedLanguageFilter === lang ? null : lang)}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+
             <div className="flex justify-between mb-3">
                 <h3 className="font-bold text-lg">Select Vehicle</h3>
                 <span className="text-sm text-gray-500">
@@ -974,9 +1084,16 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             <p className="text-[11px] text-gray-500 mt-0.5">
                                 {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
                             </p>
-                            <p className="text-[11px] font-semibold mt-0.5">
-                                🌐 {selectedVehicle.driver?.languages?.map((l) => l.language_name).join(', ') || '-'}
-                            </p>
+                            <div className="flex flex-wrap gap-1 items-center mt-0.5">
+                                <span className="text-[11px] font-semibold text-gray-500">🌐</span>
+                                {selectedVehicle.driver?.languages?.length > 0 ? (
+                                    selectedVehicle.driver.languages.map((l) => (
+                                        <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                    ))
+                                ) : (
+                                    <span className="text-[11px] text-gray-400">-</span>
+                                )}
+                            </div>
                         </div>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                             <button 
@@ -1014,6 +1131,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 key={`slot-${slotNum}`}
                                 vehicle={vehicle}
                                 number={slotNum}
+                                selectedLanguageFilter={selectedLanguageFilter}
                                 onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
                             />
                         );
@@ -1389,7 +1507,7 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleSlot({ vehicle, number, onClick }) {
+function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter }) {
     // No vehicle registered in this slot
     if (!vehicle) {
         return (
@@ -1402,16 +1520,47 @@ function VehicleSlot({ vehicle, number, onClick }) {
 
     const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
     const hasOngoingTrip = vehicle.driver?.trips && vehicle.driver.trips.length > 0;
+    const languages = vehicle.driver?.languages || [];
+    const languageNames = languages.map(l => l.language_name).filter(Boolean);
+
+    const matchesFilter = selectedLanguageFilter 
+        ? languageNames.includes(selectedLanguageFilter)
+        : null;
+
+    const dimClass = selectedLanguageFilter && !matchesFilter ? 'opacity-30 grayscale-[50%]' : '';
+    const highlightRing = selectedLanguageFilter && matchesFilter ? 'ring-2 ring-blue-600 ring-offset-1 scale-105 z-10' : '';
+
+    // Render language color dots (up to 4)
+    const languageDots = (
+        <div className="flex gap-0.5 items-center justify-center absolute bottom-0.5 inset-x-0">
+            {languageNames.slice(0, 4).map((lang, idx) => {
+                const style = getLanguageStyle(lang);
+                return (
+                    <span
+                        key={idx}
+                        className="w-1.5 h-1.5 rounded-full border border-white/80 shadow-xs shrink-0"
+                        style={{ backgroundColor: style.dot }}
+                        title={lang}
+                    />
+                );
+            })}
+            {languageNames.length > 4 && (
+                <span className="text-[7px] font-bold text-gray-500 leading-none">+</span>
+            )}
+        </div>
+    );
 
     // Vehicle on a trip
     if (hasOngoingTrip) {
         return (
             <div
-                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100"
+                className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
-                <span className="text-[14px] leading-none">{number}</span>
-                <span className="text-[9px] font-bold text-blue-600 mt-0.5 uppercase tracking-tighter">Trip</span>
+                <span className="text-[13px] leading-none">{number}</span>
+                <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter">Trip</span>
+                {languageDots}
             </div>
         );
     }
@@ -1420,11 +1569,13 @@ function VehicleSlot({ vehicle, number, onClick }) {
     if (!isOnDuty) {
         return (
             <div
-                className="w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-center text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100"
+                className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
-                <span className="text-[14px] leading-none">{number}</span>
-                <span className="text-[10px] font-semibold text-red-500 mt-0.5 uppercase">Off</span>
+                <span className="text-[13px] leading-none">{number}</span>
+                <span className="text-[9px] font-semibold text-red-500 uppercase">Off</span>
+                {languageDots}
             </div>
         );
     }
@@ -1432,19 +1583,18 @@ function VehicleSlot({ vehicle, number, onClick }) {
     // On-duty vehicle
     return (
         <div
-            className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[20px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110"
+            className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[18px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 relative ${dimClass} ${highlightRing}`}
             onClick={() => onClick?.(vehicle)}
+            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
         >
-            {number}
+            <span className="leading-none">{number}</span>
+            {languageDots}
         </div>
     );
 }
 
 function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
-    const languages =
-        vehicle.driver?.languages
-            ?.map((l) => l.language_name)
-            .join(', ') || '-';
+    const languages = vehicle.driver?.languages || [];
 
     return (
         <div className="relative border rounded-lg bg-gray-50 p-2 shadow-sm">
@@ -1458,16 +1608,12 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
 
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-xs truncate">
-                        {vehicle.driver?.first_name + ' ' + vehicle.driver?.last_name ?? 'Driver'}
+                        {(vehicle.driver?.first_name ?? '') + ' ' + (vehicle.driver?.last_name ?? '') || 'Driver'}
                     </h3>
 
                     <p className="text-[12px] text-gray-500 truncate">
                         {vehicle.driver?.mobile_number ?? '-'} | {vehicle.registration_number ?? '-'}
                     </p>
-
-                    {/* <p className="text-[11px] font-bold text-red-700 truncate">
-                        {vehicle.registration_number ?? '-'}
-                    </p> */}
 
                     <p className="text-[12px] text-gray-600 truncate">
                         {vehicle.brand ?? '-'} {vehicle.model ?? ''}
@@ -1477,9 +1623,16 @@ function VehicleSelectCard({ vehicle, index, onAssign, assigning }) {
                         Pax : {vehicle.seating_capacity ?? '-'} | Luggage : {vehicle.luggage_capacity ?? ''}
                     </p>
 
-                    <p className="text-[12px] text-blue-700 truncate">
-                        🌐 {languages}
-                    </p>
+                    <div className="flex flex-wrap gap-1 items-center mt-1">
+                        <span className="text-[11px] text-gray-500">🌐</span>
+                        {languages.length > 0 ? (
+                            languages.map((l) => (
+                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                            ))
+                        ) : (
+                            <span className="text-[11px] text-gray-400">-</span>
+                        )}
+                    </div>
                 </div>
             </div>
 
