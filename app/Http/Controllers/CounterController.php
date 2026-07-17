@@ -8,6 +8,7 @@ use App\Models\Country;
 use App\Models\Vehicle;
 use App\Models\RateSetting;
 use App\Models\LocationVehiclePrice;
+use App\Models\DriverLanguage;
 use App\Models\UserLoginLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +50,13 @@ class CounterController extends Controller
             'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
 
             'vehicleRates' => DB::table('vehicle_rates')->get(),
+
+            'dbLanguages' => DriverLanguage::select('language_name')
+                ->distinct()
+                ->whereNotNull('language_name')
+                ->where('language_name', '!=', '')
+                ->orderBy('language_name')
+                ->pluck('language_name'),
         ]);
     }
 
