@@ -447,6 +447,7 @@ export default function Edit({ driver, serviceCategories = [] }) {
 
                                 <Select label="Vehicle Type" name="vehicle_type" data={data} setData={setData} errors={errors}>
                                     <option value="">Select Vehicle Type</option>
+                                    <option>Economy</option>
                                     <option>Sedan</option>
                                     <option>SUV</option>
                                     <option>Van</option>
