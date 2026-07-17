@@ -244,75 +244,113 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 100)`} icon={<CarFront className="text-green-700" size={22} />}>
-                    {/* Vehicle detail area – always visible to prevent layout shift */}
-                    <div className="mb-4 border rounded-xl bg-gray-50 h-[100px] flex items-center overflow-hidden w-1/2">
-                        {selectedVehicle ? (
-                            <div className="p-3 flex gap-4 items-start w-full relative">
-                                <div className="relative shrink-0">
-                                    <div className="absolute -top-1 -left-1 bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full z-10">
-                                        {selectedVehicle._slotNumber}
-                                    </div>
-                                    <ImageBox
-                                        path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
-                                        className="w-28 h-20"
-                                    />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <h3 className="font-semibold text-sm">
-                                        {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
-                                    </h3>
-                                    <p className="text-xs text-gray-600">
-                                        {selectedVehicle.driver?.mobile_number ?? '-'}
-                                    </p>
-                                    <p className="text-xs font-bold text-red-700 mt-0.5">
-                                        {selectedVehicle.registration_number ?? '-'}
-                                    </p>
-                                    <p className="text-[11px] text-gray-500 mt-0.5">
-                                        {selectedVehicle.vehicle_type ?? '-'} : {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 items-center mt-0.5">
-                                        <span className="text-[11px] font-semibold text-gray-500">🌐</span>
-                                        {selectedVehicle.driver?.languages?.length > 0 ? (
-                                            selectedVehicle.driver.languages.map((l) => (
-                                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
-                                            ))
-                                        ) : (
-                                            <span className="text-[11px] text-gray-400">-</span>
-                                        )}
-                                    </div>
-                                </div>
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
+                    <div className="flex gap-4 items-start">
+                        {/* Left Side: Vehicle Grid */}
+                        <div className="flex-1">
+                            <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
+                                {(() => {
+                                    const vehicleMap = {};
+                                    vehicles.forEach((v) => {
+                                        const reg = v.driver?.registration_number ?? '';
+                                        const match = reg.match(/\d+/);
+                                        const num = match ? parseInt(match[0], 10) : NaN;
+                                        if (!isNaN(num) && num >= 1 && num <= 95) {
+                                            vehicleMap[num] = v;
+                                        }
+                                    });
+
+                                    return Array.from({ length: 95 }, (_, i) => {
+                                        const slotNum = i + 1;
+                                        const vehicle = vehicleMap[slotNum] ?? null;
+                                        return (
+                                            <VehicleSlot
+                                                key={`slot-${slotNum}`}
+                                                vehicle={vehicle}
+                                                number={slotNum}
+                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                            />
+                                        );
+                                    });
+                                })()}
                             </div>
-                        ) : (
-                            <p className="text-sm text-gray-300 w-full text-center">Click a vehicle slot to see details</p>
-                        )}
-                    </div>
+                        </div>
 
-                    <div className="flex flex-wrap gap-1.5">
-                        {(() => {
-                            const vehicleMap = {};
-                            vehicles.forEach((v) => {
-                                const reg = v.driver?.registration_number ?? '';
-                                const match = reg.match(/\d+/);
-                                const num = match ? parseInt(match[0], 10) : NaN;
-                                if (!isNaN(num) && num >= 1 && num <= 100) {
-                                    vehicleMap[num] = v;
-                                }
-                            });
+                        {/* Right Side: Vehicle Details Side Panel */}
+                        <div className="w-[280px] shrink-0 border border-gray-200 rounded-xl bg-gray-50 flex flex-col shadow-sm max-h-[420px] overflow-hidden">
+                            {selectedVehicle ? (
+                                <div className="flex flex-col h-full">
+                                    {/* Image Header */}
+                                    <div className="relative h-[200px] w-full bg-gray-200 shrink-0 rounded-t-xl overflow-hidden">
+                                        {/* Slot Number - Top Left */}
+                                        <div className="absolute top-2 left-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
+                                            Slot {selectedVehicle._slotNumber}
+                                        </div>
 
-                            return Array.from({ length: 100 }, (_, i) => {
-                                const slotNum = i + 1;
-                                const vehicle = vehicleMap[slotNum] ?? null;
-                                return (
-                                    <VehicleSlot
-                                        key={`slot-${slotNum}`}
-                                        vehicle={vehicle}
-                                        number={slotNum}
-                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                    />
-                                );
-                            });
-                        })()}
+                                        <ImageBox
+                                            path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
+                                            className="w-full h-full object-cover"
+                                        />
+
+                                        {/* Gradient Overlay */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
+
+                                        {/* Content overlaid on image */}
+                                        <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2 pointer-events-none">
+                                            
+                                            {/* Driver & Reg Details */}
+                                            <div className="text-white pl-1 drop-shadow-md flex-1 min-w-0">
+                                                <p className="text-[14px] font-bold leading-tight truncate">
+                                                    {(selectedVehicle.driver?.first_name ?? '') || 'Driver'}
+                                                </p>
+                                                <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                                    <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                                    {/* <span className="opacity-50">|</span>
+                                                    <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span> */}
+                                                </p>
+                                                <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                                    {/* <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                                    <span className="opacity-50">|</span> */}
+                                                    <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span>
+                                                </p>
+                                            </div>
+
+                                            {/* Vehicle Info Transparent Card */}
+                                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-1.5 text-white shadow-sm shrink-0 min-w-[110px]">
+                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px]">
+                                                    <div>
+                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span>
+                                                        <div className="font-bold truncate" title={selectedVehicle.vehicle_type}>{selectedVehicle.vehicle_type ?? '-'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span>
+                                                        <div className="font-bold truncate" title={`${selectedVehicle.brand ?? '-'} ${selectedVehicle.model ?? ''}`}>
+                                                            {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-2 border-t border-white/20 pt-1 mt-0.5 flex justify-between items-center">
+                                                        <div className="flex items-center gap-1">
+                                                            <span title="Passengers">👥</span>
+                                                            <span className="font-bold">: {selectedVehicle.seating_capacity ?? '-'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span title="Luggage">🧳</span>
+                                                            <span className="font-bold">: {selectedVehicle.luggage_capacity ?? '-'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center p-6 text-center text-gray-400">
+                                    <Car size={32} className="mb-2 opacity-50" />
+                                    <p className="text-xs font-medium">No Vehicle Selected</p>
+                                    <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </Section>
 
@@ -484,7 +522,7 @@ function Modal({
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-7xl max-h-[92vh] overflow-y-auto">
-                <div className="flex justify-between border-b px-6 py-4">
+                <div className="flex justify-between border-b px-6 py-2">
                     <div>
                         <h2 className="text-xl font-bold">Customer Processing</h2>
                         <p className="text-sm text-gray-500">
@@ -517,7 +555,7 @@ function Modal({
                     )}
                 </div>
 
-                <div className="p-6 min-h-[500px]">
+                <div className="p-4 min-h-[500px]">
                     {activeTab === 'customer' && (
                         <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} />
                     )}
@@ -883,14 +921,20 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
     const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
+    const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
 
     // Collect all unique languages from DB prop + vehicle driver languages
+    const allowedLanguages = ['english', 'arabic', 'korean', 'chinese', 'tamil', 'hindi'];
     const allDbLanguages = Array.from(
         new Set([
             ...(dbLanguages || []),
             ...vehicles.flatMap(v => v.driver?.languages?.map(l => l.language_name) || [])
         ])
-    ).filter(Boolean);
+    ).filter(Boolean).filter(lang => allowedLanguages.includes(lang.toLowerCase()));
+
+    const allVehicleTypes = Array.from(
+        new Set(vehicles.map(v => v.vehicle_type).filter(Boolean))
+    );
 
     const customerPrefLang = customerForm?.data?.language_preference || agent?.language_preference || '';
 
@@ -1007,47 +1051,113 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
 
     return (
         <div>
-            {/* Language Legend & Filter Bar from DB */}
-            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        <span>🌐</span>
-                        <span>Driver Languages</span>
-                    </div>
-
-                    {customerPrefLang && (
-                        <div className="text-xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                            <span>⭐ Customer Preference:</span>
-                            <LanguageBadge language={customerPrefLang} size="sm" />
+            {/* Filters Bar */}
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Languages Filter */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                            <span>🌐</span>
+                            <span>Driver Languages</span>
                         </div>
-                    )}
+                        {customerPrefLang && (
+                            <div className="text-[9px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                                <span>⭐ Customer Preference:</span>
+                                <span className="uppercase">{customerPrefLang}</span>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Compact 4 by 4 Grid */}
+                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedLanguageFilter(null)}
+                            className={`px-1.5 py-1 text-[9px] rounded border transition font-medium ${
+                                selectedLanguageFilter === null
+                                    ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                            All Languages
+                        </button>
+                        {allDbLanguages.map((lang) => {
+                            const count = vehicles.filter(v => v.driver?.languages?.some(l => l.language_name === lang)).length;
+                            const style = getLanguageStyle(lang);
+                            const activeClass = `${style.activeBg} border-transparent font-bold`;
+                            const inactiveClass = `bg-white text-slate-700 ${style.border} hover:bg-slate-50`;
+                            
+                            return (
+                                <button
+                                    key={lang}
+                                    type="button"
+                                    onClick={() => setSelectedLanguageFilter(selectedLanguageFilter === lang ? null : lang)}
+                                    className={`px-1.5 py-1 text-[9px] rounded border transition flex items-center justify-between gap-1 ${
+                                        selectedLanguageFilter === lang ? activeClass : inactiveClass
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1 truncate">
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: selectedLanguageFilter === lang ? '#ffffff' : style.dot }} />
+                                        <span className="truncate">{lang}</span>
+                                    </div>
+                                    {count > 0 && (
+                                        <span className={`text-[8px] px-1 rounded-full font-bold ${selectedLanguageFilter === lang ? 'bg-white/30' : 'bg-slate-100 text-slate-500'}`}>
+                                            {count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <button
-                        type="button"
-                        onClick={() => setSelectedLanguageFilter(null)}
-                        className={`px-2.5 py-0.5 text-xs rounded-full font-semibold border transition ${
-                            selectedLanguageFilter === null
-                                ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
-                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-                        }`}
-                    >
-                        All Languages ({vehicles.length})
-                    </button>
+                {/* Vehicle Types Filter */}
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                        <span>🚙</span>
+                        <span>Vehicle Types</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedVehicleTypeFilter(null)}
+                            className={`px-1.5 py-1 text-[9px] rounded border transition font-medium ${
+                                selectedVehicleTypeFilter === null
+                                    ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                            All Types
+                        </button>
+                        {allVehicleTypes.map((type, idx) => {
+                            const count = vehicles.filter(v => v.vehicle_type === type).length;
+                            const colors = ['border-purple-300 hover:bg-purple-50', 'border-emerald-300 hover:bg-emerald-50', 'border-orange-300 hover:bg-orange-50', 'border-pink-300 hover:bg-pink-50', 'border-cyan-300 hover:bg-cyan-50', 'border-rose-300 hover:bg-rose-50', 'border-indigo-300 hover:bg-indigo-50'];
+                            const activeColors = ['bg-purple-600 text-white border-purple-600 font-bold', 'bg-emerald-600 text-white border-emerald-600 font-bold', 'bg-orange-600 text-white border-orange-600 font-bold', 'bg-pink-600 text-white border-pink-600 font-bold', 'bg-cyan-600 text-white border-cyan-600 font-bold', 'bg-rose-600 text-white border-rose-600 font-bold', 'bg-indigo-600 text-white border-indigo-600 font-bold'];
+                            const dotColors = ['#9333ea', '#059669', '#ea580c', '#db2777', '#0891b2', '#e11d48', '#4f46e5'];
+                            
+                            const colorClass = selectedVehicleTypeFilter === type ? activeColors[idx % activeColors.length] : `bg-white text-slate-700 ${colors[idx % colors.length]}`;
+                            const dotColor = selectedVehicleTypeFilter === type ? '#ffffff' : dotColors[idx % dotColors.length];
 
-                    {allDbLanguages.map((lang) => {
-                        const count = vehicles.filter(v => v.driver?.languages?.some(l => l.language_name === lang)).length;
-                        return (
-                            <LanguageBadge
-                                key={lang}
-                                language={lang}
-                                count={count}
-                                active={selectedLanguageFilter === lang}
-                                onClick={() => setSelectedLanguageFilter(selectedLanguageFilter === lang ? null : lang)}
-                            />
-                        );
-                    })}
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setSelectedVehicleTypeFilter(selectedVehicleTypeFilter === type ? null : type)}
+                                    className={`px-1.5 py-1 text-[9px] rounded border transition flex items-center justify-between gap-1 ${colorClass}`}
+                                >
+                                    <div className="flex items-center gap-1 truncate">
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
+                                        <span className="truncate">{type}</span>
+                                    </div>
+                                    {count > 0 && (
+                                        <span className={`text-[8px] px-1 rounded-full font-bold ${selectedVehicleTypeFilter === type ? 'bg-white/30' : 'bg-slate-100 text-slate-500'}`}>
+                                            {count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
@@ -1068,12 +1178,12 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 const reg = v.driver?.registration_number ?? '';
                                 const match = reg.match(/\d+/);
                                 const num = match ? parseInt(match[0], 10) : NaN;
-                                if (!isNaN(num) && num >= 1 && num <= 100) {
+                                if (!isNaN(num) && num >= 1 && num <= 95) {
                                     vehicleMap[num] = v;
                                 }
                             });
 
-                            return Array.from({ length: 100 }, (_, i) => {
+                            return Array.from({ length: 95 }, (_, i) => {
                                 const slotNum = i + 1;
                                 const vehicle = vehicleMap[slotNum] ?? null;
                                 return (
@@ -1082,6 +1192,8 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                         vehicle={vehicle}
                                         number={slotNum}
                                         selectedLanguageFilter={selectedLanguageFilter}
+                                        selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                        allVehicleTypes={allVehicleTypes}
                                         onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
                                     />
                                 );
@@ -1095,75 +1207,79 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                     {selectedVehicle ? (
                         <div className="flex flex-col h-full">
                             {/* Image Header */}
-                            <div className="relative h-[110px] w-full bg-gray-200 shrink-0">
-                                <div className="absolute top-2 left-2 bg-blue-700 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow">
+                            <div className="relative h-[200px] w-full bg-gray-200 shrink-0 rounded-t-xl overflow-hidden">
+                                {/* Slot Number - Top Left */}
+                                <div className="absolute top-2 left-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
                                     Slot {selectedVehicle._slotNumber}
                                 </div>
+
                                 <ImageBox
                                     path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
                                     className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                <div className="absolute bottom-2 left-2 right-2 text-white">
-                                    <p className="text-[13px] font-bold leading-tight truncate">
-                                        {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
-                                    </p>
-                                    <p className="text-[10px] text-gray-200 truncate">
-                                        {selectedVehicle.driver?.mobile_number ?? '-'}
-                                    </p>
+
+                                {/* Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none"></div>
+
+                                {/* Content overlaid on image */}
+                                <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2 pointer-events-none">
+                                    
+                                    {/* Driver & Reg Details */}
+                                    <div className="text-white pl-1 drop-shadow-md flex-1 min-w-0">
+                                        <p className="text-[14px] font-bold leading-tight truncate">
+                                            {(selectedVehicle.driver?.first_name ?? '') || 'Driver'}
+                                        </p>
+                                        <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                            <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span>
+                                            {/* <span className="opacity-50">|</span>
+                                            <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span> */}
+                                        </p>
+                                        <p className="text-[11px] text-gray-200 font-medium flex items-center gap-1.5 mt-0.5">
+                                            {/* <span className="truncate">{selectedVehicle.driver?.mobile_number ?? '-'}</span> */}
+                                            {/* <span className="opacity-50">|</span> */}
+                                            <span className="text-yellow-300 font-bold tracking-wide">{selectedVehicle.registration_number ?? '-'}</span>
+                                        </p>
+                                    </div>
+
+                                    {/* Vehicle Info Transparent Card */}
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-1.5 text-white shadow-sm shrink-0 min-w-[110px]">
+                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px]">
+                                            <div>
+                                                {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span> */}
+                                                <div className="font-bold truncate" title={selectedVehicle.vehicle_type}>{selectedVehicle.vehicle_type ?? '-'}</div>
+                                            </div>
+                                            <div>
+                                                {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span> */}
+                                                <div className="font-bold truncate" title={`${selectedVehicle.brand ?? '-'} ${selectedVehicle.model ?? ''}`}>
+                                                    {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
+                                                </div>
+                                            </div>
+                                            <div className="col-span-2 border-t border-white/20 pt-1 mt-0.5 flex justify-between items-center">
+                                                <div className="flex items-center gap-1">
+                                                    <span title="Passengers">👥</span>
+                                                    <span className="font-bold">: {selectedVehicle.seating_capacity ?? '-'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span title="Luggage">🧳</span>
+                                                    <span className="font-bold">: {selectedVehicle.luggage_capacity ?? '-'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Details Body */}
-                            <div className="p-3 space-y-3 overflow-y-auto flex-1">
-                                <div className="flex justify-between items-center bg-white border rounded p-1.5">
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase">Registration</span>
-                                    <span className="text-[11px] font-bold text-red-700">{selectedVehicle.registration_number ?? '-'}</span>
-                                </div>
-
-                                <div>
-                                    <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Vehicle Info</span>
-                                    <div className="bg-white border rounded p-2 text-[11px] space-y-1.5">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Type</span>
-                                            <span className="font-semibold text-gray-800">{selectedVehicle.vehicle_type ?? '-'}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Model</span>
-                                            <span className="font-semibold text-gray-800 truncate max-w-[120px] text-right">{selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Passengers / Luggage</span>
-                                            <span className="font-semibold text-gray-800">{selectedVehicle.seating_capacity ?? '-'} / {selectedVehicle.luggage_capacity ?? '-'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
+                            <div className="p-3 space-y-3 overflow-y-auto flex-1 bg-white">
                                 <div>
                                     <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Languages ({selectedVehicle.driver?.languages?.length || 0})</span>
-                                    <div className="bg-white border rounded p-2 space-y-2 min-h-[36px]">
+                                    <div className="bg-white border rounded p-2 min-h-[36px]">
                                         {selectedVehicle.driver?.languages?.length > 0 ? (
-                                            selectedVehicle.driver.languages.map((l) => (
-                                                <div key={l.id || l.language_name} className="flex flex-col gap-1 border-b last:border-0 pb-1.5 last:pb-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <LanguageBadge language={l.language_name} size="sm" />
-                                                    </div>
-                                                    <div className="flex gap-4 text-[9px] text-black-500 pl-0.5">
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Speaking :</span>
-                                                            <span className="font-bold text-gray-700">{l.speaking_level || '-'}</span>
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Reading :</span>
-                                                            <span className="font-bold text-gray-700">{l.reading_level || '-'}</span>
-                                                        </span>
-                                                        <span className="flex items-center gap-1">
-                                                            <span>Writing :</span>
-                                                            <span className="font-bold text-gray-700">{l.writing_level || '-'}</span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedVehicle.driver.languages.map((l) => (
+                                                    <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                                ))}
+                                            </div>
                                         ) : (
                                             <span className="text-[10px] text-gray-400 italic">No languages listed</span>
                                         )}
@@ -1172,7 +1288,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                             </div>
 
                             {/* Action Footer */}
-                            <div className="p-3 border-t bg-white shrink-0">
+                            <div className="p-3 pt-0 bg-white shrink-0">
                                 <button 
                                     type="button" 
                                     disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
@@ -1184,7 +1300,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                     ) : selectedVehicle.driver?.duty_status !== 'on_duty' ? (
                                         <>Off Duty</>
                                     ) : (
-                                        <>Assign Trip</>
+                                        <>Assign Tour</>
                                     )}
                                 </button>
                             </div>
@@ -1567,7 +1683,7 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter }) {
+function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, allVehicleTypes = [] }) {
     // No vehicle registered in this slot
     if (!vehicle) {
         return (
@@ -1583,12 +1699,26 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter }) {
     const languages = vehicle.driver?.languages || [];
     const languageNames = languages.map(l => l.language_name).filter(Boolean);
 
-    const matchesFilter = selectedLanguageFilter 
-        ? languageNames.includes(selectedLanguageFilter)
-        : null;
-
-    const dimClass = selectedLanguageFilter && !matchesFilter ? 'opacity-30 grayscale-[50%]' : '';
-    const highlightRing = selectedLanguageFilter && matchesFilter ? 'ring-2 ring-blue-600 ring-offset-1 scale-105 z-10' : '';
+    const matchesLang = selectedLanguageFilter ? (languageNames.includes(selectedLanguageFilter) && isOnDuty) : true;
+    const matchesType = selectedVehicleTypeFilter ? (vehicle?.vehicle_type === selectedVehicleTypeFilter && isOnDuty) : true;
+    
+    // if any filter is active and this vehicle doesn't match, we dim it
+    const isFilterActive = selectedLanguageFilter || selectedVehicleTypeFilter;
+    const matchesFilter = matchesLang && matchesType;
+    
+    const dimClass = isFilterActive && !matchesFilter ? 'opacity-30 grayscale-[50%]' : '';
+    
+    let highlightRing = '';
+    if (isFilterActive && matchesFilter) {
+        if (selectedVehicleTypeFilter) {
+            const typeIndex = allVehicleTypes.indexOf(vehicle.vehicle_type);
+            const ringColors = ['ring-purple-500 bg-purple-50', 'ring-emerald-500 bg-emerald-50', 'ring-orange-500 bg-orange-50', 'ring-pink-500 bg-pink-50', 'ring-cyan-500 bg-cyan-50', 'ring-rose-500 bg-rose-50', 'ring-indigo-500 bg-indigo-50'];
+            const ringColor = typeIndex >= 0 ? ringColors[typeIndex % ringColors.length] : 'ring-blue-500 bg-blue-50';
+            highlightRing = `ring-2 ${ringColor} ring-offset-1 scale-105 z-10`;
+        } else {
+            highlightRing = 'ring-2 ring-blue-500 ring-offset-1 scale-105 z-10 bg-blue-50';
+        }
+    }
 
     // Render language color dots (up to 4)
     const languageDots = (
