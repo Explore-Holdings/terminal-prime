@@ -156,7 +156,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     <Wallet size={18} className="text-blue-700" />
                                     Payment Collections & Cash Notes Summary ({currentRange.toUpperCase()})
                                 </h2>
-                                <p className="text-xs text-gray-500 mt-0.5">Aggregated breakdown of payment methods and cash note denominations</p>
+                                {/* <p className="text-xs text-gray-500 mt-0.5">Aggregated breakdown of payment methods and cash note denominations</p> */}
                             </div>
                         </div>
 
