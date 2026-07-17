@@ -287,6 +287,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                             Slot {selectedVehicle._slotNumber}
                                         </div>
 
+                                        {/* Languages - Top Right */}
+                                        <div className="absolute top-2 right-2 flex flex-wrap gap-1 z-10 justify-end max-w-[150px]">
+                                            {selectedVehicle.driver?.languages?.map((l) => (
+                                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                            ))}
+                                        </div>
+
                                         <ImageBox
                                             path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view}
                                             className="w-full h-full object-cover"
@@ -319,11 +326,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg p-1.5 text-white shadow-sm shrink-0 min-w-[110px]">
                                                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[9px]">
                                                     <div>
-                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span>
+                                                        {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Type</span> */}
                                                         <div className="font-bold truncate" title={selectedVehicle.vehicle_type}>{selectedVehicle.vehicle_type ?? '-'}</div>
                                                     </div>
                                                     <div>
-                                                        <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span>
+                                                        {/* <span className="opacity-70 text-[8px] uppercase tracking-wider block">Model</span> */}
                                                         <div className="font-bold truncate" title={`${selectedVehicle.brand ?? '-'} ${selectedVehicle.model ?? ''}`}>
                                                             {selectedVehicle.brand ?? '-'} {selectedVehicle.model ?? ''}
                                                         </div>
@@ -1211,6 +1218,13 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                                 {/* Slot Number - Top Left */}
                                 <div className="absolute top-2 left-2 bg-blue-700 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full z-10 shadow-lg border border-blue-500">
                                     Slot {selectedVehicle._slotNumber}
+                                </div>
+
+                                {/* Languages - Top Right */}
+                                <div className="absolute top-2 right-2 flex flex-wrap gap-1 z-10 justify-end max-w-[150px]">
+                                    {selectedVehicle.driver?.languages?.map((l) => (
+                                        <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
+                                    ))}
                                 </div>
 
                                 <ImageBox
