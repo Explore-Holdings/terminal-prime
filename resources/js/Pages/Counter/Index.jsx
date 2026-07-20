@@ -213,7 +213,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
 
                     <div className="flex gap-3">
-                        <style>{`@keyframes blink-checkout { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+                        <style>{`@keyframes blink-checkout { 0%, 100% { outline: 2px solid #dc2626; outline-offset: 2px; } 50% { outline: 2px solid transparent; outline-offset: 2px; } }`}</style>
                         <button
                             type="button"
                             onClick={() => {
