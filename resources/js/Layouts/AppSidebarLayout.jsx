@@ -12,13 +12,13 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     const menuItems = [
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff','manager'] },
+        { label: 'Manager', path: '/manager-reports', roles: ['admin','manager'] },
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff'] },
         { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff'] },
         { label: 'Drivers', path: '/drivers', roles: ['admin'] },
         { label: 'Finance', path: '/finance', roles: ['admin', 'finance'] },
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin'] },
         { label: 'Reports', path: '/reports', roles: ['admin'] },
-        { label: 'Manager Reports', path: '/manager-reports', roles: ['admin','manager'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
     ];
 

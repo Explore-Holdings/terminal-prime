@@ -10,6 +10,7 @@ class UserLoginLog extends Model
 
     protected $fillable = [
         'user_id',
+        'shift_id',
         'ip_address',
         'user_agent',
         'login_at',

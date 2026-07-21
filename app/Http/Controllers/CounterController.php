@@ -92,7 +92,11 @@ class CounterController extends Controller
         $request->session()->regenerateToken();
 
         if ($log) {
-            $log->update(['logout_at' => now()]);
+            $shiftId = 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT);
+            $log->update([
+                'logout_at' => now(),
+                'shift_id' => $shiftId,
+            ]);
             $logId = $log->id;
         } else {
             $newLog = UserLoginLog::create([
@@ -102,6 +106,8 @@ class CounterController extends Controller
                 'login_at' => now()->subHours(1),
                 'logout_at' => now(),
             ]);
+            $shiftId = 'SHIFT-' . str_pad($newLog->id, 2, '0', STR_PAD_LEFT);
+            $newLog->update(['shift_id' => $shiftId]);
             $logId = $newLog->id;
         }
 

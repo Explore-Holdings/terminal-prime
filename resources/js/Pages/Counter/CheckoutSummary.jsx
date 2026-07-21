@@ -59,6 +59,12 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                 <span>Shift Ended</span>
                                 <span>·</span>
                                 <span>Officer: {user.name}</span>
+                                {log.shift_id && (
+                                    <>
+                                        <span>·</span>
+                                        <span>Shift ID: {log.shift_id}</span>
+                                    </>
+                                )}
                             </div>
                             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mt-2">
                                 Shift Checkout Summary
