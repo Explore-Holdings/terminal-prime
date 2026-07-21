@@ -1,7 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList } from 'lucide-react';
+import DataTable from 'react-data-table-component';
 
 const convertToLkr = (amount, currency, rates) => {
     if (!rates) return null;
@@ -81,7 +82,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [] }) {
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [checkoutInput, setCheckoutInput] = useState('');
@@ -108,7 +109,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     useEffect(() => {
         const interval = setInterval(() => {
             router.reload({
-                only: ['pendingAgents', 'vehicles', 'ongoingTrips'],
+                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'],
                 preserveScroll: true,
                 preserveState: true,
             });
@@ -404,6 +405,141 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         </div>
                     ) : (
                         <Empty text="No ongoing trips found." />
+                    )}
+                </Section>
+
+                {/* ── My Trips ── */}
+                <Section
+                    title={
+                        <div className="flex items-center gap-3">
+                            <span>My Trips</span>
+                            <span className="bg-slate-700 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                {myTrips.length}
+                            </span>
+                        </div>
+                    }
+                    icon={<ClipboardList className="text-slate-700" size={22} />}
+                >
+                    {myTrips.length ? (
+                        <div className="border border-slate-200 rounded-lg overflow-hidden shadow-xs">
+                            <DataTable
+                                columns={[
+                                    {
+                                        name: 'Trip #',
+                                        selector: row => row.id,
+                                        sortable: true,
+                                        width: '90px',
+                                        cell: row => <span className="font-bold text-slate-900">#{row.id}</span>,
+                                    },
+                                    {
+                                        name: 'Driver',
+                                        selector: row => (row.driver?.first_name || row.driver?.last_name) ? `${row.driver?.first_name ?? ''} ${row.driver?.last_name ?? ''}`.trim() : '-',
+                                        sortable: true,
+                                        cell: row => {
+                                            const driverName = (row.driver?.first_name || row.driver?.last_name)
+                                                ? `${row.driver?.first_name ?? ''} ${row.driver?.last_name ?? ''}`.trim()
+                                                : '-';
+                                            return (
+                                                <div className="py-1">
+                                                    <div className="font-medium text-slate-800">{driverName}</div>
+                                                    <div className="text-[10px] text-slate-500">{row.driver?.mobile_number ?? '-'}</div>
+                                                </div>
+                                            );
+                                        },
+                                    },
+                                    {
+                                        name: 'Vehicle',
+                                        selector: row => row.driver?.vehicle?.registration_number ?? '-',
+                                        sortable: true,
+                                        width: '130px',
+                                        cell: row => (
+                                            <span className="font-mono text-[11px] font-semibold text-slate-700">
+                                                {row.driver?.vehicle?.registration_number ?? '-'}
+                                            </span>
+                                        ),
+                                    },
+                                    {
+                                        name: 'Customer',
+                                        selector: row => row.customer?.name ?? '-',
+                                        sortable: true,
+                                        cell: row => (
+                                            <div className="py-1">
+                                                <div className="font-medium text-slate-800">{row.customer?.name ?? '-'}</div>
+                                                <div className="text-[10px] text-slate-500">{row.customer?.customer_code ?? ''}</div>
+                                            </div>
+                                        ),
+                                    },
+                                    {
+                                        name: 'Assigned At',
+                                        selector: row => row.trip_assigned_at ?? '',
+                                        sortable: true,
+                                        cell: row => (
+                                            <span className="text-slate-600 whitespace-nowrap text-[11px]">
+                                                {row.trip_assigned_at ? new Date(row.trip_assigned_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                                            </span>
+                                        ),
+                                    },
+                                    {
+                                        name: 'Total',
+                                        selector: row => Number(row.trip_finance?.total_amount ?? 0),
+                                        sortable: true,
+                                        right: true,
+                                        cell: row => (
+                                            <span className="font-semibold text-slate-800 whitespace-nowrap">
+                                                LKR {Math.round(Number(row.trip_finance?.total_amount ?? 0)).toLocaleString()}
+                                            </span>
+                                        ),
+                                    },
+                                    {
+                                        name: 'Status',
+                                        selector: row => row.status ?? '',
+                                        sortable: true,
+                                        center: true,
+                                        cell: row => {
+                                            const status = row.status ?? 'Unknown';
+                                            const badgeCls = {
+                                                Assigned: 'bg-red-100 text-red-700 border-red-200',
+                                                Accepted: 'bg-amber-100 text-amber-700 border-amber-200',
+                                                In_Progress: 'bg-blue-100 text-blue-700 border-blue-200',
+                                                Completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                                                Cancelled: 'bg-gray-100 text-gray-700 border-gray-200',
+                                            }[status] ?? 'bg-slate-100 text-slate-700 border-slate-200';
+
+                                            return (
+                                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls}`}>
+                                                    {status}
+                                                </span>
+                                            );
+                                        },
+                                    },
+                                ]}
+                                data={myTrips}
+                                pagination
+                                paginationPerPage={10}
+                                paginationRowsPerPageOptions={[10, 20, 50, 100]}
+                                highlightOnHover
+                                striped
+                                responsive
+                                customStyles={{
+                                    headCells: {
+                                        style: {
+                                            fontWeight: 700,
+                                            backgroundColor: '#f1f5f9',
+                                            color: '#1e293b',
+                                            fontSize: '11px',
+                                            textTransform: 'uppercase',
+                                        },
+                                    },
+                                    rows: {
+                                        style: {
+                                            minHeight: '48px',
+                                        },
+                                    },
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <Empty text="You haven't assigned any trips yet." />
                     )}
                 </Section>
 
@@ -1049,7 +1185,7 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
                 onSuccess: () => {
                     closeConfirm();
                     onClose();
-                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips'] });
+                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'] });
                 },
                 onFinish: () => setSubmitting(false),
             }

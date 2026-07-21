@@ -67,6 +67,11 @@ class CounterController extends Controller
                 ->where('language_name', '!=', '')
                 ->orderBy('language_name')
                 ->pluck('language_name'),
+
+            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance'])
+                ->where('trip_assigned_by', Auth::id())
+                ->latest('trip_assigned_at')
+                ->get(),
         ]);
     }
 
