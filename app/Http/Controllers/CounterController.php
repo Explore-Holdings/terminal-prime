@@ -31,15 +31,25 @@ class CounterController extends Controller
                 ->latest()
                 ->get(),
 
-            'vehicles' => Vehicle::with(['driver.languages', 'pictures', 'driver.trips' => function($q) {
-                    $q->where('status', '!=', 'Completed');
-                }])
+            'vehicles' => Vehicle::with([
+                    'driver.languages',
+                    'pictures',
+                    'driver.trips' => function ($q) {
+                        $q->where('status', '!=', 'Completed');
+                    }
+                ])
                 ->select('vehicles.*')
                 ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
-                ->orderByRaw("CASE WHEN drivers.duty_status = 'on_duty' THEN 0 ELSE 1 END")
+                ->where('drivers.driver_status', 'Active')
+                ->orderByRaw("
+                    CASE
+                        WHEN drivers.duty_status = 'on_duty' THEN 0
+                        ELSE 1
+                    END
+                ")
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
-
+                
             'createdCustomerId' => session()->pull('created_customer_id'),
             'invoicePath' => session()->pull('invoice_path'),
 
