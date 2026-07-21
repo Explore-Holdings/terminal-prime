@@ -49,7 +49,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                         <h2 className="text-2xl font-bold">TERMINAL PRIME</h2>
                     </div>
 
-                    <nav className="p-4 space-y-2 flex-1">
+                    <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
                         {visibleMenuItems.map((item) => (
                             <Link
                                 key={item.path}
