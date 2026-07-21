@@ -14,6 +14,11 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Trip;
 use Illuminate\Support\Facades\DB;
+use App\Models\User;
+use App\Models\Driver;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Google\Auth\Credentials\ServiceAccountCredentials;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -196,7 +201,9 @@ class CustomerController extends Controller
             'balance'        => 'nullable|numeric',
         ]);
 
-        DB::transaction(function () use ($data, $customer) {
+        $trip = null;
+
+        DB::transaction(function () use ($data, $customer, &$trip) {
 
             $trip = Trip::create([
                 'driver_id'        => $data['driver_id'],
@@ -208,19 +215,21 @@ class CustomerController extends Controller
                 'status'           => 'Assigned',
             ]);
 
-            Agent::where('id', $data['agent_id'])->update([
+            // Update agent status
+            $agent = Agent::findOrFail($data['agent_id']);
+            $agent->update([
                 'status' => 'Approved',
             ]);
 
             $totalAmount = (float) ($data['total_amount'] ?? 0);
-            $driverRate  = (float) ($data['driver_rate']  ?? 0);
-            $agentRate   = (float) ($data['agent_rate']   ?? 0);
+            $driverRate  = (float) ($data['driver_rate'] ?? 0);
+            $agentRate   = (float) ($data['agent_rate'] ?? 0);
 
             $driverShare = isset($data['driver_share'])
                 ? round((float) $data['driver_share'])
                 : round($totalAmount * $driverRate / 100);
 
-            $agentShare  = isset($data['agent_share'])
+            $agentShare = isset($data['agent_share'])
                 ? round((float) $data['agent_share'])
                 : round($totalAmount * $agentRate / 100);
 
@@ -228,13 +237,11 @@ class CustomerController extends Controller
                 ? round((float) $data['balance'])
                 : round($totalAmount - $driverShare - $agentShare);
 
-            $agentUserId = Agent::where('id', $data['agent_id'])->value('user_id');
-
             TripFinance::create([
                 'trip_id'        => $trip->id,
                 'driver_id'      => $data['driver_id'],
                 'agent_id'       => $data['agent_id'],
-                'agent_user_id'  => $agentUserId,
+                'agent_user_id'  => $agent->user_id,
                 'driver_rate'    => $driverRate,
                 'agent_rate'     => $agentRate,
                 'is_custom_rate' => (bool) ($data['is_custom_rate'] ?? false),
@@ -244,10 +251,117 @@ class CustomerController extends Controller
                 'balance'        => $balance,
                 'received'       => false,
             ]);
-
         });
 
+        /*
+        |--------------------------------------------------------------------------
+        | Send Push Notification (After Transaction)
+        |--------------------------------------------------------------------------
+        */
+
+        $driver = Driver::find($data['driver_id']);
+
+        $user = User::where('driver_id', $data['driver_id'])
+            ->whereNotNull('fcm_token')
+            ->first();
+
+        if ($user) {
+
+            $notifResult = self::sendFcmNotification(
+                token: $user->fcm_token,
+                title: '🚗 New Trip Assigned!',
+                body: "{$customer->name}·{$customer->dropoff_location} · {$customer->passenger_count} pax",
+                data: [
+                    'trip_id' => (string) $trip->id,
+                    'type'    => 'trip_assigned',
+                ]
+            );
+
+            Log::info('[FCM] Notification sent', [
+                'driver'  => optional($driver)->full_name,
+                'trip_id' => $trip->id,
+                'success' => $notifResult,
+            ]);
+
+        } else {
+
+            Log::warning('[FCM] No FCM token found', [
+                'driver_id' => $data['driver_id'],
+            ]);
+        }
+
         return back()->with('success', 'Trip assigned successfully.');
+    }
+
+    private static function sendFcmNotification(
+        string $token,
+        string $title,
+        string $body,
+        array  $data = []
+    ): bool {
+        try {
+            // ── Get OAuth2 access token from service account ──
+            $credentialsPath = storage_path('app/firebase/service-account.json');
+
+            $credentials = new ServiceAccountCredentials(
+                'https://www.googleapis.com/auth/firebase.messaging',
+                json_decode(file_get_contents($credentialsPath), true)
+            );
+
+            $token_data  = $credentials->fetchAuthToken();
+            $accessToken = $token_data['access_token'];
+
+            // ── Get Firebase project ID from service account ──
+            $serviceAccount = json_decode(
+                file_get_contents($credentialsPath), true);
+            $projectId = $serviceAccount['project_id'];
+
+            // ── Build FCM v1 API request ──
+            $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+
+            $payload = [
+                'message' => [
+                    'token' => $token,
+                    'notification' => [
+                        'title' => $title,
+                        'body'  => $body,
+                    ],
+                    'data' => array_map('strval', $data),
+                    'android' => [
+                        'priority' => 'high',
+                        'notification' => [
+                            'sound'        => 'default',
+                            'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            'channel_id'   => 'trip_channel',
+                        ],
+                    ],
+                    'apns' => [
+                        'payload' => [
+                            'aps' => [
+                                'sound' => 'default',
+                                'badge' => 1,
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $response = Http::withHeaders([
+                'Authorization' => "Bearer {$accessToken}",
+                'Content-Type'  => 'application/json',
+            ])->post($url, $payload);
+
+            Log::info('[FCM] Response', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+
+            return $response->successful();
+
+        } catch (\Exception $e) {
+            Log::error('[FCM] Error: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function generateCustomerCode()
