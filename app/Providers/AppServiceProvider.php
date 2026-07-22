@@ -27,12 +27,13 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         Event::listen(Login::class, function (Login $event) {
-            UserLoginLog::create([
+            $log = UserLoginLog::create([
                 'user_id' => $event->user->id,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'login_at' => now(),
             ]);
+            $log->update(['shift_id' => 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT)]);
         });
 
         Event::listen(Logout::class, function (Logout $event) {
