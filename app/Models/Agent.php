@@ -25,6 +25,13 @@ class Agent extends Model
         'new_currency',
         'new_price',
         'currency_updated_by',
+        'external_vehicle_id',
+        'external_vehicle_reg',
+        'external_vehicle_make',
+        'external_vehicle_model',
+        'external_company_name',
+        'rent_start_date',
+        'rent_end_date',
     ];
 
     public function user()

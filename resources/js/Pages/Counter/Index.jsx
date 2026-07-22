@@ -691,9 +691,13 @@ function Modal({
                         Payment
                     </TabButton>
 
-                    {agent.booking_type !== 'Rent a Car' && (
+                    {agent.booking_type !== 'Rent a Car' ? (
                         <TabButton active={activeTab === 'vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('vehicle')} >
                             Vehicle
+                        </TabButton>
+                    ) : (
+                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('rent_a_car_vehicle')} >
+                            External Vehicles
                         </TabButton>
                     )}
                 </div>
@@ -709,6 +713,10 @@ function Modal({
 
                     {activeTab === 'vehicle' && (
                         <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
+                    )}
+
+                    {activeTab === 'rent_a_car_vehicle' && (
+                        <RentACarVehicleTab agent={agent} customerId={customerId} onClose={onClose} />
                     )}
                 </div>
             </div>
@@ -912,8 +920,7 @@ function PaymentTab({
                 if (path) setInvoicePath(path);
 
                 if (isRentACar) {
-                    onClose?.();
-                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips'] });
+                    setActiveTab('rent_a_car_vehicle');
                 } else {
                     setActiveTab('vehicle');
                 }
@@ -1047,7 +1054,7 @@ function PaymentTab({
             <div className="flex justify-end">
                 <button disabled={!canSubmit}
                     className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
-                    {agent.booking_type === 'Rent a Car' ? 'Confirm & Finish' : 'Continue to Vehicle'}
+                    {agent.booking_type === 'Rent a Car' ? 'Confirm' : 'Continue to Vehicle'}
                 </button>
             </div>
         </form>
@@ -2083,6 +2090,128 @@ function Empty({ text }) {
     return (
         <div className="h-[180px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
             {text}
+        </div>
+    );
+}
+
+function RentACarVehicleTab({ agent, customerId, onClose }) {
+    const [vehicles, setVehicles] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [confirmModal, setConfirmModal] = useState(null);
+
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const fetchVehicles = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`https://srilankaautorentals.com/api/available-vehicles?start_date=${startDate}&end_date=${endDate}`);
+            if (!res.ok) throw new Error('Failed to fetch external vehicles');
+            const data = await res.json();
+            if (data && data.success) {
+                setVehicles(data.data || []);
+            } else {
+                throw new Error(data.message || 'Unknown error');
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchVehicles();
+    }, [startDate, endDate]);
+
+    const confirmAssign = () => {
+        setSubmitting(true);
+        const v = confirmModal.vehicle;
+        
+        router.post(
+            `/customers/${customerId}/assign-external-vehicle`,
+            {
+                external_vehicle_id: v.id,
+                external_vehicle_reg: v.reg_no,
+                external_vehicle_make: v.make,
+                external_vehicle_model: v.model,
+                external_company_name: v.company_name,
+                start_date: startDate,
+                end_date: endDate
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setConfirmModal(null);
+                    onClose();
+                    router.reload({ only: ['pendingAgents'] });
+                },
+                onFinish: () => setSubmitting(false),
+            }
+        );
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-lg border">
+                <div>
+                    <label className="label">Start Date</label>
+                    <input type="date" className="input text-sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                </div>
+                <div>
+                    <label className="label">End Date</label>
+                    <input type="date" className="input text-sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                </div>
+                <div className="pt-5">
+                    <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Search</button>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="text-center py-10 text-gray-500">Loading external vehicles...</div>
+            ) : error ? (
+                <div className="text-center py-10 text-red-500 font-semibold">{error}</div>
+            ) : vehicles.length === 0 ? (
+                <div className="text-center py-10 text-gray-500">No vehicles available for these dates.</div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                    {vehicles.map(v => (
+                        <div key={v.id} className="border rounded-lg p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all" onClick={() => setConfirmModal({ vehicle: v })}>
+                            <div>
+                                <h4 className="font-bold text-gray-800">{v.make} {v.model}</h4>
+                                <p className="text-xs text-gray-500 mt-1">{v.vehicle_type_name}</p>
+                            </div>
+                            <div className="mt-3 text-sm">
+                                <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-mono font-bold">{v.reg_no}</span>
+                                <p className="text-xs text-gray-500 mt-2 line-clamp-1">{v.company_name}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {confirmModal && (
+                <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-lg font-bold">Assign External Vehicle</h3>
+                        <div className="bg-gray-50 p-3 rounded border text-sm">
+                            <p><strong>Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
+                            <p><strong>Reg No:</strong> {confirmModal.vehicle.reg_no}</p>
+                            <p><strong>Company:</strong> {confirmModal.vehicle.company_name}</p>
+                            <p><strong>Dates:</strong> {startDate} to {endDate}</p>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">Cancel</button>
+                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
+                                {submitting ? 'Assigning...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

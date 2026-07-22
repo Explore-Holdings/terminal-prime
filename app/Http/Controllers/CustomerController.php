@@ -375,4 +375,36 @@ class CustomerController extends Controller
 
         return 'CUS-' . str_pad($next, 5, '0', STR_PAD_LEFT);
     }
+
+    public function assignExternalVehicle(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'external_vehicle_id'    => 'required',
+            'external_vehicle_reg'   => 'required',
+            'external_vehicle_make'  => 'required',
+            'external_vehicle_model' => 'required',
+            'external_company_name'  => 'required',
+            'start_date'             => 'required|date',
+            'end_date'               => 'required|date',
+        ]);
+
+        $agent = $customer->agent;
+        
+        if (!$agent) {
+            return back()->withErrors(['agent' => 'Agent booking not found for this customer.']);
+        }
+
+        $agent->update([
+            'status' => 'Approved',
+            'external_vehicle_id'    => $data['external_vehicle_id'],
+            'external_vehicle_reg'   => $data['external_vehicle_reg'],
+            'external_vehicle_make'  => $data['external_vehicle_make'],
+            'external_vehicle_model' => $data['external_vehicle_model'],
+            'external_company_name'  => $data['external_company_name'],
+            'rent_start_date'        => $data['start_date'],
+            'rent_end_date'          => $data['end_date'],
+        ]);
+
+        return back()->with('success', 'External vehicle assigned successfully.');
+    }
 }
