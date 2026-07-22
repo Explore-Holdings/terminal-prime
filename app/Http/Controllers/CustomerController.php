@@ -383,6 +383,7 @@ class CustomerController extends Controller
             'external_vehicle_reg'   => 'required',
             'external_vehicle_make'  => 'required',
             'external_vehicle_model' => 'required',
+            'external_company_id'    => 'required',
             'external_company_name'  => 'required',
             'start_date'             => 'required|date',
             'end_date'               => 'required|date',
@@ -394,8 +395,18 @@ class CustomerController extends Controller
             return back()->withErrors(['agent' => 'Agent booking not found for this customer.']);
         }
 
+        // Generate TP-XXX booking number
+        $lastBooking = \App\Models\Agent::whereNotNull('external_vehicle_id')
+            ->where('booking_number', 'REGEXP', '^TP-[0-9]+$')
+            ->orderByRaw("CAST(SUBSTRING(booking_number, 4) AS UNSIGNED) DESC")
+            ->first();
+
+        $nextNum = $lastBooking ? ((int) substr($lastBooking->booking_number, 3)) + 1 : 1;
+        $bookingNumber = 'TP-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
+
         $agent->update([
             'status' => 'Approved',
+            'booking_number'         => $bookingNumber,
             'external_vehicle_id'    => $data['external_vehicle_id'],
             'external_vehicle_reg'   => $data['external_vehicle_reg'],
             'external_vehicle_make'  => $data['external_vehicle_make'],
@@ -404,6 +415,28 @@ class CustomerController extends Controller
             'rent_start_date'        => $data['start_date'],
             'rent_end_date'          => $data['end_date'],
         ]);
+
+        // Sync to FMS rentals table
+        try {
+            $fmsUrl = env('FMS_API_URL', 'http://127.0.0.1:9000/api');
+            $syncSecret = env('FMS_SYNC_SECRET', '');
+
+            \Illuminate\Support\Facades\Http::withHeaders([
+                'X-SYNC-SECRET' => $syncSecret,
+            ])->post("{$fmsUrl}/rental-sync", [
+                'booking_number' => $bookingNumber,
+                'vehicle_id'     => (int) $data['external_vehicle_id'],
+                'company_id'     => (int) $data['external_company_id'],
+                'driver_name'    => $customer->name ?? 'N/A',
+                'arrival_date'   => $data['start_date'],
+                'departure_date' => $data['end_date'],
+                'passengers'     => (int) ($agent->passenger_count ?? 1),
+                'status'         => 'booked',
+                'created_by'     => auth()->id(),
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('FMS rental sync failed: ' . $e->getMessage());
+        }
 
         return back()->with('success', 'External vehicle assigned successfully.');
     }

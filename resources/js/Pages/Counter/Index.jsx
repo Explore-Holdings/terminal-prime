@@ -2138,6 +2138,7 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
                 external_vehicle_reg: v.reg_no,
                 external_vehicle_make: v.make,
                 external_vehicle_model: v.model,
+                external_company_id: v.company_id,
                 external_company_name: v.company_name,
                 start_date: startDate,
                 end_date: endDate

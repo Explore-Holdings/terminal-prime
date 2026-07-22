@@ -32,6 +32,7 @@ class Agent extends Model
         'external_company_name',
         'rent_start_date',
         'rent_end_date',
+        'booking_number',
     ];
 
     public function user()
