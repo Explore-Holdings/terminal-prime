@@ -2100,6 +2100,7 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -2157,7 +2158,7 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex gap-4 items-center bg-gray-50 p-3 rounded-lg border">
+            <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-lg border">
                 <div>
                     <label className="label">Start Date</label>
                     <input type="date" className="input text-sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -2169,6 +2170,16 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
                 <div className="pt-5">
                     <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Search</button>
                 </div>
+                <div className="flex-1 min-w-[200px]">
+                    <label className="label">Search Vehicles</label>
+                    <input 
+                        type="text" 
+                        className="input text-sm w-full" 
+                        placeholder="Search by make, model, reg, or company..." 
+                        value={searchQuery} 
+                        onChange={e => setSearchQuery(e.target.value)} 
+                    />
+                </div>
             </div>
 
             {loading ? (
@@ -2179,7 +2190,16 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
                 <div className="text-center py-10 text-gray-500">No vehicles available for these dates.</div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                    {vehicles.map(v => (
+                    {vehicles.filter(v => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                            (v.make || '').toLowerCase().includes(query) ||
+                            (v.model || '').toLowerCase().includes(query) ||
+                            (v.reg_no || '').toLowerCase().includes(query) ||
+                            (v.company_name || '').toLowerCase().includes(query)
+                        );
+                    }).map(v => (
                         <div key={v.id} className="border rounded-lg p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all" onClick={() => setConfirmModal({ vehicle: v })}>
                             <div>
                                 <h4 className="font-bold text-gray-800">{v.make} {v.model}</h4>
