@@ -103,7 +103,7 @@
             width: 100%;
             border-top: 1px solid #e5e7eb;
             padding-top: 15px;
-            margin-top: 80px;
+            margin-top: 150px;
             page-break-inside: avoid;
         }
         .signature-table {
