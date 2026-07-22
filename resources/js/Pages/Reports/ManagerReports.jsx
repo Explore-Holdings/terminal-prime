@@ -263,6 +263,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     <thead>
                                         <tr className="bg-gray-50 border-b text-gray-600 font-semibold uppercase text-[10px]">
                                             <th className="px-5 py-3">Date & Time</th>
+                                            <th className="px-5 py-3">Shift & Officer</th>
                                             <th className="px-5 py-3">Customer</th>
                                             <th className="px-5 py-3">Driver & Vehicle</th>
                                             <th className="px-5 py-3">Payment & Cash Notes</th>
@@ -287,6 +288,10 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                                         <div className="text-gray-400">
                                                             {tripTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
+                                                    </td>
+                                                    <td className="px-5 py-4">
+                                                        <div className="font-semibold text-blue-700">{trip.shift_id || 'N/A'}</div>
+                                                        <div className="text-xs text-gray-500">{trip.assigned_by?.name || '-'}</div>
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         <div className="font-semibold text-gray-900">{customer?.name ?? 'Guest'}</div>

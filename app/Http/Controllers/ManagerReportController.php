@@ -88,7 +88,7 @@ class ManagerReportController extends Controller
 
     private function getTripsByRange(Request $request, string $range)
     {
-        $query = Trip::with(['customer', 'driver.vehicle', 'tripFinance']);
+        $query = Trip::with(['customer', 'driver.vehicle', 'tripFinance', 'assignedBy']);
 
         if ($range === 'today') {
             $query->where(function ($q) {

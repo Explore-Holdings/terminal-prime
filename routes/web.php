@@ -109,6 +109,9 @@ Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePa
 Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'assignTrip'])
     ->name('customers.assign-trip');
 
+Route::post('/customers/{customer}/assign-external-vehicle', [CustomerController::class, 'assignExternalVehicle'])
+    ->name('customers.assign-external-vehicle');
+
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
