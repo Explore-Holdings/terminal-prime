@@ -12,13 +12,13 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     const menuItems = [
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff','manager'] },
+        { label: 'Manager', path: '/manager-reports', roles: ['admin','manager'] },
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff'] },
         { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff'] },
         { label: 'Drivers', path: '/drivers', roles: ['admin'] },
         { label: 'Finance', path: '/finance', roles: ['admin', 'finance'] },
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin'] },
         { label: 'Reports', path: '/reports', roles: ['admin'] },
-        { label: 'Manager Reports', path: '/manager-reports', roles: ['admin','manager'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
     ];
 
@@ -49,7 +49,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                         <h2 className="text-2xl font-bold">TERMINAL PRIME</h2>
                     </div>
 
-                    <nav className="p-4 space-y-2 flex-1">
+                    <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
                         {visibleMenuItems.map((item) => (
                             <Link
                                 key={item.path}

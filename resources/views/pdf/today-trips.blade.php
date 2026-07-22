@@ -98,16 +98,13 @@
             font-size: 13px;
         }
         
-        /* Fixed signature footer on every page */
+        /* Static signature footer at the end of the document */
         .signature-footer {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: -28mm;
-            height: 25mm;
             width: 100%;
             border-top: 1px solid #e5e7eb;
             padding-top: 15px;
+            margin-top: 150px;
+            page-break-inside: avoid;
         }
         .signature-table {
             width: 100%;
@@ -145,34 +142,7 @@
         }
     </script>
 
-    <!-- Fixed signature footer for every page -->
-    <div class="signature-footer">
-        <table class="signature-table">
-            <tr>
-                <td style="width: 50%; text-align: left; vertical-align: bottom;">
-                    <div class="signature-line"></div>
-                    <div class="signature-title">Manager Signature</div>
-                </td>
-                <td style="width: 50%; text-align: right; vertical-align: bottom;">
-                    <div style="display: inline-block; text-align: left;">
-                        <div class="signature-line"></div>
-                        <div class="signature-title">Finance Officer Signature</div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-        
-        <table style="width: 100%; border: none; margin-top: 8px; font-size: 8px; color: #9ca3af;">
-            <tr>
-                <td style="text-align: left; border: none; padding: 0;">
-                    Generated on {{ now()->format('M d, Y h:i A') }} | Terminal Prime Management System
-                </td>
-                <td style="text-align: right; border: none; padding: 0;">
-                    <!-- Page numbers rendered dynamically by DOMPDF page_text -->
-                </td>
-            </tr>
-        </table>
-    </div>
+    <!-- Signature footer has been moved to the bottom -->
 
     <div class="header">
         <div class="title">{{ strtoupper($title ?? "Today's Trips Report") }}</div>
@@ -335,6 +305,35 @@
             <tr>
                 <td class="totals-label">Total Revenue:</td>
                 <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0)) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Static signature footer at the bottom of the page -->
+    <div class="signature-footer">
+        <table class="signature-table">
+            <tr>
+                <td style="width: 50%; text-align: left; vertical-align: bottom;">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">Manager Signature</div>
+                </td>
+                <td style="width: 50%; text-align: right; vertical-align: bottom;">
+                    <div style="display: inline-block; text-align: left;">
+                        <div class="signature-line"></div>
+                        <div class="signature-title">Finance Officer Signature</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        
+        <table style="width: 100%; border: none; margin-top: 8px; font-size: 8px; color: #9ca3af;">
+            <tr>
+                <td style="text-align: left; border: none; padding: 0;">
+                    Generated on {{ now()->format('M d, Y h:i A') }} | Terminal Prime Management System
+                </td>
+                <td style="text-align: right; border: none; padding: 0;">
+                    <!-- Page numbers rendered dynamically by DOMPDF page_text -->
+                </td>
             </tr>
         </table>
     </div>
