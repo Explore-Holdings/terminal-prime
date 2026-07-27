@@ -30,6 +30,38 @@ const formatToLkrString = (amount, currency, rates) => {
     return `LKR ${Math.round(converted).toLocaleString()}`;
 };
 
+const getVehicleSlotNumber = (v) => {
+    if (!v) return null;
+    const reg = v.driver?.registration_number ?? v.registration_number ?? '';
+    const match = reg.match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+};
+
+const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
+    const available = (vehiclesList ?? []).filter((v) => {
+        const isOnDuty = v.driver?.duty_status === 'on_duty';
+        const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
+        return isOnDuty && !hasOngoingTrip;
+    });
+
+    if (available.length === 0) return null;
+
+    const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
+    const lastAssignedDriver = lastAssignedTrip?.driver;
+    const lastCheckInTime = lastAssignedDriver?.checked_in_at;
+
+    if (lastCheckInTime) {
+        const nextVehicles = available.filter(
+            (v) => v.driver?.checked_in_at && v.driver.checked_in_at > lastCheckInTime
+        );
+        if (nextVehicles.length > 0) {
+            return nextVehicles[0];
+        }
+    }
+
+    return available[0];
+};
+
 const LANGUAGE_COLOR_PALETTES = [
     { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', dot: '#3b82f6', activeBg: 'bg-blue-600 text-white' },
     { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', dot: '#10b981', activeBg: 'bg-emerald-600 text-white' },
@@ -202,6 +234,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         });
     };
 
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
+
     return (
         <>
             <Head title="Counter" />
@@ -247,7 +282,49 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
                 <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
                     <div className="flex gap-4 items-start">
-                        {/* Left Side: Vehicle Grid */}
+                        {/* Left Side: Next In Line Square Card */}
+                        <div 
+                            className="w-[180px] h-[180px] shrink-0 border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
+                            onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
+                            title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
+                        >
+                            {/* Decorative badge */}
+                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
+                                Next
+                            </div>
+                            
+                            <div className="text-center w-full mt-2">
+                                <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
+                                    Next In Line
+                                </span>
+                                <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                            </div>
+
+                            {nextInLineVehicle ? (
+                                <>
+                                    <div className="text-5xl font-black text-emerald-700 my-1.5">
+                                        {nextInLineSlotNumber ?? '-'}
+                                    </div>
+                                    <div className="text-center w-full min-w-0">
+                                        <p className="text-xs font-bold text-gray-800 truncate px-1">
+                                            {nextInLineVehicle.driver?.first_name ?? 'Driver'}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 font-medium truncate">
+                                            {nextInLineVehicle.registration_number ?? '-'}
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center flex-1">
+                                    <span className="text-3xl text-gray-300">--</span>
+                                    <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
+                                        No on-duty vehicle queue
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Middle Side: Vehicle Grid */}
                         <div className="flex-1">
                             <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
                                 {(() => {
@@ -546,7 +623,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
             )}
 
             {showCheckoutConfirm && (
@@ -653,6 +730,7 @@ function Modal({
     invoicePath,
     setInvoicePath,
     vehicles,
+    ongoingTrips = [],
     setVehicleEnabledAgentId,
     onClose,
     countries,
@@ -712,7 +790,7 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
+                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
                     )}
 
                     {activeTab === 'rent_a_car_vehicle' && (
@@ -1061,9 +1139,16 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm }) {
     const [confirmModal, setConfirmModal] = useState(null);
-    const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [selectedVehicle, setSelectedVehicle] = useState(() => {
+        const nextInLine = getNextInLineVehicle(vehicles, ongoingTrips);
+        if (nextInLine) {
+            const slotNum = getVehicleSlotNumber(nextInLine);
+            return { ...nextInLine, _slotNumber: slotNum };
+        }
+        return null;
+    });
     const [rateMode, setRateMode] = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -1199,6 +1284,9 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
         );
     };
 
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
+
     return (
         <div>
             {/* Filters Bar */}
@@ -1319,7 +1407,49 @@ function VehicleTab({ vehicles, customerId, agent, onClose, rateSetting, payment
             </div>
 
             <div className="flex gap-4 items-start">
-                {/* Left Side: Vehicle Grid */}
+                {/* Left Side: Next In Line Square Card */}
+                <div 
+                    className="w-[180px] h-[180px] shrink-0 border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
+                    onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
+                    title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
+                >
+                    {/* Decorative badge */}
+                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
+                        Next
+                    </div>
+                    
+                    <div className="text-center w-full mt-2">
+                        <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
+                            Next In Line
+                        </span>
+                        <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                    </div>
+
+                    {nextInLineVehicle ? (
+                        <>
+                            <div className="text-5xl font-black text-emerald-700 my-1.5">
+                                {nextInLineSlotNumber ?? '-'}
+                            </div>
+                            <div className="text-center w-full min-w-0">
+                                <p className="text-xs font-bold text-gray-800 truncate px-1">
+                                    {nextInLineVehicle.driver?.first_name ?? 'Driver'}
+                                </p>
+                                <p className="text-[10px] text-gray-500 font-medium truncate">
+                                    {nextInLineVehicle.registration_number ?? '-'}
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center flex-1">
+                            <span className="text-3xl text-gray-300">--</span>
+                            <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
+                                No on-duty vehicle queue
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Middle Side: Vehicle Grid */}
                 <div className="flex-1">
                     <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
                         {(() => {
