@@ -25,6 +25,12 @@ export default function Index({ drivers = [] }) {
 
     const columns = [
         {
+            name: '#',
+            selector: row => row.id ?? '-',
+            width: '60px',
+            sortable: false,
+        },
+        {
             name: 'Reg No',
             selector: row => row.registration_number ?? '-',
             sortable: true,
