@@ -236,6 +236,7 @@
         <thead>
             <tr>
                 <th>Time</th>
+                <th>Officer</th>
                 <th>Customer</th>
                 <th>Driver / Vehicle</th>
                 <th>Payment & Cash Notes</th>
@@ -254,6 +255,10 @@
                 @endphp
                 <tr>
                     <td>{{ $trip->trip_assigned_at ? \Carbon\Carbon::parse($trip->trip_assigned_at)->format('h:i A') : ($trip->created_at ? $trip->created_at->format('h:i A') : '-') }}</td>
+                    <td>
+                        {{ $trip->assignedBy->name ?? 'N/A' }}<br>
+                        <small style="color: #6b7280;">{{ $trip->shift_id ?? '-' }}</small>
+                    </td>
                     <td>
                         {{ $customer?->name ?? 'Guest' }}<br>
                         <small style="color: #6b7280;">{{ $customer?->customer_code }}</small>
@@ -288,7 +293,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; color: #9ca3af; padding: 20px;">
+                    <td colspan="7" style="text-align: center; color: #9ca3af; padding: 20px;">
                         No trips assigned today.
                     </td>
                 </tr>
