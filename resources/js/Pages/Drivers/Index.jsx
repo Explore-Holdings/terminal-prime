@@ -1,10 +1,12 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { Eye, Pencil } from 'lucide-react';
 
 export default function Index({ drivers = [] }) {
+    const { auth } = usePage().props;
+    const isReadOnly = auth?.user?.role === 'executive staff';
     const [search, setSearch] = useState('');
 
     const filteredDrivers = useMemo(() => {
@@ -91,12 +93,14 @@ export default function Index({ drivers = [] }) {
                         <Eye size={14} />
                     </Link>
 
-                    <Link
-                        href={`/drivers/${row.id}/edit`}
-                        className="inline-flex items-center gap-1 bg-green-800 text-white px-3 py-1 rounded text-xs hover:bg-green-800"
-                    >
-                        <Pencil size={14} />
-                    </Link>
+                    {!isReadOnly && (
+                        <Link
+                            href={`/drivers/${row.id}/edit`}
+                            className="inline-flex items-center gap-1 bg-green-800 text-white px-3 py-1 rounded text-xs hover:bg-green-800"
+                        >
+                            <Pencil size={14} />
+                        </Link>
+                    )}
                 </div>
             ),
         },
@@ -141,12 +145,14 @@ export default function Index({ drivers = [] }) {
                             Dashboard
                         </Link>
 
-                        <Link
-                            href="/drivers/create"
-                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                        >
-                            Add Driver
-                        </Link>
+                        {!isReadOnly && (
+                            <Link
+                                href="/drivers/create"
+                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            >
+                                Add Driver
+                            </Link>
+                        )}
                     </div>
                 </div>
 

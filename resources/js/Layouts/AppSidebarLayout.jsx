@@ -10,15 +10,15 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     const role = String(user?.role ?? '').toLowerCase();
 
     const menuItems = [
-        { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff'] },
+        { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff', 'executive staff'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff','manager'] },
         { label: 'Manager', path: '/manager-reports', roles: ['admin','manager'] },
-        { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff'] },
-        { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff'] },
-        { label: 'Drivers', path: '/drivers', roles: ['admin'] },
-        { label: 'Finance', path: '/finance', roles: ['admin', 'finance'] },
-        { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin'] },
-        { label: 'Reports', path: '/reports', roles: ['admin'] },
+        { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff', 'executive staff'] },
+        { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff', 'executive staff'] },
+        { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive staff'] },
+        { label: 'Finance', path: '/finance', roles: ['admin', 'finance', 'executive staff'] },
+        { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive staff'] },
+        { label: 'Reports', path: '/reports', roles: ['admin', 'executive staff'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
     ];
 

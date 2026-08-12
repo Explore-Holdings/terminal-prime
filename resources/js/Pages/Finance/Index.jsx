@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
@@ -45,10 +45,24 @@ export default function Index({
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
+    const { auth } = usePage().props;
+    const isReadOnly = auth?.user?.isExecutiveStaff;
+
     return (
         <AppSidebarLayout title="Finance">
             <Head title="Finance" />
             <Toaster position="top-right" toastOptions={{ duration: 3500 }} />
+
+            {isReadOnly && (
+                <div className="mb-4 rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3 flex items-center gap-3">
+                    <svg className="h-5 w-5 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-sm font-semibold text-indigo-800">View-Only Mode</span>
+                    <span className="text-sm text-indigo-600">You are logged in as Executive Staff. All data is read-only.</span>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow overflow-hidden">
                 <div className="p-6 border-b">
