@@ -9,9 +9,9 @@ export default function Dashboard({
     const { props } = usePage();
     const role = String(props.auth?.user?.role ?? '').toLowerCase();
 
-    const canViewCustomers = ['admin', 'counter staff'].includes(role);
-    const canViewDrivers = role === 'admin';
-    const canViewFinance = ['admin', 'finance'].includes(role);
+    const canViewCustomers = ['admin', 'counter staff', 'executive staff'].includes(role);
+    const canViewDrivers = ['admin', 'executive staff'].includes(role);
+    const canViewFinance = ['admin', 'finance', 'executive staff'].includes(role);
 
     return (
         <AppSidebarLayout title="Dashboard">

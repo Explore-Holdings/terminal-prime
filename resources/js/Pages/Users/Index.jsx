@@ -430,6 +430,7 @@ function RoleBadge({ role }) {
         agent: 'bg-blue-100 text-blue-700',
         staff: 'bg-green-100 text-green-700',
         driver: 'bg-yellow-100 text-yellow-700',
+        'executive staff': 'bg-indigo-100 text-indigo-700',
     };
 
     return (

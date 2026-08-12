@@ -1,7 +1,9 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
 export default function Show({ driver }) {
+    const { auth } = usePage().props;
+    const isReadOnly = auth?.user?.isExecutiveStaff;
     const vehicle = driver.vehicle ?? driver.vehicles?.[0] ?? null;
 
     return (
@@ -18,12 +20,14 @@ export default function Show({ driver }) {
                 </div>
 
                 <div className="flex gap-2">
-                    <Link
-                        href={`/drivers/${driver.id}/edit`}
-                        className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                    >
-                        Edit
-                    </Link>
+                    {!isReadOnly && (
+                        <Link
+                            href={`/drivers/${driver.id}/edit`}
+                            className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+                        >
+                            Edit
+                        </Link>
+                    )}
 
                     <Link
                         href="/drivers"
