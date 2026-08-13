@@ -23,7 +23,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     ];
 
     const visibleMenuItems = menuItems.filter((item) =>
-        item.roles.includes(role)
+        role.includes('executive') || item.roles.includes(role)
     );
 
     const isActive = (path) => url === path;

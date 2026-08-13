@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 
 export default function Show({ driver }) {
     const { auth } = usePage().props;
-    const isReadOnly = auth?.user?.isExecutiveStaff;
+    const isReadOnly = false;
     const vehicle = driver.vehicle ?? driver.vehicles?.[0] ?? null;
 
     return (
