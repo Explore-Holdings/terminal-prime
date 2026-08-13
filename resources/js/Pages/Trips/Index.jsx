@@ -5,7 +5,7 @@ import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ trips = [] }) {
     const { auth } = usePage().props;
-    const isReadOnly = auth?.user?.isExecutiveStaff;
+    const isReadOnly = false;
     const [search, setSearch] = useState('');
 
     const filteredTrips = useMemo(() => {

@@ -46,7 +46,7 @@ export default function Index({
     const [customEnd, setCustomEnd] = useState('');
 
     const { auth } = usePage().props;
-    const isReadOnly = auth?.user?.isExecutiveStaff;
+    const isReadOnly = false;
 
     return (
         <AppSidebarLayout title="Finance">

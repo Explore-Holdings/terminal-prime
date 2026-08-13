@@ -5,7 +5,7 @@ import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 
 export default function Index({ customers = [] }) {
     const { auth } = usePage().props;
-    const isReadOnly = auth?.user?.role === 'executive staff';
+    const isReadOnly = false;
     const [search, setSearch] = useState('');
 
     const filteredCustomers = useMemo(() => {
