@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => strtolower($user->role?->name ?? ''),
-                    'isExecutiveStaff' => strtolower($user->role?->name ?? '') === 'executive staff',
+                    'isExecutiveStaff' => strtolower($user->role?->name ?? '') === 'executive',
                 ] : null,
             ],
         ];
