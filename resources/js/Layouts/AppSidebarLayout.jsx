@@ -12,7 +12,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     const menuItems = [
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff', 'executive', 'manager'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff', 'manager', 'executive'] },
-        { label: 'Manager', path: '/manager-reports', roles: ['admin', 'manager','executive'] },
+        { label: 'Manager', path: '/manager-reports', roles: ['admin', 'manager', 'executive'] },
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff', 'executive', 'manager'] },
         { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff', 'executive', 'manager'] },
         { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive', 'manager'] },
@@ -29,10 +29,9 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
     const isActive = (path) => url === path;
 
     const menuClass = (path) =>
-        `block px-4 py-3 rounded transition ${
-            isActive(path)
-                ? 'bg-blue-700 text-white font-semibold'
-                : 'hover:bg-slate-700 text-gray-200'
+        `block px-4 py-3 rounded transition ${isActive(path)
+            ? 'bg-blue-700 text-white font-semibold'
+            : 'hover:bg-slate-700 text-gray-200'
         }`;
 
     return (
@@ -41,9 +40,8 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
 
             <div className="min-h-screen bg-gray-100 flex">
                 <aside
-                    className={`fixed left-0 top-0 w-64 bg-slate-900 text-white h-screen flex flex-col transition-transform duration-300 ${
-                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                    }`}
+                    className={`fixed left-0 top-0 w-64 bg-slate-900 text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                        }`}
                 >
                     <div className="p-6 border-b border-slate-700">
                         <h2 className="text-2xl font-bold">TERMINAL PRIME</h2>
@@ -82,9 +80,8 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
                 </aside>
 
                 <main
-                    className={`flex-1 p-4 overflow-auto transition-all duration-300 ${
-                        sidebarOpen ? 'ml-64' : 'ml-0'
-                    }`}
+                    className={`flex-1 p-4 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'
+                        }`}
                 >
                     <div className="mb-6">
                         <button

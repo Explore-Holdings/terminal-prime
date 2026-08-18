@@ -6,7 +6,7 @@ import { Eye, Pencil } from 'lucide-react';
 
 export default function Index({ drivers = [] }) {
     const { auth } = usePage().props;
-    const isReadOnly = false;
+    const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
     const [search, setSearch] = useState('');
 
     const filteredDrivers = useMemo(() => {
