@@ -47,6 +47,7 @@ class CounterController extends Controller
                         ELSE 1
                     END
                 ")
+                ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
                 

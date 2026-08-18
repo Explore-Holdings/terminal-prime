@@ -205,6 +205,15 @@ class CustomerController extends Controller
 
         DB::transaction(function () use ($data, $customer, &$trip) {
 
+            // ── Session Tracking: Initialize session_id for all on-duty drivers ──
+            $driver = Driver::findOrFail($data['driver_id']);
+            if ($driver->session_id === null) {
+                Driver::where('duty_status', 'on_duty')
+                    ->where('driver_status', 'Active')
+                    ->whereNull('session_id')
+                    ->update(['session_id' => 1]);
+            }
+
             $trip = Trip::create([
                 'driver_id'        => $data['driver_id'],
                 'customer_id'      => $customer->id,
