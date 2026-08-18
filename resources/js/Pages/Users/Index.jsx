@@ -1,11 +1,13 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { router, useForm } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import DataTable from 'react-data-table-component';
 import { Pencil, Trash2 } from 'lucide-react';
 
 export default function Index({ users = [], roles = [] }) {
     const [showUserModal, setShowUserModal] = useState(false);
+    const { auth } = usePage().props;
+    const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
     const [showRoleModal, setShowRoleModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [search, setSearch] = useState('');
@@ -145,6 +147,7 @@ export default function Index({ users = [], roles = [] }) {
         {
             name: 'Actions',
             center: true,
+            omit: isReadOnly,
             cell: row => (
                 <div className="flex justify-center gap-2">
                     <button
@@ -198,21 +201,25 @@ export default function Index({ users = [], roles = [] }) {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowRoleModal(true)}
-                        className="rounded-lg bg-slate-800 px-4 py-2 text-white font-semibold hover:bg-slate-900 shadow"
-                    >
-                        + Create Role
-                    </button>
+                    {!isReadOnly && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setShowRoleModal(true)}
+                                className="rounded-lg bg-slate-800 px-4 py-2 text-white font-semibold hover:bg-slate-900 shadow"
+                            >
+                                + Create Role
+                            </button>
 
-                    <button
-                        type="button"
-                        onClick={openCreateUser}
-                        className="rounded-lg bg-blue-700 px-4 py-2 text-white font-semibold hover:bg-blue-800 shadow"
-                    >
-                        + Create User
-                    </button>
+                            <button
+                                type="button"
+                                onClick={openCreateUser}
+                                className="rounded-lg bg-blue-700 px-4 py-2 text-white font-semibold hover:bg-blue-800 shadow"
+                            >
+                                + Create User
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
