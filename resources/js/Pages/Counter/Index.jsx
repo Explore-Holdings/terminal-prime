@@ -50,29 +50,29 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
 
     if (available.length === 0) return null;
 
-    // Sort by session_id first (lower sessions get priority), then by checked_in_at
+    // Sort by session_id first, then by slot number
     const sorted = [...available].sort((a, b) => {
         const sessionA = a.driver?.session_id ?? 0;
         const sessionB = b.driver?.session_id ?? 0;
         if (sessionA !== sessionB) return sessionA - sessionB;
 
-        const timeA = a.driver?.checked_in_at ?? '';
-        const timeB = b.driver?.checked_in_at ?? '';
-        return timeA.localeCompare(timeB);
+        const slotA = getVehicleSlotNumber(a) ?? 999;
+        const slotB = getVehicleSlotNumber(b) ?? 999;
+        return slotA - slotB;
     });
 
     const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
     const lastAssignedDriver = lastAssignedTrip?.driver;
-    const lastCheckInTime = lastAssignedDriver?.checked_in_at;
+    const lastSlotNumber = getVehicleSlotNumber(lastAssignedDriver) ?? 0;
     const lastSessionId = lastAssignedDriver?.session_id ?? 0;
 
-    if (lastCheckInTime) {
-        // Find next vehicle in the same or lower session with later check-in time
+    if (lastSlotNumber > 0) {
+        // Find next vehicle in the same or lower session with a higher slot number
         const nextVehicles = sorted.filter(
             (v) => {
                 const sid = v.driver?.session_id ?? 0;
                 if (sid < lastSessionId) return true;
-                if (sid === lastSessionId && v.driver?.checked_in_at && v.driver.checked_in_at > lastCheckInTime) return true;
+                if (sid === lastSessionId && (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber) return true;
                 return false;
             }
         );
