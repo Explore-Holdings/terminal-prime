@@ -205,12 +205,12 @@ class CustomerController extends Controller
 
         DB::transaction(function () use ($data, $customer, &$trip) {
 
-            // ── Session Tracking: Initialize session_id for all on-duty drivers ──
+            // ── Session Tracking: Initialize session_id for ALL drivers ──
+            // When session_id is null (fresh start), session 1 applies to every
+            // driver regardless of duty_status or check-in state.
             $driver = Driver::findOrFail($data['driver_id']);
             if ($driver->session_id === null) {
-                Driver::where('duty_status', 'on_duty')
-                    ->where('driver_status', 'Active')
-                    ->whereNull('session_id')
+                Driver::whereNull('session_id')
                     ->update(['session_id' => 1]);
             }
 
