@@ -283,12 +283,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const previousSessionId = maxSessionId > 1 ? maxSessionId - 1 : null;
     const previousSessionVehicles = previousSessionId 
         ? vehicles
-            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0))
+            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0) && v.driver?.duty_status !== 'on_duty')
             .sort((a, b) => (getVehicleSlotNumber(a) || 0) - (getVehicleSlotNumber(b) || 0))
         : [];
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) === baseSessionId && v.driver?.duty_status === 'on_duty' && !(v.driver?.trips && v.driver.trips.length > 0));
 
     return (
         <>
@@ -396,7 +397,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             {maxSessionId > 1 && previousSessionVehicles.length > 0 && (
                                 <button 
                                     onClick={() => setShowReorderModal(true)}
-                                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                                    disabled={hasCheckedInCurrentQueue}
+                                    className={`w-full py-1.5 text-white text-xs font-bold rounded-lg shadow-sm transition ${hasCheckedInCurrentQueue ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder previous session drivers"}
                                 >
                                     Reorder Session {previousSessionId}
                                 </button>
