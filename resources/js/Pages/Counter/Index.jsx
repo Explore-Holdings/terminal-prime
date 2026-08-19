@@ -38,10 +38,14 @@ const getVehicleSlotNumber = (v) => {
 };
 
 const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
+    const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
     const available = (vehiclesList ?? []).filter((v) => {
         const isOnDuty = v.driver?.duty_status === 'on_duty';
         const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
-        return isOnDuty && !hasOngoingTrip;
+        const isCurrentSession = (v.driver?.session_id ?? 0) <= baseSessionId;
+        return isOnDuty && !hasOngoingTrip && isCurrentSession;
     });
 
     if (available.length === 0) return null;
