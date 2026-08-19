@@ -373,6 +373,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                                 {Array.from({ length: 95 }, (_, i) => {
                                                     const slotNum = i + 1;
                                                     const vehicle = vehicleMap[slotNum] ?? null;
+                                                    if (!vehicle) return null; // Skip unregistered slots
                                                     const isMoved = vehicle?.driver?.session_id >= 2 && vehicle?.driver?.duty_status === 'on_duty';
                                                     
                                                     return (
@@ -1552,6 +1553,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         {Array.from({ length: 95 }, (_, i) => {
                                             const slotNum = i + 1;
                                             const vehicle = vehicleMap[slotNum] ?? null;
+                                            if (!vehicle) return null; // Skip unregistered slots
                                             const isMoved = vehicle?.driver?.session_id >= 2 && vehicle?.driver?.duty_status === 'on_duty';
                                             
                                             return (
@@ -2094,15 +2096,8 @@ function TripCard({ trip }) {
 }
 
 function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, allVehicleTypes = [], isMovedToNextQueue = false }) {
-    // No vehicle registered in this slot
-    if (!vehicle) {
-        return (
-            <div className="w-[38px] h-[38px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden shrink-0">
-                <span className="absolute rotate-[-35deg] text-[18px] font-bold text-black-200/40 select-none tracking-wide">NR</span>
-                {number}
-            </div>
-        );
-    }
+    // No vehicle registered in this slot — skip rendering
+    if (!vehicle) return null;
 
     const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
     const hasOngoingTrip = vehicle.driver?.trips && vehicle.driver.trips.length > 0;
