@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const convertToLkr = (amount, currency, rates) => {
@@ -187,7 +187,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 preserveScroll: true,
                 preserveState: true,
             });
-        }, 60000);
+        }, 10000); // 10 seconds
 
         return () => clearInterval(interval);
     }, []);
@@ -333,7 +333,22 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered)`} icon={<CarFront className="text-green-700" size={22} />}>
+                <Section 
+                    title={
+                        <div className="flex items-center gap-3">
+                            <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
+                            <button 
+                                type="button"
+                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'] })}
+                                className="p-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg shadow-sm transition flex items-center"
+                                title="Refresh Data"
+                            >
+                                <RefreshCw size={14} className="opacity-75" />
+                            </button>
+                        </div>
+                    } 
+                    icon={<CarFront className="text-green-700" size={22} />}
+                >
                     <div className="flex gap-4 items-start">
                         {/* Left Side: Next In Line Square Card */}
                         <div className="flex flex-col gap-2 shrink-0">
@@ -2501,6 +2516,10 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
 
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+    useEffect(() => {
+        fetchVehicles();
+    }, [startDate, endDate]);
 
     const fetchVehicles = async () => {
         setLoading(true);
