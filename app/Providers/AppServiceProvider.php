@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use App\Models\UserLoginLog;
+use App\Models\Trip;
+use App\Observers\TripObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Register the Trip observer for session tracking
+        Trip::observe(TripObserver::class);
 
         Event::listen(Login::class, function (Login $event) {
             $log = UserLoginLog::create([

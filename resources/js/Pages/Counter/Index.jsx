@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
@@ -46,20 +46,38 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
 
     if (available.length === 0) return null;
 
+    // Sort by session_id first (lower sessions get priority), then by checked_in_at
+    const sorted = [...available].sort((a, b) => {
+        const sessionA = a.driver?.session_id ?? 0;
+        const sessionB = b.driver?.session_id ?? 0;
+        if (sessionA !== sessionB) return sessionA - sessionB;
+
+        const timeA = a.driver?.checked_in_at ?? '';
+        const timeB = b.driver?.checked_in_at ?? '';
+        return timeA.localeCompare(timeB);
+    });
+
     const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
     const lastAssignedDriver = lastAssignedTrip?.driver;
     const lastCheckInTime = lastAssignedDriver?.checked_in_at;
+    const lastSessionId = lastAssignedDriver?.session_id ?? 0;
 
     if (lastCheckInTime) {
-        const nextVehicles = available.filter(
-            (v) => v.driver?.checked_in_at && v.driver.checked_in_at > lastCheckInTime
+        // Find next vehicle in the same or lower session with later check-in time
+        const nextVehicles = sorted.filter(
+            (v) => {
+                const sid = v.driver?.session_id ?? 0;
+                if (sid < lastSessionId) return true;
+                if (sid === lastSessionId && v.driver?.checked_in_at && v.driver.checked_in_at > lastCheckInTime) return true;
+                return false;
+            }
         );
         if (nextVehicles.length > 0) {
             return nextVehicles[0];
         }
     }
 
-    return available[0];
+    return sorted[0];
 };
 
 const LANGUAGE_COLOR_PALETTES = [
@@ -126,6 +144,26 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
     const [eurRates, setEurRates] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [showReorderModal, setShowReorderModal] = useState(false);
+    const [reorderSaving, setReorderSaving] = useState(false);
+
+    const [searchMyTrips, setSearchMyTrips] = useState('');
+
+    const filteredMyTrips = useMemo(() => {
+        return myTrips.filter((trip) => {
+            const text = [
+                trip.id,
+                trip.customer?.name,
+                trip.customer?.customer_code,
+                trip.driver?.first_name,
+                trip.driver?.last_name,
+                trip.driver?.vehicle?.registration_number,
+                trip.status,
+            ].join(' ').toLowerCase();
+
+            return text.includes(searchMyTrips.toLowerCase());
+        });
+    }, [myTrips, searchMyTrips]);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -237,6 +275,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
+    const maxSessionId = Math.max(0, ...vehicles.map(v => v.driver?.session_id || 0));
+    const previousSessionId = maxSessionId > 1 ? maxSessionId - 1 : null;
+    const previousSessionVehicles = previousSessionId 
+        ? vehicles
+            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0))
+            .sort((a, b) => (getVehicleSlotNumber(a) || 0) - (getVehicleSlotNumber(b) || 0))
+        : [];
+
+    const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
     return (
         <>
             <Head title="Counter" />
@@ -280,55 +329,68 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered)`} icon={<CarFront className="text-green-700" size={22} />}>
                     <div className="flex gap-4 items-start">
                         {/* Left Side: Next In Line Square Card */}
-                        <div 
-                            className="w-[180px] h-[180px] shrink-0 border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
-                            onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
-                            title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
-                        >
-                            {/* Decorative badge */}
-                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
-                                Next
-                            </div>
-                            
-                            <div className="text-center w-full mt-2">
-                                <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
-                                    Next In Line
-                                </span>
-                                <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                            <div 
+                                className="w-[180px] h-[180px] border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
+                                onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
+                                title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
+                            >
+                                {/* Decorative badge */}
+                                <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
+                                    Next
+                                </div>
+                                
+                                <div className="text-center w-full mt-2">
+                                    <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
+                                        Next In Line
+                                    </span>
+                                    <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                                </div>
+
+                                {nextInLineVehicle ? (
+                                    <>
+                                        <div className="text-5xl font-black text-emerald-700 my-1.5">
+                                            {nextInLineSlotNumber ?? '-'}
+                                        </div>
+                                        <div className="text-center w-full min-w-0">
+                                            <p className="text-xs font-bold text-gray-800 truncate px-1">
+                                                {nextInLineVehicle.driver?.first_name ?? 'Driver'}
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 font-medium truncate">
+                                                {nextInLineVehicle.registration_number ?? '-'}
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center flex-1">
+                                        <span className="text-3xl text-gray-300">--</span>
+                                        <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
+                                            No on-duty vehicle queue
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
-                            {nextInLineVehicle ? (
-                                <>
-                                    <div className="text-5xl font-black text-emerald-700 my-1.5">
-                                        {nextInLineSlotNumber ?? '-'}
-                                    </div>
-                                    <div className="text-center w-full min-w-0">
-                                        <p className="text-xs font-bold text-gray-800 truncate px-1">
-                                            {nextInLineVehicle.driver?.first_name ?? 'Driver'}
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 font-medium truncate">
-                                            {nextInLineVehicle.registration_number ?? '-'}
-                                        </p>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center flex-1">
-                                    <span className="text-3xl text-gray-300">--</span>
-                                    <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
-                                        No on-duty vehicle queue
-                                    </p>
-                                </div>
+                            {maxSessionId > 1 && previousSessionVehicles.length > 0 && (
+                                <button 
+                                    onClick={() => setShowReorderModal(true)}
+                                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                                >
+                                    Reorder Session {previousSessionId}
+                                </button>
                             )}
                         </div>
 
                         {/* Middle Side: Vehicle Grid */}
                         <div className="flex-1">
-                            <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
+                            <div className="max-h-[420px] overflow-y-auto pb-4 pr-2 space-y-4">
                                 {(() => {
                                     const vehicleMap = {};
+                                    const sessionQueues = {}; // For session >= 2
+
                                     vehicles.forEach((v) => {
                                         const reg = v.driver?.registration_number ?? '';
                                         const match = reg.match(/\d+/);
@@ -336,20 +398,73 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         if (!isNaN(num) && num >= 1 && num <= 95) {
                                             vehicleMap[num] = v;
                                         }
+
+                                        const sid = v.driver?.session_id ?? null;
+                                        if (sid !== null && sid > baseSessionId) {
+                                            if (!sessionQueues[sid]) sessionQueues[sid] = [];
+                                            sessionQueues[sid].push({ vehicle: v, originalSlot: num });
+                                        }
                                     });
 
-                                    return Array.from({ length: 95 }, (_, i) => {
-                                        const slotNum = i + 1;
-                                        const vehicle = vehicleMap[slotNum] ?? null;
-                                        return (
-                                            <VehicleSlot
-                                                key={`slot-${slotNum}`}
-                                                vehicle={vehicle}
-                                                number={slotNum}
-                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                            />
-                                        );
-                                    });
+                                    const sessionKeys = Object.keys(sessionQueues).map(Number).sort((a, b) => a - b);
+
+                                    return (
+                                        <>
+                                            {/* Main 1-95 Grid (Session 1 & Off Duty) */}
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {Array.from({ length: 95 }, (_, i) => {
+                                                    const slotNum = i + 1;
+                                                    const vehicle = vehicleMap[slotNum] ?? null;
+                                                    if (!vehicle) return null; // Skip unregistered slots
+                                                    const isMoved = vehicle?.driver?.session_id > baseSessionId;
+                                                    
+                                                    return (
+                                                        <VehicleSlot
+                                                            key={`main-slot-${slotNum}`}
+                                                            vehicle={vehicle}
+                                                            number={slotNum}
+                                                            selectedLanguageFilter={null}
+                                                            selectedVehicleTypeFilter={null}
+                                                            allVehicleTypes={[]}
+                                                            isMovedToNextQueue={isMoved}
+                                                            onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Next Sessions (Session 2, 3, etc.) Rows */}
+                                            {sessionKeys.length > 0 && (
+                                                <div className="mt-6 border-t border-gray-200 pt-4 space-y-3">
+                                                    {sessionKeys.map((sid) => (
+                                                        <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                                                                    Session {sid} Queue
+                                                                </span>
+                                                                <span className="text-[10px] text-amber-700 font-medium">
+                                                                    {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {sessionQueues[sid].map((item) => (
+                                                                    <VehicleSlot
+                                                                        key={`session-${sid}-slot-${item.originalSlot}`}
+                                                                        vehicle={item.vehicle}
+                                                                        number={item.originalSlot}
+                                                                        selectedLanguageFilter={null}
+                                                                        selectedVehicleTypeFilter={null}
+                                                                        allVehicleTypes={[]}
+                                                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
+                                    );
                                 })()}
                             </div>
                         </div>
@@ -496,6 +611,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         </div>
                     }
                     icon={<ClipboardList className="text-slate-700" size={22} />}
+                    actions={
+                        myTrips.length > 0 && (
+                            <input
+                                type="text"
+                                placeholder="Search my trips..."
+                                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-1 focus:ring-slate-400 focus:border-slate-400 font-normal"
+                                value={searchMyTrips}
+                                onChange={(e) => setSearchMyTrips(e.target.value)}
+                            />
+                        )
+                    }
                 >
                     {myTrips.length ? (
                         <div className="border border-slate-200 rounded-lg overflow-hidden shadow-xs">
@@ -590,7 +716,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         },
                                     },
                                 ]}
-                                data={myTrips}
+                                data={filteredMyTrips}
                                 pagination
                                 paginationPerPage={10}
                                 paginationRowsPerPageOptions={[10, 20, 50, 100]}
@@ -673,6 +799,62 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                     Confirm Checkout
                                 </Link>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showReorderModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">Reorder Session {previousSessionId}</h2>
+                            <button onClick={() => setShowReorderModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Move these slots from session {previousSessionId} to the latest session ({maxSessionId}):
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-2 mb-6 max-h-48 overflow-y-auto p-1">
+                            {previousSessionVehicles.map(v => (
+                                <span key={v.id} className="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-md text-sm border border-amber-200">
+                                    Slot {getVehicleSlotNumber(v) ?? '-'}
+                                </span>
+                            ))}
+                            {previousSessionVehicles.length === 0 && (
+                                <span className="text-gray-400 text-sm italic">No slots found.</span>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowReorderModal(false)}
+                                className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setReorderSaving(true);
+                                    router.post('/counter/reorder-session', {
+                                        driver_ids: previousSessionVehicles.map(v => v.driver?.id).filter(Boolean),
+                                        target_session: maxSessionId
+                                    }, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        onFinish: () => {
+                                            setReorderSaving(false);
+                                            setShowReorderModal(false);
+                                        }
+                                    });
+                                }}
+                                disabled={reorderSaving || previousSessionVehicles.length === 0}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+                            >
+                                {reorderSaving ? 'Saving...' : 'Save Reorder'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -886,7 +1068,10 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
             </div>
 
             <div className="flex justify-end border-t pt-4">
-                <button disabled={form.processing} className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
+                <button 
+                    disabled={form.processing || !form.data.name?.trim() || !form.data.email?.trim() || !form.data.whatsapp_number?.trim()} 
+                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
+                >
                     {form.processing ? 'Saving...' : 'Save Customer & Continue'}
                 </button>
             </div>
@@ -1157,6 +1342,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
+
+    const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
     // Collect all unique languages from DB prop + vehicle driver languages
     const allowedLanguages = ['english', 'arabic', 'korean', 'chinese', 'tamil', 'hindi'];
@@ -1451,9 +1639,11 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
                 {/* Middle Side: Vehicle Grid */}
                 <div className="flex-1">
-                    <div className="flex flex-wrap gap-1.5 max-h-[420px] overflow-y-auto pb-4 pr-2">
+                    <div className="max-h-[420px] overflow-y-auto pb-4 pr-2 space-y-4">
                         {(() => {
                             const vehicleMap = {};
+                            const sessionQueues = {}; // For session >= 2
+
                             vehicles.forEach((v) => {
                                 const reg = v.driver?.registration_number ?? '';
                                 const match = reg.match(/\d+/);
@@ -1461,23 +1651,73 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 if (!isNaN(num) && num >= 1 && num <= 95) {
                                     vehicleMap[num] = v;
                                 }
+
+                                const sid = v.driver?.session_id ?? null;
+                                if (sid !== null && sid > baseSessionId) {
+                                    if (!sessionQueues[sid]) sessionQueues[sid] = [];
+                                    sessionQueues[sid].push({ vehicle: v, originalSlot: num });
+                                }
                             });
 
-                            return Array.from({ length: 95 }, (_, i) => {
-                                const slotNum = i + 1;
-                                const vehicle = vehicleMap[slotNum] ?? null;
-                                return (
-                                    <VehicleSlot
-                                        key={`slot-${slotNum}`}
-                                        vehicle={vehicle}
-                                        number={slotNum}
-                                        selectedLanguageFilter={selectedLanguageFilter}
-                                        selectedVehicleTypeFilter={selectedVehicleTypeFilter}
-                                        allVehicleTypes={allVehicleTypes}
-                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                    />
-                                );
-                            });
+                            const sessionKeys = Object.keys(sessionQueues).map(Number).sort((a, b) => a - b);
+
+                            return (
+                                <>
+                                    {/* Main 1-95 Grid (Session 1 & Off Duty) */}
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Array.from({ length: 95 }, (_, i) => {
+                                            const slotNum = i + 1;
+                                            const vehicle = vehicleMap[slotNum] ?? null;
+                                            if (!vehicle) return null; // Skip unregistered slots
+                                            const isMoved = vehicle?.driver?.session_id > baseSessionId;
+                                            
+                                            return (
+                                                <VehicleSlot
+                                                    key={`main-slot-${slotNum}`}
+                                                    vehicle={vehicle}
+                                                    number={slotNum}
+                                                    selectedLanguageFilter={selectedLanguageFilter}
+                                                    selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                    allVehicleTypes={allVehicleTypes}
+                                                    isMovedToNextQueue={isMoved}
+                                                    onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Next Sessions (Session 2, 3, etc.) Rows */}
+                                    {sessionKeys.length > 0 && (
+                                        <div className="mt-6 border-t border-gray-200 pt-4 space-y-3">
+                                            {sessionKeys.map((sid) => (
+                                                <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                                                            Session {sid} Queue
+                                                        </span>
+                                                        <span className="text-[10px] text-amber-700 font-medium">
+                                                            {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {sessionQueues[sid].map((item) => (
+                                                            <VehicleSlot
+                                                                key={`session-${sid}-slot-${item.originalSlot}`}
+                                                                vehicle={item.vehicle}
+                                                                number={item.originalSlot}
+                                                                selectedLanguageFilter={selectedLanguageFilter}
+                                                                selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                                allVehicleTypes={allVehicleTypes}
+                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            );
                         })()}
                     </div>
                 </div>
@@ -1970,16 +2210,9 @@ function TripCard({ trip }) {
     );
 }
 
-function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, allVehicleTypes = [] }) {
-    // No vehicle registered in this slot
-    if (!vehicle) {
-        return (
-            <div className="w-[42px] h-[42px] rounded-lg flex items-center justify-center text-[11px] font-medium border border-dashed border-gray-200 bg-gray-50/70 text-gray-300 relative overflow-hidden">
-                <span className="absolute rotate-[-35deg] text-[20px] font-bold text-black-200/40 select-none tracking-wide">NR</span>
-                {number}
-            </div>
-        );
-    }
+function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, allVehicleTypes = [], isMovedToNextQueue = false }) {
+    // No vehicle registered in this slot — skip rendering
+    if (!vehicle) return null;
 
     const isOnDuty = vehicle.driver?.duty_status === 'on_duty';
     const hasOngoingTrip = vehicle.driver?.trips && vehicle.driver.trips.length > 0;
@@ -2027,16 +2260,36 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
         </div>
     );
 
+    // If driver completed a trip and moved to a new session row, show their old slot as disabled/moved
+    if (isMovedToNextQueue) {
+        return (
+            <div
+                className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed select-none leading-tight text-center px-0.5 shrink-0 opacity-60 relative ${dimClass} ${highlightRing}`}
+                title={`Moved to next queue`}
+            >
+                <span className="text-[12px] leading-none text-gray-400">{number}</span>
+                <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter mt-0.5">Moved</span>
+            </div>
+        );
+    }
+
+    const sessionId = vehicle.driver?.session_id ?? null;
+
     // Vehicle on a trip
     if (hasOngoingTrip) {
         return (
             <div
-                className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 relative ${dimClass} ${highlightRing}`}
+                className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
             >
-                <span className="text-[13px] leading-none">{number}</span>
-                <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter">Trip</span>
+                <span className="text-[12px] leading-none">{number}</span>
+                <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter mt-0.5">Trip</span>
+                {sessionId !== null && sessionId >= 2 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
+                        S{sessionId}
+                    </span>
+                )}
                 {languageDots}
             </div>
         );
@@ -2046,12 +2299,17 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
     if (!isOnDuty) {
         return (
             <div
-                className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 relative ${dimClass} ${highlightRing}`}
+                className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
             >
-                <span className="text-[13px] leading-none">{number}</span>
-                <span className="text-[9px] font-semibold text-red-500 uppercase">Off</span>
+                <span className="text-[12px] leading-none">{number}</span>
+                <span className="text-[8px] font-semibold text-red-500 uppercase mt-0.5">Off</span>
+                {sessionId !== null && sessionId >= 2 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
+                        S{sessionId}
+                    </span>
+                )}
                 {languageDots}
             </div>
         );
@@ -2060,12 +2318,17 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
     // On-duty vehicle
     return (
         <div
-            className={`w-[42px] h-[42px] rounded-lg flex flex-col items-center justify-start pt-1 text-[18px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 relative ${dimClass} ${highlightRing}`}
+            className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-1 text-[16px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 shrink-0 relative ${dimClass} ${highlightRing}`}
             onClick={() => onClick?.(vehicle)}
-            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
+            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
         >
             <span className="leading-none">{number}</span>
-            {languageDots}
+            {sessionId !== null && sessionId >= 2 && (
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
+                    S{sessionId}
+                </span>
+            )}
+                {languageDots}
         </div>
     );
 }
