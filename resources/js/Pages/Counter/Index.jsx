@@ -311,7 +311,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     )}
                 </Section>
 
-                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
+                <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered)`} icon={<CarFront className="text-green-700" size={22} />}>
                     <div className="flex gap-4 items-start">
                         {/* Left Side: Next In Line Square Card */}
                         <div className="flex flex-col gap-2 shrink-0">
@@ -1039,7 +1039,10 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
             </div>
 
             <div className="flex justify-end border-t pt-4">
-                <button disabled={form.processing} className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
+                <button 
+                    disabled={form.processing || !form.data.name?.trim() || !form.data.email?.trim() || !form.data.whatsapp_number?.trim()} 
+                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
+                >
                     {form.processing ? 'Saving...' : 'Save Customer & Continue'}
                 </button>
             </div>
