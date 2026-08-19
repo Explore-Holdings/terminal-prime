@@ -1,6 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
@@ -146,6 +146,24 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [showReorderModal, setShowReorderModal] = useState(false);
     const [reorderSaving, setReorderSaving] = useState(false);
+
+    const [searchMyTrips, setSearchMyTrips] = useState('');
+
+    const filteredMyTrips = useMemo(() => {
+        return myTrips.filter((trip) => {
+            const text = [
+                trip.id,
+                trip.customer?.name,
+                trip.customer?.customer_code,
+                trip.driver?.first_name,
+                trip.driver?.last_name,
+                trip.driver?.vehicle?.registration_number,
+                trip.status,
+            ].join(' ').toLowerCase();
+
+            return text.includes(searchMyTrips.toLowerCase());
+        });
+    }, [myTrips, searchMyTrips]);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -593,6 +611,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         </div>
                     }
                     icon={<ClipboardList className="text-slate-700" size={22} />}
+                    actions={
+                        myTrips.length > 0 && (
+                            <input
+                                type="text"
+                                placeholder="Search my trips..."
+                                className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-1 focus:ring-slate-400 focus:border-slate-400 font-normal"
+                                value={searchMyTrips}
+                                onChange={(e) => setSearchMyTrips(e.target.value)}
+                            />
+                        )
+                    }
                 >
                     {myTrips.length ? (
                         <div className="border border-slate-200 rounded-lg overflow-hidden shadow-xs">
@@ -687,7 +716,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         },
                                     },
                                 ]}
-                                data={myTrips}
+                                data={filteredMyTrips}
                                 pagination
                                 paginationPerPage={10}
                                 paginationRowsPerPageOptions={[10, 20, 50, 100]}
