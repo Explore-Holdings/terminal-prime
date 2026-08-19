@@ -144,6 +144,8 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [vehicleEnabledAgentId, setVehicleEnabledAgentId] = useState(null);
     const [eurRates, setEurRates] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [showReorderModal, setShowReorderModal] = useState(false);
+    const [reorderSaving, setReorderSaving] = useState(false);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -255,6 +257,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
+    const maxSessionId = Math.max(0, ...vehicles.map(v => v.driver?.session_id || 0));
+    const previousSessionId = maxSessionId > 1 ? maxSessionId - 1 : null;
+    const previousSessionVehicles = previousSessionId 
+        ? vehicles
+            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0))
+            .sort((a, b) => (getVehicleSlotNumber(a) || 0) - (getVehicleSlotNumber(b) || 0))
+        : [];
+
+    const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
     return (
         <>
             <Head title="Counter" />
@@ -301,44 +314,55 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section title={`Vehicles Checked In (${vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / ${vehicles.length} Registered / 95)`} icon={<CarFront className="text-green-700" size={22} />}>
                     <div className="flex gap-4 items-start">
                         {/* Left Side: Next In Line Square Card */}
-                        <div 
-                            className="w-[180px] h-[180px] shrink-0 border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
-                            onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
-                            title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
-                        >
-                            {/* Decorative badge */}
-                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
-                                Next
-                            </div>
-                            
-                            <div className="text-center w-full mt-2">
-                                <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
-                                    Next In Line
-                                </span>
-                                <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                            <div 
+                                className="w-[180px] h-[180px] border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
+                                onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
+                                title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
+                            >
+                                {/* Decorative badge */}
+                                <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">
+                                    Next
+                                </div>
+                                
+                                <div className="text-center w-full mt-2">
+                                    <span className="text-[11px] uppercase tracking-wider text-emerald-800 font-bold block mb-1">
+                                        Next In Line
+                                    </span>
+                                    <div className="h-[1px] w-8 bg-emerald-200 mx-auto"></div>
+                                </div>
+
+                                {nextInLineVehicle ? (
+                                    <>
+                                        <div className="text-5xl font-black text-emerald-700 my-1.5">
+                                            {nextInLineSlotNumber ?? '-'}
+                                        </div>
+                                        <div className="text-center w-full min-w-0">
+                                            <p className="text-xs font-bold text-gray-800 truncate px-1">
+                                                {nextInLineVehicle.driver?.first_name ?? 'Driver'}
+                                            </p>
+                                            <p className="text-[10px] text-gray-500 font-medium truncate">
+                                                {nextInLineVehicle.registration_number ?? '-'}
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center flex-1">
+                                        <span className="text-3xl text-gray-300">--</span>
+                                        <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
+                                            No on-duty vehicle queue
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
-                            {nextInLineVehicle ? (
-                                <>
-                                    <div className="text-5xl font-black text-emerald-700 my-1.5">
-                                        {nextInLineSlotNumber ?? '-'}
-                                    </div>
-                                    <div className="text-center w-full min-w-0">
-                                        <p className="text-xs font-bold text-gray-800 truncate px-1">
-                                            {nextInLineVehicle.driver?.first_name ?? 'Driver'}
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 font-medium truncate">
-                                            {nextInLineVehicle.registration_number ?? '-'}
-                                        </p>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center flex-1">
-                                    <span className="text-3xl text-gray-300">--</span>
-                                    <p className="text-[10px] text-gray-400 mt-1 font-medium text-center leading-tight">
-                                        No on-duty vehicle queue
-                                    </p>
-                                </div>
+                            {maxSessionId > 1 && previousSessionVehicles.length > 0 && (
+                                <button 
+                                    onClick={() => setShowReorderModal(true)}
+                                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                                >
+                                    Reorder Session {previousSessionId}
+                                </button>
                             )}
                         </div>
 
@@ -358,7 +382,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         }
 
                                         const sid = v.driver?.session_id ?? null;
-                                        if (sid !== null && sid >= 2) {
+                                        if (sid !== null && sid > baseSessionId) {
                                             if (!sessionQueues[sid]) sessionQueues[sid] = [];
                                             sessionQueues[sid].push({ vehicle: v, originalSlot: num });
                                         }
@@ -374,7 +398,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                                     const slotNum = i + 1;
                                                     const vehicle = vehicleMap[slotNum] ?? null;
                                                     if (!vehicle) return null; // Skip unregistered slots
-                                                    const isMoved = vehicle?.driver?.session_id >= 2;
+                                                    const isMoved = vehicle?.driver?.session_id > baseSessionId;
                                                     
                                                     return (
                                                         <VehicleSlot
@@ -746,6 +770,62 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                     Confirm Checkout
                                 </Link>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showReorderModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">Reorder Session {previousSessionId}</h2>
+                            <button onClick={() => setShowReorderModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            Move these slots from session {previousSessionId} to the latest session ({maxSessionId}):
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-2 mb-6 max-h-48 overflow-y-auto p-1">
+                            {previousSessionVehicles.map(v => (
+                                <span key={v.id} className="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-md text-sm border border-amber-200">
+                                    Slot {getVehicleSlotNumber(v) ?? '-'}
+                                </span>
+                            ))}
+                            {previousSessionVehicles.length === 0 && (
+                                <span className="text-gray-400 text-sm italic">No slots found.</span>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowReorderModal(false)}
+                                className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setReorderSaving(true);
+                                    router.post('/counter/reorder-session', {
+                                        driver_ids: previousSessionVehicles.map(v => v.driver?.id).filter(Boolean),
+                                        target_session: maxSessionId
+                                    }, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        onFinish: () => {
+                                            setReorderSaving(false);
+                                            setShowReorderModal(false);
+                                        }
+                                    });
+                                }}
+                                disabled={reorderSaving || previousSessionVehicles.length === 0}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+                            >
+                                {reorderSaving ? 'Saving...' : 'Save Reorder'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1231,6 +1311,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
 
+    const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
     // Collect all unique languages from DB prop + vehicle driver languages
     const allowedLanguages = ['english', 'arabic', 'korean', 'chinese', 'tamil', 'hindi'];
     const allDbLanguages = Array.from(
@@ -1538,7 +1621,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 }
 
                                 const sid = v.driver?.session_id ?? null;
-                                if (sid !== null && sid >= 2) {
+                                if (sid !== null && sid > baseSessionId) {
                                     if (!sessionQueues[sid]) sessionQueues[sid] = [];
                                     sessionQueues[sid].push({ vehicle: v, originalSlot: num });
                                 }
@@ -1554,7 +1637,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                             const slotNum = i + 1;
                                             const vehicle = vehicleMap[slotNum] ?? null;
                                             if (!vehicle) return null; // Skip unregistered slots
-                                            const isMoved = vehicle?.driver?.session_id >= 2;
+                                            const isMoved = vehicle?.driver?.session_id > baseSessionId;
                                             
                                             return (
                                                 <VehicleSlot
