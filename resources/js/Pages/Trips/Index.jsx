@@ -60,7 +60,7 @@ export default function Index({ trips = [] }) {
         },
         {
             name: 'Driver',
-            selector: row => row.driver?.full_name ?? '-',
+            selector: row => row.driver?.first_name +' ' + row.driver?.last_name ?? '-',
             sortable: true,
         },
         {

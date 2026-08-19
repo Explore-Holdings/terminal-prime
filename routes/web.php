@@ -50,7 +50,8 @@ Route::get('/dashboard', function () {
             ->get([
                 'id',
                 'registration_number',
-                'full_name',
+                'first_name',
+                'last_name',
                 'mobile_number',
                 'driver_status',
                 'registration_status',
