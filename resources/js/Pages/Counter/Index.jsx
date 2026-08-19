@@ -50,29 +50,29 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
 
     if (available.length === 0) return null;
 
-    // Sort by session_id first (lower sessions get priority), then by checked_in_at
+    // Sort by session_id first, then by slot number
     const sorted = [...available].sort((a, b) => {
         const sessionA = a.driver?.session_id ?? 0;
         const sessionB = b.driver?.session_id ?? 0;
         if (sessionA !== sessionB) return sessionA - sessionB;
 
-        const timeA = a.driver?.checked_in_at ?? '';
-        const timeB = b.driver?.checked_in_at ?? '';
-        return timeA.localeCompare(timeB);
+        const slotA = getVehicleSlotNumber(a) ?? 999;
+        const slotB = getVehicleSlotNumber(b) ?? 999;
+        return slotA - slotB;
     });
 
     const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
     const lastAssignedDriver = lastAssignedTrip?.driver;
-    const lastCheckInTime = lastAssignedDriver?.checked_in_at;
+    const lastSlotNumber = getVehicleSlotNumber(lastAssignedDriver) ?? 0;
     const lastSessionId = lastAssignedDriver?.session_id ?? 0;
 
-    if (lastCheckInTime) {
-        // Find next vehicle in the same or lower session with later check-in time
+    if (lastSlotNumber > 0) {
+        // Find next vehicle in the same or lower session with a higher slot number
         const nextVehicles = sorted.filter(
             (v) => {
                 const sid = v.driver?.session_id ?? 0;
                 if (sid < lastSessionId) return true;
-                if (sid === lastSessionId && v.driver?.checked_in_at && v.driver.checked_in_at > lastCheckInTime) return true;
+                if (sid === lastSessionId && (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber) return true;
                 return false;
             }
         );
@@ -283,12 +283,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const previousSessionId = maxSessionId > 1 ? maxSessionId - 1 : null;
     const previousSessionVehicles = previousSessionId 
         ? vehicles
-            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0))
+            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0) && v.driver?.duty_status !== 'on_duty')
             .sort((a, b) => (getVehicleSlotNumber(a) || 0) - (getVehicleSlotNumber(b) || 0))
         : [];
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) === baseSessionId && v.driver?.duty_status === 'on_duty' && !(v.driver?.trips && v.driver.trips.length > 0));
 
     return (
         <>
@@ -396,7 +397,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             {maxSessionId > 1 && previousSessionVehicles.length > 0 && (
                                 <button 
                                     onClick={() => setShowReorderModal(true)}
-                                    className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
+                                    disabled={hasCheckedInCurrentQueue}
+                                    className={`w-full py-1.5 text-white text-xs font-bold rounded-lg shadow-sm transition ${hasCheckedInCurrentQueue ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder previous session drivers"}
                                 >
                                     Reorder Session {previousSessionId}
                                 </button>
