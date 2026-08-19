@@ -47,6 +47,7 @@ class CounterController extends Controller
                         ELSE 1
                     END
                 ")
+                ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
                 
@@ -112,6 +113,20 @@ class CounterController extends Controller
         }
 
         return redirect()->route('counter.checkout-summary', $logId);
+    }
+
+    public function reorderSession(Request $request)
+    {
+        $request->validate([
+            'driver_ids' => 'required|array',
+            'driver_ids.*' => 'integer|exists:drivers,id',
+            'target_session' => 'required|integer|min:1',
+        ]);
+
+        \App\Models\Driver::whereIn('id', $request->driver_ids)
+            ->update(['session_id' => $request->target_session]);
+
+        return back()->with('success', 'Session reordered successfully.');
     }
 
     public function checkoutSummary(UserLoginLog $userLoginLog)

@@ -40,6 +40,7 @@ class Driver extends Model
         'payment_received',
         'payment_method',
         'payment_attachment',
+        'session_id',
     ];
 
     public function emergencyContact()

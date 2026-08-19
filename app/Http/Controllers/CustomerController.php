@@ -205,6 +205,54 @@ class CustomerController extends Controller
 
         DB::transaction(function () use ($data, $customer, &$trip) {
 
+            // ── Session Tracking: Initialize session_id for ALL drivers ──
+            // When session_id is null (fresh start), session 1 applies to every
+            // driver regardless of duty_status or check-in state.
+            $driver = Driver::findOrFail($data['driver_id']);
+            if ($driver->session_id === null) {
+                Driver::whereNull('session_id')
+                    ->update(['session_id' => 1]);
+                $driver->refresh();
+            }
+
+            // ── Bump skipped drivers to next session ──
+            // Extract slot number from assigned driver's registration_number.
+            // All drivers with a lower slot number in the SAME session
+            // are "skipped" and move to the next session — EXCEPT drivers
+            // who are currently on an active trip (they'll be bumped by
+            // TripObserver when their trip completes).
+            $assignedSlot = null;
+            if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
+                $assignedSlot = (int) $m[0];
+            }
+
+            if ($assignedSlot !== null && $driver->session_id !== null) {
+                $currentSession = $driver->session_id;
+
+                // IDs of drivers who currently have an active (non-completed) trip
+                $onTripDriverIds = Trip::whereNotIn('status', ['Completed', 'Cancelled'])
+                    ->pluck('driver_id')
+                    ->toArray();
+
+                // Get all drivers in the same session with a lower slot number
+                // who are NOT currently on a trip
+                $skippedDrivers = Driver::where('session_id', $currentSession)
+                    ->where('id', '!=', $driver->id)
+                    ->whereNotIn('id', $onTripDriverIds)
+                    ->get()
+                    ->filter(function ($d) use ($assignedSlot) {
+                        if (preg_match('/\d+/', $d->registration_number ?? '', $m)) {
+                            return (int) $m[0] < $assignedSlot;
+                        }
+                        return false;
+                    });
+
+                if ($skippedDrivers->isNotEmpty()) {
+                    Driver::whereIn('id', $skippedDrivers->pluck('id'))
+                        ->update(['session_id' => $currentSession + 1]);
+                }
+            }
+
             $trip = Trip::create([
                 'driver_id'        => $data['driver_id'],
                 'customer_id'      => $customer->id,
