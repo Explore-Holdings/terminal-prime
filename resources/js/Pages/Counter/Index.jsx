@@ -358,7 +358,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         }
 
                                         const sid = v.driver?.session_id ?? null;
-                                        if (sid !== null && sid >= 2 && v.driver?.duty_status === 'on_duty') {
+                                        if (sid !== null && sid >= 2) {
                                             if (!sessionQueues[sid]) sessionQueues[sid] = [];
                                             sessionQueues[sid].push({ vehicle: v, originalSlot: num });
                                         }
@@ -374,7 +374,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                                     const slotNum = i + 1;
                                                     const vehicle = vehicleMap[slotNum] ?? null;
                                                     if (!vehicle) return null; // Skip unregistered slots
-                                                    const isMoved = vehicle?.driver?.session_id >= 2 && vehicle?.driver?.duty_status === 'on_duty';
+                                                    const isMoved = vehicle?.driver?.session_id >= 2;
                                                     
                                                     return (
                                                         <VehicleSlot
@@ -1538,7 +1538,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 }
 
                                 const sid = v.driver?.session_id ?? null;
-                                if (sid !== null && sid >= 2 && v.driver?.duty_status === 'on_duty') {
+                                if (sid !== null && sid >= 2) {
                                     if (!sessionQueues[sid]) sessionQueues[sid] = [];
                                     sessionQueues[sid].push({ vehicle: v, originalSlot: num });
                                 }
@@ -1554,7 +1554,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                             const slotNum = i + 1;
                                             const vehicle = vehicleMap[slotNum] ?? null;
                                             if (!vehicle) return null; // Skip unregistered slots
-                                            const isMoved = vehicle?.driver?.session_id >= 2 && vehicle?.driver?.duty_status === 'on_duty';
+                                            const isMoved = vehicle?.driver?.session_id >= 2;
                                             
                                             return (
                                                 <VehicleSlot
@@ -2158,16 +2158,23 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
         );
     }
 
+    const sessionId = vehicle.driver?.session_id ?? null;
+
     // Vehicle on a trip
     if (hasOngoingTrip) {
         return (
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter mt-0.5">Trip</span>
+                {sessionId !== null && sessionId >= 2 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
+                        S{sessionId}
+                    </span>
+                )}
                 {languageDots}
             </div>
         );
@@ -2179,17 +2186,21 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-semibold text-red-500 uppercase mt-0.5">Off</span>
+                {sessionId !== null && sessionId >= 2 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
+                        S{sessionId}
+                    </span>
+                )}
                 {languageDots}
             </div>
         );
     }
 
     // On-duty vehicle
-    const sessionId = vehicle.driver?.session_id ?? null;
     return (
         <div
             className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-1 text-[16px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 shrink-0 relative ${dimClass} ${highlightRing}`}
@@ -2202,7 +2213,7 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
                     S{sessionId}
                 </span>
             )}
-            {languageDots}
+                {languageDots}
         </div>
     );
 }
