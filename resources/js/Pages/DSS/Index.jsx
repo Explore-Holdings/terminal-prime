@@ -249,9 +249,9 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mt-6">
-                    <div className="xl:col-span-8 space-y-8">
+                    <div className="xl:col-span-8 space-y-2">
                         {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
-                        <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
+                        <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
                             <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
                                 <BanknotesIcon className="w-5 h-5 mr-2 text-black" />
                                 Manager & Counter Operations (Cash & Shifts)
@@ -278,7 +278,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                         </section>
 
                         {/* --- 2. TRIPS & DRIVERS --- */}
-                        <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
+                        <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
                             <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
                                 <TruckIcon className="w-5 h-5 mr-2 text-black" />
                                 Trips & Fleet Operations
@@ -305,7 +305,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                             </div>
                         </section>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 p-6 bg-slate-50/50">
                             {/* --- 3. FINANCE & REPORTS --- */}
                             <section>
                                 <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
@@ -371,7 +371,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                         />
 
                         {metrics.suspendedDriversList && metrics.suspendedDriversList.length > 0 && (
-                            <div className="mt-8 border-2 border-red-300 rounded-3xl p-6 bg-red-50/30">
+                            <div className="mt-8 border-2 border-red-300 p-6 bg-red-50/30">
                                 <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
                                     <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
                                     Suspended Drivers
