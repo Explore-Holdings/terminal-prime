@@ -10,6 +10,14 @@ use App\Models\RateSetting;
 use App\Models\LocationVehiclePrice;
 use App\Models\DriverLanguage;
 use App\Models\UserLoginLog;
+use App\Models\TripFinance;
+use App\Models\Expense;
+use App\Models\Payout;
+use App\Models\Finance;
+use App\Models\Customer;
+use App\Models\CustomerSurvey;
+use App\Models\User;
+use App\Models\Driver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -18,6 +26,138 @@ use Illuminate\Support\Facades\DB;
 
 class CounterController extends Controller
 {
+    public function dssIndex(Request $request)
+    {
+        $filter = $request->query('filter', 'today');
+        
+        if ($filter === 'this_week') {
+            $startDate = now()->startOfWeek();
+        } elseif ($filter === 'this_month') {
+            $startDate = now()->startOfMonth();
+        } elseif ($filter === 'this_year') {
+            $startDate = now()->startOfYear();
+        } elseif ($filter === 'all_time') {
+            $startDate = now()->subYears(50);
+        } else {
+            $startDate = now()->startOfDay();
+        }
+
+        // 1. Shift & Cash
+        $currentShiftLog = UserLoginLog::where('user_id', Auth::id())
+            ->whereNull('logout_at')
+            ->latest('login_at')
+            ->first();
+
+        $totalCashCollected = 0;
+        $handedOverCash = 0;
+        $cashInHand = 0;
+        $shiftTrips = collect();
+
+        if ($currentShiftLog) {
+            $shiftTrips = TripFinance::with(['trip.customer', 'driver', 'agentUser'])
+                ->whereHas('trip', function ($q) use ($currentShiftLog) {
+                    $q->where('trip_assigned_by', Auth::id())
+                      ->where('trip_assigned_at', '>=', $currentShiftLog->login_at);
+                })
+                ->latest()
+                ->get();
+            
+            $totalCashCollected = $shiftTrips->sum('total_amount');
+            $handedOverCash = $shiftTrips->sum('received_amount');
+            $cashInHand = $totalCashCollected - $handedOverCash;
+        }
+
+        $staffOnShift = UserLoginLog::whereNull('logout_at')->distinct('user_id')->count('user_id');
+
+        // 2. Trips & Fleet
+        $activeTripsCount = Trip::where('status', '!=', 'Completed')->count();
+        $completedTodayCount = Trip::where('status', 'Completed')->where('trip_ended_at', '>=', $startDate)->count();
+        $availableDriversCount = Driver::where('driver_status', 'Active')
+            ->where('duty_status', 'on_duty')
+            ->whereDoesntHave('trips', function ($q) {
+                $q->where('status', '!=', 'Completed');
+            })->count();
+        $offDutyDriversCount = Driver::where('duty_status', 'off_duty')->count();
+        $suspendedDriversCount = Driver::where('driver_status', 'Suspended')->count();
+        $suspendedDriversList = Driver::where('driver_status', 'Suspended')->get();
+
+        // 3. Finance & Accounting
+        $totalRevenueToday = TripFinance::where('created_at', '>=', $startDate)->sum('total_amount');
+        $pendingPayouts = TripFinance::sum('balance');
+        $totalExpensesToday = Expense::where('expense_date', '>=', $startDate)->sum('amount');
+        $netProfit = $totalRevenueToday - $totalExpensesToday; 
+        
+        $recentFinancialTransactions = TripFinance::with(['trip.customer', 'driver'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        // 4. Customers, Surveys & Users
+        $totalCustomers = Customer::count();
+        $newTodayCustomers = Customer::where('created_at', '>=', $startDate)->count();
+        $surveysCollected = CustomerSurvey::count();
+        $avgSatisfaction = CustomerSurvey::avg('journey_rating') ?? 0;
+        $activeSystemUsers = User::count();
+
+        $vehicles = Vehicle::with([
+                'driver.languages',
+                'pictures',
+                'driver.trips' => function ($q) {
+                    $q->where('status', '!=', 'Completed');
+                }
+            ])
+            ->select('vehicles.*')
+            ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
+            ->where('drivers.driver_status', 'Active')
+            ->orderByRaw("
+                CASE
+                    WHEN drivers.duty_status = 'on_duty' THEN 0
+                    ELSE 1
+                END
+            ")
+            ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
+            ->orderBy('drivers.checked_in_at', 'asc')
+            ->get();
+
+        $ongoingTrips = Trip::with(['driver.vehicle', 'customer', 'agent.user'])
+            ->where('status', '!=', 'Completed')
+            ->latest()
+            ->get();
+
+        return Inertia::render('DSS/Index', [
+            'metrics' => [
+                'totalCashCollected' => $totalCashCollected,
+                'handedOverCash' => $handedOverCash,
+                'cashInHand' => $cashInHand,
+                'staffOnShift' => $staffOnShift,
+                'shiftTrips' => $shiftTrips,
+
+                'activeTripsCount' => $activeTripsCount,
+                'completedTodayCount' => $completedTodayCount,
+                'availableDriversCount' => $availableDriversCount,
+                'offDutyDriversCount' => $offDutyDriversCount,
+                'suspendedDriversCount' => $suspendedDriversCount,
+                'suspendedDriversList' => $suspendedDriversList,
+
+                'totalRevenueToday' => $totalRevenueToday,
+                'pendingPayouts' => $pendingPayouts,
+                'totalExpensesToday' => $totalExpensesToday,
+                'netProfit' => $netProfit,
+                'recentFinancialTransactions' => $recentFinancialTransactions,
+
+                'totalCustomers' => $totalCustomers,
+                'newTodayCustomers' => $newTodayCustomers,
+                'surveysCollected' => $surveysCollected,
+                'avgSatisfaction' => round((float)$avgSatisfaction, 1),
+                'activeSystemUsers' => $activeSystemUsers,
+                'onlineNow' => $staffOnShift,
+            ],
+            'vehicles' => $vehicles,
+            'ongoingTrips' => $ongoingTrips,
+            'filter' => $filter,
+        ]);
+    }
+
     public function index()
     {
         return Inertia::render('Counter/Index', [
