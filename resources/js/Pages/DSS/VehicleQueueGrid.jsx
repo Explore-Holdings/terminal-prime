@@ -190,7 +190,7 @@ export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLi
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
     
     return (
-        <section className="bg-white rounded-xl shadow p-5 mb-6 overflow-visible w-full border-2 border-slate-700 sticky top-6">
+        <section className="bg-white shadow p-5 mb-6 overflow-visible w-full border-2 border-slate-700 sticky top-6">
             <div className="flex items-center gap-2 mb-4">
                 <CarFront className="text-green-700" size={22} />
                 <h2 className="text-lg font-bold text-gray-800">
