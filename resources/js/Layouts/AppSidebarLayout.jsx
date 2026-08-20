@@ -2,10 +2,10 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 
-export default function AppSidebarLayout({ children, title = 'Airport Counter' }) {
+export default function AppSidebarLayout({ children, title = 'Airport Counter', defaultSidebarOpen = true }) {
     const { url, props } = usePage();
     const user = props.auth?.user;
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
 
     const role = String(user?.role ?? '').toLowerCase();
 
@@ -20,6 +20,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter' }
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive'] },
         { label: 'Reports', path: '/reports', roles: ['admin', 'executive'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
+        { label: 'DSS', path: '/dss', roles: ['admin', 'executive'] },
     ];
 
     const visibleMenuItems = menuItems.filter((item) =>

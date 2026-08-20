@@ -87,7 +87,7 @@ export default function Dashboard({
                         headers={['Reg No', 'Name', 'Status']}
                         rows={recentDrivers.map((driver) => [
                             driver.registration_number ?? '-',
-                            driver.first_name +' ' + driver.last_name ?? '-',
+                            `${driver.first_name ?? ''} ${driver.last_name ?? ''}`.trim() || '-',
                             <Badge key={driver.id} value={driver.driver_status} />,
                         ])}
                         emptyText="No drivers found"

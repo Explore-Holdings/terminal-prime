@@ -151,4 +151,8 @@ Route::prefix('reports')->group(function () {
     Route::get('/trip-status', [ReportsController::class, 'tripStatus'])->name('reports.trip-status');
 });
 
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dss', [CounterController::class, 'dssIndex'])->name('dcss.index');
+});
+
 require __DIR__.'/auth.php';
