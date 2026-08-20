@@ -69,7 +69,7 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     return sorted[0];
 };
 
-export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
+export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {}, filter = 'today' }) {
     const { auth } = usePage().props;
     const user = auth?.user;
 
@@ -77,21 +77,21 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
     const [tripSearch, setTripSearch] = React.useState('');
     const [financeSearch, setFinanceSearch] = React.useState('');
     const [lastUpdated, setLastUpdated] = React.useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    const [dateFilter, setDateFilter] = React.useState('today');
+    const [dateFilter, setDateFilter] = React.useState(filter);
 
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
-    const queueVehicles = vehicles.filter((v) => {
-        const isOnDuty = v.driver?.duty_status === 'on_duty';
-        const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
-        return isOnDuty && !hasOngoingTrip;
-    }).sort((a, b) => {
-        const sessionA = a.driver?.session_id ?? 0;
-        const sessionB = b.driver?.session_id ?? 0;
-        if (sessionA !== sessionB) return sessionA - sessionB;
-        return (getVehicleSlotNumber(a) ?? 999) - (getVehicleSlotNumber(b) ?? 999);
-    });
+    // const queueVehicles = vehicles.filter((v) => {
+    //     const isOnDuty = v.driver?.duty_status === 'on_duty';
+    //     const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
+    //     return isOnDuty && !hasOngoingTrip;
+    // }).sort((a, b) => {
+    //     const sessionA = a.driver?.session_id ?? 0;
+    //     const sessionB = b.driver?.session_id ?? 0;
+    //     if (sessionA !== sessionB) return sessionA - sessionB;
+    //     return (getVehicleSlotNumber(a) ?? 999) - (getVehicleSlotNumber(b) ?? 999);
+    // });
 
     React.useEffect(() => {
         const intervalId = setInterval(() => {
@@ -112,32 +112,44 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
                 <Icon className={`w-6 h-6 ${colorClass}`} />
             </div>
             <div>
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
+                <h3 className="text-xs font-semibold text-black uppercase tracking-wider">{title}</h3>
                 <div className="flex items-baseline space-x-2">
-                    <span className="text-xl font-bold text-slate-900">{value}</span>
+                    <span className="text-xl font-bold text-black">{value}</span>
                 </div>
-                {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+                {subtitle && <p className="text-xs text-black mt-0.5">{subtitle}</p>}
             </div>
         </div>
     );
 
-    // Mock Data for Tables
+    // Map Backend Data for Tables
     const shiftData = [
-        { id: 1, staff: 'Sarah Connor', role: 'Counter Staff', loginTime: '08:00 AM', cashCollected: '$1,250', cashHandedOver: '$1,000', cashInHand: '$250' },
-        { id: 2, staff: 'John Smith', role: 'Manager', loginTime: '07:30 AM', cashCollected: '$3,400', cashHandedOver: '$3,400', cashInHand: '$0' },
+        { 
+            id: 1, 
+            staff: user?.name || 'Unknown', 
+            role: user?.designation || 'Staff', 
+            loginTime: 'Current Shift', 
+            cashCollected: 'LKR ' + (metrics.totalCashCollected || 0).toLocaleString(), 
+            cashHandedOver: 'LKR ' + (metrics.handedOverCash || 0).toLocaleString(), 
+            cashInHand: 'LKR ' + (metrics.cashInHand || 0).toLocaleString() 
+        }
     ];
 
-    const activeTripsData = [
-        { id: 101, driver: 'Mike Johnson', vehicle: 'CAB-4521', customer: 'Alice Brown', destination: 'City Center', status: 'In Progress' },
-        { id: 102, driver: 'Tom Hanks', vehicle: 'VAN-9932', customer: 'David Lee', destination: 'North Terminal', status: 'Assigned' },
-        { id: 103, driver: 'Robert Ford', vehicle: 'CAB-1122', customer: 'Emma Watson', destination: 'South Hotel', status: 'In Progress' },
-    ];
+    const activeTripsData = ongoingTrips.map(trip => ({
+        id: trip.id,
+        driver: `${trip.driver?.first_name || ''} ${trip.driver?.last_name || ''}`.trim() || 'N/A',
+        vehicle: trip.driver?.vehicle?.registration_number || 'N/A',
+        customer: `${trip.customer?.first_name || ''} ${trip.customer?.last_name || ''}`.trim() || 'N/A',
+        destination: trip.remarks || 'Unknown',
+        status: trip.status,
+    }));
 
-    const financeData = [
-        { id: 1, type: 'Income', category: 'Trip Payments', amount: '+$5,400', date: 'Today' },
-        { id: 2, type: 'Expense', category: 'Fuel', amount: '-$450', date: 'Today' },
-        { id: 3, type: 'Payout', category: 'Driver Commission', amount: '-$1,200', date: 'Today' },
-    ];
+    const financeData = (metrics.recentFinancialTransactions || []).map(tx => ({
+        id: tx.id,
+        type: tx.received ? 'Income' : 'Pending',
+        category: 'Trip #' + tx.trip_id,
+        amount: (tx.received ? '+' : '') + 'LKR ' + (tx.total_amount || 0).toLocaleString(),
+        date: new Date(tx.created_at).toLocaleDateString(),
+    }));
 
     const filteredShiftData = shiftData.filter(item => 
         item.staff.toLowerCase().includes(shiftSearch.toLowerCase()) || 
@@ -179,7 +191,6 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
     ];
 
     const financeColumns = [
-        { name: 'Category', selector: row => row.category, sortable: true },
         { name: 'Type', selector: row => row.type, sortable: true },
         { name: 'Amount', selector: row => row.amount, sortable: true, cell: row => (
             <span className={`font-semibold ${row.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
@@ -196,20 +207,23 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
 
     return (
         <AppSidebarLayout title="Decision Support System" defaultSidebarOpen={false}>
-            <Head title="System Overview - DCSS" />
+            <Head title="Comprehensive System Overview" />
 
             <div className="py-6 px-4 sm:px-6 lg:px-8 space-y-8 bg-slate-50 min-h-screen">
                 <div className="flex justify-between items-end border-b border-slate-200 pb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Comprehensive System Overview</h1>
-                        <p className="text-sm text-slate-500 mt-1">Real-time metrics across all system modules.</p>
+                        <h1 className="text-2xl font-bold text-black">Comprehensive System Overview</h1>
+                        <p className="text-sm mt-1 text-black">Real-time metrics across all system modules.</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2 text-sm text-slate-500">
-                        <span>Viewing as <strong className="text-slate-800">{user?.name || 'User'}</strong></span>
+                    <div className="flex flex-col items-end gap-2 text-sm text-black">
+                        <span>Viewing as <strong className="text-black">{user?.name || 'User'}</strong></span>
                         <div className="flex items-center gap-3">
                             <select
                                 value={dateFilter}
-                                onChange={(e) => setDateFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setDateFilter(e.target.value);
+                                    router.get('/dss', { filter: e.target.value }, { preserveState: true, preserveScroll: true, onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) });
+                                }}
                                 className="text-sm border-slate-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1.5 pl-3 pr-8 text-slate-700 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
                             >
                                 <option value="today">Today</option>
@@ -238,15 +252,15 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
                     <div className="xl:col-span-8 space-y-8">
                         {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
                         <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
-                            <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                <BanknotesIcon className="w-5 h-5 mr-2 text-slate-500" />
+                            <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                <BanknotesIcon className="w-5 h-5 mr-2 text-black" />
                                 Manager & Counter Operations (Cash & Shifts)
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                <MiniCard title="Total Cash Collected" value="$4,650" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
-                                <MiniCard title="Handed Over Cash" value="$4,400" icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
-                                <MiniCard title="Cash In Hand" value="$250" icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
-                                <MiniCard title="Staff On Shift" value="2" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="1 Manager, 1 Counter Staff" />
+                                <MiniCard title="Total Cash Collected" value={'LKR ' + (metrics.totalCashCollected || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
+                                <MiniCard title="Handed Over Cash" value={'LKR ' + (metrics.handedOverCash || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
+                                <MiniCard title="Cash In Hand" value={'LKR ' + (metrics.cashInHand || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
+                                <MiniCard title="Staff On Shift" value={metrics.staffOnShift || 0} icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="Active users logged in" />
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -265,17 +279,16 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
 
                         {/* --- 2. TRIPS & DRIVERS --- */}
                         <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
-                            <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                <TruckIcon className="w-5 h-5 mr-2 text-slate-500" />
+                            <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                <TruckIcon className="w-5 h-5 mr-2 text-black" />
                                 Trips & Fleet Operations
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                <MiniCard title="Active Trips" value="12" icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
-                                <MiniCard title="Completed (Today)" value="45" icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
-                                <MiniCard title="Pending Allocations" value="3" icon={ClockIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" />
-                                <MiniCard title="Available Drivers" value="18" icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
-                                <MiniCard title="Off Duty Drivers" value="2" icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
-                                <MiniCard title="Suspended Drivers" value="3" icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
+                                <MiniCard title="Active Trips" value={metrics.activeTripsCount || 0} icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
+                                <MiniCard title="Completed (Today)" value={metrics.completedTodayCount || 0} icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
+                                <MiniCard title="Available Drivers" value={metrics.availableDriversCount || 0} icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
+                                <MiniCard title="Off Duty Drivers" value={metrics.offDutyDriversCount || 0} icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
+                                <MiniCard title="Suspended Drivers" value={metrics.suspendedDriversCount || 0} icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
                             </div>
                             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -295,15 +308,15 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
                             {/* --- 3. FINANCE & REPORTS --- */}
                             <section>
-                                <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                    <ChartPieIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                    <ChartPieIcon className="w-5 h-5 mr-2 text-black" />
                                     Finance & Accounting
                                 </h2>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <MiniCard title="Total Revenue" value="$5,400" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Today's Earnings" />
-                                    <MiniCard title="Pending Payouts" value="$1,200" icon={BanknotesIcon} colorClass="text-rose-600" bgColorClass="bg-rose-100" subtitle="Driver Payments" />
-                                    <MiniCard title="Total Expenses" value="$450" icon={DocumentTextIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="Fuel & Misc" />
-                                    <MiniCard title="Net Profit (Est)" value="$3,750" icon={ChartPieIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Today" />
+                                    <MiniCard title="Total Revenue" value={'LKR ' + (metrics.totalRevenueToday || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Today's Earnings" />
+                                    <MiniCard title="Pending Payouts" value={'LKR ' + (metrics.pendingPayouts || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-rose-600" bgColorClass="bg-rose-100" subtitle="Driver Payments" />
+                                    <MiniCard title="Total Expenses" value={'LKR ' + (metrics.totalExpensesToday || 0).toLocaleString()} icon={DocumentTextIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="Fuel & Misc" />
+                                    <MiniCard title="Net Profit (Est)" value={'LKR ' + (metrics.netProfit || 0).toLocaleString()} icon={ChartPieIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Today" />
                                 </div>
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -321,28 +334,28 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
                             </section>
 
                             {/* --- 4. CUSTOMERS, SURVEYS & USERS --- */}
-                            <section className="space-y-8">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                        <UsersIcon className="w-5 h-5 mr-2 text-slate-500" />
+                            <section>
+                                <div className="mb-8">
+                                    <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                        <UsersIcon className="w-5 h-5 mr-2 text-black" />
                                         Customers & Feedback
                                     </h2>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <MiniCard title="Total Customers" value="8,432" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="All time" />
-                                        <MiniCard title="New Today" value="48" icon={UsersIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Added today" />
-                                        <MiniCard title="Surveys Collected" value="124" icon={DocumentTextIcon} colorClass="text-purple-600" bgColorClass="bg-purple-100" subtitle="This week" />
-                                        <MiniCard title="Avg. Satisfaction" value="4.8/5" icon={StarIcon} colorClass="text-amber-500" bgColorClass="bg-amber-100" subtitle="Based on recent data" />
+                                        <MiniCard title="Total Customers" value={(metrics.totalCustomers || 0).toLocaleString()} icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="All time" />
+                                        <MiniCard title="New Today" value={metrics.newTodayCustomers || 0} icon={UsersIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Added today" />
+                                        <MiniCard title="Surveys Collected" value={metrics.surveysCollected || 0} icon={DocumentTextIcon} colorClass="text-purple-600" bgColorClass="bg-purple-100" subtitle="All time" />
+                                        <MiniCard title="Avg. Satisfaction" value={`${metrics.avgSatisfaction || 0}/5`} icon={StarIcon} colorClass="text-amber-500" bgColorClass="bg-amber-100" subtitle="Based on recent data" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                        <ShieldCheckIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                    <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                        <ShieldCheckIcon className="w-5 h-5 mr-2 text-black" />
                                         System Users
                                     </h2>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <MiniCard title="Active System Users" value="12" icon={ShieldCheckIcon} colorClass="text-slate-700" bgColorClass="bg-slate-200" subtitle="Admins, Execs, Managers" />
-                                        <MiniCard title="Online Now" value="4" icon={ClockIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Currently logged in" />
+                                        <MiniCard title="Registered Users" value={metrics.activeSystemUsers || 0} icon={ShieldCheckIcon} colorClass="text-slate-700" bgColorClass="bg-slate-200" subtitle="Total registered users" />
+                                        <MiniCard title="Online Now" value={metrics.onlineNow || 0} icon={ClockIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Currently logged in" />
                                     </div>
                                 </div>
                             </section>
@@ -356,6 +369,39 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
                             nextInLineSlotNumber={nextInLineSlotNumber}
                             getVehicleSlotNumber={getVehicleSlotNumber}
                         />
+
+                        {metrics.suspendedDriversList && metrics.suspendedDriversList.length > 0 && (
+                            <div className="mt-8 border-2 border-red-300 rounded-3xl p-6 bg-red-50/30">
+                                <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                    <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
+                                    Suspended Drivers
+                                </h2>
+                                <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-red-50 text-red-800 text-xs uppercase font-semibold">
+                                                <tr>
+                                                    <th className="px-4 py-3">Driver Name</th>
+                                                    <th className="px-4 py-3">Contact</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-red-100">
+                                                {metrics.suspendedDriversList.map(driver => (
+                                                    <tr key={driver.id} className="hover:bg-red-50/50 transition-colors">
+                                                        <td className="px-4 py-3 font-medium text-black">
+                                                            {driver.first_name} {driver.last_name}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-black">
+                                                            {driver.mobile_number || 'N/A'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
