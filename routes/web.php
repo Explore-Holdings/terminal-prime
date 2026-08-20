@@ -152,9 +152,7 @@ Route::prefix('reports')->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dss', function () {
-        return Inertia::render('DSS/Index');
-    })->name('dss.index');
+    Route::get('/dss', [CounterController::class, 'dssIndex'])->name('dcss.index');
 });
 
 require __DIR__.'/auth.php';

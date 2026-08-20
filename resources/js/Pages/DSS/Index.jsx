@@ -1,6 +1,7 @@
 import React from 'react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { Head, usePage, router } from '@inertiajs/react';
+import VehicleQueueGrid from './VehicleQueueGrid';
 import {
     BanknotesIcon,
     UserGroupIcon,
@@ -16,7 +17,59 @@ import {
 } from '@heroicons/react/24/outline';
 import DataTable from 'react-data-table-component';
 
-export default function DCSSIndex() {
+const getVehicleSlotNumber = (v) => {
+    if (!v) return null;
+    const reg = v.driver?.registration_number ?? v.registration_number ?? '';
+    const match = reg.match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+};
+
+const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
+    const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
+    const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
+    const available = (vehiclesList ?? []).filter((v) => {
+        const isOnDuty = v.driver?.duty_status === 'on_duty';
+        const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
+        const isCurrentSession = (v.driver?.session_id ?? 0) <= baseSessionId;
+        return isOnDuty && !hasOngoingTrip && isCurrentSession;
+    });
+
+    if (available.length === 0) return null;
+
+    const sorted = [...available].sort((a, b) => {
+        const sessionA = a.driver?.session_id ?? 0;
+        const sessionB = b.driver?.session_id ?? 0;
+        if (sessionA !== sessionB) return sessionA - sessionB;
+
+        const slotA = getVehicleSlotNumber(a) ?? 999;
+        const slotB = getVehicleSlotNumber(b) ?? 999;
+        return slotA - slotB;
+    });
+
+    const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
+    const lastAssignedDriver = lastAssignedTrip?.driver;
+    const lastSlotNumber = getVehicleSlotNumber(lastAssignedDriver) ?? 0;
+    const lastSessionId = lastAssignedDriver?.session_id ?? 0;
+
+    if (lastSlotNumber > 0) {
+        const nextVehicles = sorted.filter(
+            (v) => {
+                const sid = v.driver?.session_id ?? 0;
+                if (sid < lastSessionId) return true;
+                if (sid === lastSessionId && (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber) return true;
+                return false;
+            }
+        );
+        if (nextVehicles.length > 0) {
+            return nextVehicles[0];
+        }
+    }
+
+    return sorted[0];
+};
+
+export default function DSSIndex({ vehicles = [], ongoingTrips = [] }) {
     const { auth } = usePage().props;
     const user = auth?.user;
 
@@ -25,6 +78,20 @@ export default function DCSSIndex() {
     const [financeSearch, setFinanceSearch] = React.useState('');
     const [lastUpdated, setLastUpdated] = React.useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     const [dateFilter, setDateFilter] = React.useState('today');
+
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
+
+    const queueVehicles = vehicles.filter((v) => {
+        const isOnDuty = v.driver?.duty_status === 'on_duty';
+        const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
+        return isOnDuty && !hasOngoingTrip;
+    }).sort((a, b) => {
+        const sessionA = a.driver?.session_id ?? 0;
+        const sessionB = b.driver?.session_id ?? 0;
+        if (sessionA !== sessionB) return sessionA - sessionB;
+        return (getVehicleSlotNumber(a) ?? 999) - (getVehicleSlotNumber(b) ?? 999);
+    });
 
     React.useEffect(() => {
         const intervalId = setInterval(() => {
@@ -167,116 +234,129 @@ export default function DCSSIndex() {
                     </div>
                 </div>
 
-                {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
-                <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
-                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                        <BanknotesIcon className="w-5 h-5 mr-2 text-slate-500" />
-                        Manager & Counter Operations (Cash & Shifts)
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        <MiniCard title="Total Cash Collected" value="$4,650" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
-                        <MiniCard title="Handed Over Cash" value="$4,400" icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
-                        <MiniCard title="Cash In Hand" value="$250" icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
-                        <MiniCard title="Staff On Shift" value="2" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="1 Manager, 1 Counter Staff" />
-                    </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                            <span className="font-semibold text-sm text-slate-700">Current Shift Details</span>
-                            <input 
-                                type="text" 
-                                placeholder="Search shift..." 
-                                className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
-                                value={shiftSearch}
-                                onChange={e => setShiftSearch(e.target.value)}
-                            />
-                        </div>
-                        <DataTable columns={shiftColumns} data={filteredShiftData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
-                    </div>
-                </section>
-
-                {/* --- 2. TRIPS & DRIVERS --- */}
-                <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
-                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                        <TruckIcon className="w-5 h-5 mr-2 text-slate-500" />
-                        Trips & Fleet Operations
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        <MiniCard title="Active Trips" value="12" icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
-                        <MiniCard title="Completed (Today)" value="45" icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
-                        <MiniCard title="Pending Allocations" value="3" icon={ClockIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" />
-                        <MiniCard title="Available Drivers" value="18" icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
-                        <MiniCard title="Off Duty Drivers" value="2" icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
-                        <MiniCard title="Suspended Drivers" value="3" icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
-                    </div>
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                            <span className="font-semibold text-sm text-slate-700">Ongoing Trips Monitor</span>
-                            <input 
-                                type="text" 
-                                placeholder="Search trips..." 
-                                className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
-                                value={tripSearch}
-                                onChange={e => setTripSearch(e.target.value)}
-                            />
-                        </div>
-                        <DataTable columns={tripColumns} data={filteredTripsData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
-                    </div>
-                </section>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
-                    {/* --- 3. FINANCE & REPORTS --- */}
-                    <section>
-                        <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                            <ChartPieIcon className="w-5 h-5 mr-2 text-slate-500" />
-                            Finance & Accounting
-                        </h2>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <MiniCard title="Total Revenue" value="$5,400" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Today's Earnings" />
-                            <MiniCard title="Pending Payouts" value="$1,200" icon={BanknotesIcon} colorClass="text-rose-600" bgColorClass="bg-rose-100" subtitle="Driver Payments" />
-                            <MiniCard title="Total Expenses" value="$450" icon={DocumentTextIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="Fuel & Misc" />
-                            <MiniCard title="Net Profit (Est)" value="$3,750" icon={ChartPieIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Today" />
-                        </div>
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                <span className="font-semibold text-sm text-slate-700">Recent Financial Transactions</span>
-                                <input 
-                                    type="text" 
-                                    placeholder="Search finance..." 
-                                    className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
-                                    value={financeSearch}
-                                    onChange={e => setFinanceSearch(e.target.value)}
-                                />
-                            </div>
-                            <DataTable columns={financeColumns} data={filteredFinanceData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
-                        </div>
-                    </section>
-
-                    {/* --- 4. CUSTOMERS, SURVEYS & USERS --- */}
-                    <section className="space-y-8">
-                        <div>
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mt-6">
+                    <div className="xl:col-span-8 space-y-8">
+                        {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
+                        <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
                             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                <UsersIcon className="w-5 h-5 mr-2 text-slate-500" />
-                                Customers & Feedback
+                                <BanknotesIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                Manager & Counter Operations (Cash & Shifts)
                             </h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <MiniCard title="Total Customers" value="8,432" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="All time" />
-                                <MiniCard title="New Today" value="48" icon={UsersIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Added today" />
-                                <MiniCard title="Surveys Collected" value="124" icon={DocumentTextIcon} colorClass="text-purple-600" bgColorClass="bg-purple-100" subtitle="This week" />
-                                <MiniCard title="Avg. Satisfaction" value="4.8/5" icon={StarIcon} colorClass="text-amber-500" bgColorClass="bg-amber-100" subtitle="Based on recent data" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                <MiniCard title="Total Cash Collected" value="$4,650" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
+                                <MiniCard title="Handed Over Cash" value="$4,400" icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
+                                <MiniCard title="Cash In Hand" value="$250" icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
+                                <MiniCard title="Staff On Shift" value="2" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="1 Manager, 1 Counter Staff" />
                             </div>
-                        </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                    <span className="font-semibold text-sm text-slate-700">Current Shift Details</span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search shift..." 
+                                        className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
+                                        value={shiftSearch}
+                                        onChange={e => setShiftSearch(e.target.value)}
+                                    />
+                                </div>
+                                <DataTable columns={shiftColumns} data={filteredShiftData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
+                            </div>
+                        </section>
 
-                        <div>
+                        {/* --- 2. TRIPS & DRIVERS --- */}
+                        <section className="border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
                             <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                                <ShieldCheckIcon className="w-5 h-5 mr-2 text-slate-500" />
-                                System Users
+                                <TruckIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                Trips & Fleet Operations
                             </h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <MiniCard title="Active System Users" value="12" icon={ShieldCheckIcon} colorClass="text-slate-700" bgColorClass="bg-slate-200" subtitle="Admins, Execs, Managers" />
-                                <MiniCard title="Online Now" value="4" icon={ClockIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Currently logged in" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                <MiniCard title="Active Trips" value="12" icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
+                                <MiniCard title="Completed (Today)" value="45" icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
+                                <MiniCard title="Pending Allocations" value="3" icon={ClockIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" />
+                                <MiniCard title="Available Drivers" value="18" icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
+                                <MiniCard title="Off Duty Drivers" value="2" icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
+                                <MiniCard title="Suspended Drivers" value="3" icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
                             </div>
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                    <span className="font-semibold text-sm text-slate-700">Ongoing Trips Monitor</span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search trips..." 
+                                        className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
+                                        value={tripSearch}
+                                        onChange={e => setTripSearch(e.target.value)}
+                                    />
+                                </div>
+                                <DataTable columns={tripColumns} data={filteredTripsData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
+                            </div>
+                        </section>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 rounded-3xl p-6 bg-slate-50/50">
+                            {/* --- 3. FINANCE & REPORTS --- */}
+                            <section>
+                                <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                                    <ChartPieIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                    Finance & Accounting
+                                </h2>
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <MiniCard title="Total Revenue" value="$5,400" icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Today's Earnings" />
+                                    <MiniCard title="Pending Payouts" value="$1,200" icon={BanknotesIcon} colorClass="text-rose-600" bgColorClass="bg-rose-100" subtitle="Driver Payments" />
+                                    <MiniCard title="Total Expenses" value="$450" icon={DocumentTextIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="Fuel & Misc" />
+                                    <MiniCard title="Net Profit (Est)" value="$3,750" icon={ChartPieIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Today" />
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                        <span className="font-semibold text-sm text-slate-700">Recent Financial Transactions</span>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search finance..." 
+                                            className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
+                                            value={financeSearch}
+                                            onChange={e => setFinanceSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <DataTable columns={financeColumns} data={filteredFinanceData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
+                                </div>
+                            </section>
+
+                            {/* --- 4. CUSTOMERS, SURVEYS & USERS --- */}
+                            <section className="space-y-8">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                                        <UsersIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                        Customers & Feedback
+                                    </h2>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <MiniCard title="Total Customers" value="8,432" icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="All time" />
+                                        <MiniCard title="New Today" value="48" icon={UsersIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="Added today" />
+                                        <MiniCard title="Surveys Collected" value="124" icon={DocumentTextIcon} colorClass="text-purple-600" bgColorClass="bg-purple-100" subtitle="This week" />
+                                        <MiniCard title="Avg. Satisfaction" value="4.8/5" icon={StarIcon} colorClass="text-amber-500" bgColorClass="bg-amber-100" subtitle="Based on recent data" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                                        <ShieldCheckIcon className="w-5 h-5 mr-2 text-slate-500" />
+                                        System Users
+                                    </h2>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <MiniCard title="Active System Users" value="12" icon={ShieldCheckIcon} colorClass="text-slate-700" bgColorClass="bg-slate-200" subtitle="Admins, Execs, Managers" />
+                                        <MiniCard title="Online Now" value="4" icon={ClockIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Currently logged in" />
+                                    </div>
+                                </div>
+                            </section>
                         </div>
-                    </section>
+                    </div>
+                        
+                    <div className="xl:col-span-4">
+                        <VehicleQueueGrid 
+                            vehicles={vehicles}
+                            nextInLineVehicle={nextInLineVehicle}
+                            nextInLineSlotNumber={nextInLineSlotNumber}
+                            getVehicleSlotNumber={getVehicleSlotNumber}
+                        />
+                    </div>
                 </div>
             </div>
         </AppSidebarLayout>

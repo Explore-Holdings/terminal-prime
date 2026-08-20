@@ -18,6 +18,36 @@ use Illuminate\Support\Facades\DB;
 
 class CounterController extends Controller
 {
+    public function dssIndex()
+    {
+        return Inertia::render('DSS/Index', [
+            'vehicles' => Vehicle::with([
+                    'driver.languages',
+                    'pictures',
+                    'driver.trips' => function ($q) {
+                        $q->where('status', '!=', 'Completed');
+                    }
+                ])
+                ->select('vehicles.*')
+                ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
+                ->where('drivers.driver_status', 'Active')
+                ->orderByRaw("
+                    CASE
+                        WHEN drivers.duty_status = 'on_duty' THEN 0
+                        ELSE 1
+                    END
+                ")
+                ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
+                ->orderBy('drivers.checked_in_at', 'asc')
+                ->get(),
+
+            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle'])
+                ->where('status', '!=', 'Completed')
+                ->latest()
+                ->get(),
+        ]);
+    }
+
     public function index()
     {
         return Inertia::render('Counter/Index', [
