@@ -11,16 +11,16 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
 
     const menuItems = [
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff', 'executive', 'manager'] },
+        { label: 'DSS', path: '/dss', roles: ['admin', 'executive'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff', 'manager', 'executive'] },
         { label: 'Manager', path: '/manager-reports', roles: ['admin', 'manager', 'executive'] },
+        { label: 'Finance', path: '/finance', roles: ['admin', 'finance', 'executive', 'manager'] },
+        { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive', 'manager'] },
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff', 'executive', 'manager'] },
         { label: 'Trips', path: '/trips', roles: ['admin', 'counter staff', 'executive', 'manager'] },
-        { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive', 'manager'] },
-        { label: 'Finance', path: '/finance', roles: ['admin', 'finance', 'executive', 'manager'] },
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive'] },
         { label: 'Reports', path: '/reports', roles: ['admin', 'executive'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
-        { label: 'DSS', path: '/dss', roles: ['admin', 'executive'] },
     ];
 
     const visibleMenuItems = menuItems.filter((item) =>
