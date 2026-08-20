@@ -175,7 +175,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
         { name: 'Login Time', selector: row => row.loginTime },
         { name: 'Cash Collected', selector: row => row.cashCollected, sortable: true },
         { name: 'Handed Over', selector: row => row.cashHandedOver, sortable: true },
-        { name: 'Cash In Hand', selector: row => row.cashInHand, sortable: true, cell: row => <span className="font-bold text-blue-600">{row.cashInHand}</span> },
+        { name: 'Cash In Hand', selector: row => row.cashInHand, sortable: true, cell: row => <span className="font-bold text-black-600">{row.cashInHand}</span> },
     ];
 
     const tripColumns = [
