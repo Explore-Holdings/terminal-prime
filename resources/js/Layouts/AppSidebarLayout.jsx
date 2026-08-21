@@ -74,7 +74,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                             href={route('logout')}
                             method="post"
                             as="button"
-                            className="w-full text-left block px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-base font-bold transition shadow-sm border border-red-700"
+                            className="w-full text-left block px-4 py-3 bg-red-900 hover:bg-[#450a0a] text-white text-base font-bold transition shadow-sm border border-[#450a0a]"
                         >
                             Logout
                         </Link>
