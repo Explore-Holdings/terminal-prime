@@ -321,68 +321,65 @@ export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLi
                 </div>
 
                 {/* Right Side: Vehicle Details Side Panel */}
-                <div className="w-full shrink-0 border border-gray-200 rounded-xl bg-gray-50 flex flex-col shadow-sm max-h-[420px] overflow-hidden mt-2">
+                <div className="w-full shrink-0 border border-gray-200 rounded-xl bg-gray-50 flex flex-col shadow-sm overflow-hidden mt-2">
                     {selectedVehicle ? (
-                        <div className="flex flex-col h-full">
-                            <div className="relative h-[160px] w-full bg-gray-200 shrink-0 overflow-hidden">
-                                <div className="absolute top-2 left-2 bg-blue-700 text-white font-black text-xs px-2 py-1 rounded shadow-md z-10 flex items-center">
+                        <div className="flex flex-col">
+                            <div className="relative h-[180px] w-full bg-gray-200 shrink-0 overflow-hidden">
+                                {/* Gradient for text readability */}
+                                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-10"></div>
+                                
+                                <div className="absolute top-2 left-2 bg-blue-700 text-white font-black text-xs px-2 py-1 rounded shadow-md z-20 flex items-center">
                                     <span className="opacity-75 font-normal mr-1 tracking-tighter">SLOT</span>
                                     {selectedVehicle._slotNumber}
                                 </div>
-                                <ImageBox path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view} className="w-full h-full" />
+                                
+                                <div className="absolute top-2 right-2 flex flex-col gap-1 z-20 items-end">
+                                    {selectedVehicle.driver?.languages?.slice(0, 3).map((l) => (
+                                        <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" className="shadow-sm backdrop-blur-sm bg-white/90" />
+                                    ))}
+                                </div>
+                                
+                                <div className="absolute bottom-2 left-2 right-2 flex gap-2 z-20">
+                                    <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded flex items-center gap-1.5 backdrop-blur-md shadow-sm border border-white/20">
+                                        <CarFront size={12} className="text-blue-300" />
+                                        <span className="font-bold tracking-wider">{selectedVehicle.vehicle_type ?? '-'}</span>
+                                    </div>
+                                    <div className="bg-black/60 text-white text-[10px] px-2 py-1 rounded flex items-center gap-1.5 backdrop-blur-md shadow-sm border border-white/20">
+                                        <Users size={12} className="text-emerald-300" />
+                                        <span className="font-bold tracking-wider">{selectedVehicle.seating_capacity ?? '-'} / {selectedVehicle.luggage_capacity ?? '-'}</span>
+                                    </div>
+                                </div>
+
+                                <ImageBox path={selectedVehicle.pictures?.front_view ?? selectedVehicle.front_view} className="w-full h-full object-cover" />
                             </div>
 
-                            <div className="p-4 flex-1 overflow-y-auto">
-                                <div className="flex justify-between items-start mb-3">
+                            <div className="p-3 bg-white">
+                                <div className="flex justify-between items-start">
                                     <div>
                                         <h3 className="text-sm font-bold text-gray-800 leading-tight">
                                             {(selectedVehicle.driver?.first_name ?? '') + ' ' + (selectedVehicle.driver?.last_name ?? '') || 'Driver'}
                                         </h3>
-                                        <p className="text-[11px] text-gray-500 font-medium mt-0.5 flex items-center gap-1">
-                                            <Fingerprint size={10} className="opacity-60" />
+                                        <p className="text-[11px] text-gray-500 font-medium mt-1 flex items-center gap-1">
+                                            <Phone size={10} className="opacity-60" />
                                             {selectedVehicle.driver?.mobile_number ?? '-'}
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs font-bold text-gray-700 bg-gray-200 px-2 py-0.5 rounded whitespace-nowrap">
+                                        <div className="text-xs font-bold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded whitespace-nowrap">
                                             {selectedVehicle.registration_number ?? '-'}
                                         </div>
-                                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">
+                                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-wider font-semibold truncate max-w-[90px] ml-auto">
                                             {selectedVehicle.brand ?? '-'}
                                         </p>
                                     </div>
                                 </div>
-
-                                <div className="space-y-2 mt-4 bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                                    <div className="flex items-center justify-between text-xs border-b border-gray-50 pb-2">
-                                        <span className="text-gray-500 flex items-center gap-1.5"><CarFront size={12} className="opacity-70 text-blue-600" /> Type</span>
-                                        <span className="font-semibold text-gray-800">{selectedVehicle.vehicle_type ?? '-'}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-xs border-b border-gray-50 pb-2 pt-1">
-                                        <span className="text-gray-500 flex items-center gap-1.5"><Users size={12} className="opacity-70 text-emerald-600" /> Pax / Lugg</span>
-                                        <span className="font-semibold text-gray-800">{selectedVehicle.seating_capacity ?? '-'} / {selectedVehicle.luggage_capacity ?? '-'}</span>
-                                    </div>
-                                </div>
-                                
-                                {selectedVehicle.driver?.languages?.length > 0 && (
-                                    <div className="mt-4">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <HelpCircle size={10} /> Languages
-                                        </p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {selectedVehicle.driver.languages.map((l) => (
-                                                <LanguageBadge key={l.id || l.language_name} language={l.language_name} size="sm" />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full p-6 text-center text-gray-400 bg-white">
-                            <CarFront size={48} className="mb-3 opacity-20" />
+                        <div className="flex flex-col items-center justify-center h-[160px] p-4 text-center text-gray-400 bg-white">
+                            <CarFront size={32} className="mb-2 opacity-20" />
                             <p className="text-sm font-medium text-gray-500">No Vehicle Selected</p>
-                            <p className="text-xs mt-1 max-w-[200px]">Click any slot in the grid to view detailed driver & vehicle info.</p>
+                            <p className="text-[11px] mt-1">Click a slot to view details.</p>
                         </div>
                     )}
                 </div>
