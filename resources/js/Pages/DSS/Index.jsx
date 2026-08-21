@@ -249,62 +249,114 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mt-6">
-                    <div className="xl:col-span-8 space-y-2">
-                        {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
-                        <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
-                            <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
-                                <BanknotesIcon className="w-5 h-5 mr-2 text-black" />
-                                Manager & Counter Operations (Cash & Shifts)
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                <MiniCard title="Total Cash Collected" value={'LKR ' + (metrics.totalCashCollected || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
-                                <MiniCard title="Handed Over Cash" value={'LKR ' + (metrics.handedOverCash || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
-                                <MiniCard title="Cash In Hand" value={'LKR ' + (metrics.cashInHand || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
-                                <MiniCard title="Staff On Shift" value={metrics.staffOnShift || 0} icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="Active users logged in" />
-                            </div>
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                    <span className="font-semibold text-sm text-slate-700">Current Shift Details</span>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Search shift..." 
-                                        className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
-                                        value={shiftSearch}
-                                        onChange={e => setShiftSearch(e.target.value)}
-                                    />
+                    <div className="xl:col-span-8">
+                        <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
+                            {/* --- 1. MANAGER & COUNTER (SHIFT & CASH) --- */}
+                            <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
+                                <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                    <BanknotesIcon className="w-5 h-5 mr-2 text-black" />
+                                    Manager & Counter Operations (Cash & Shifts)
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                    <MiniCard title="Total Cash Collected" value={'LKR ' + (metrics.totalCashCollected || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" subtitle="Current Shift Total" />
+                                    <MiniCard title="Handed Over Cash" value={'LKR ' + (metrics.handedOverCash || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" subtitle="To Manager/Finance" />
+                                    <MiniCard title="Cash In Hand" value={'LKR ' + (metrics.cashInHand || 0).toLocaleString()} icon={BanknotesIcon} colorClass="text-amber-600" bgColorClass="bg-amber-100" subtitle="At the counter currently" />
+                                    <MiniCard title="Staff On Shift" value={metrics.staffOnShift || 0} icon={UsersIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" subtitle="Active users logged in" />
                                 </div>
-                                <DataTable columns={shiftColumns} data={filteredShiftData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
-                            </div>
-                        </section>
-
-                        {/* --- 2. TRIPS & DRIVERS --- */}
-                        <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
-                            <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
-                                <TruckIcon className="w-5 h-5 mr-2 text-black" />
-                                Trips & Fleet Operations
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                <MiniCard title="Active Trips" value={metrics.activeTripsCount || 0} icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
-                                <MiniCard title="Completed (Today)" value={metrics.completedTodayCount || 0} icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
-                                <MiniCard title="Available Drivers" value={metrics.availableDriversCount || 0} icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
-                                <MiniCard title="Off Duty Drivers" value={metrics.offDutyDriversCount || 0} icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
-                                <MiniCard title="Suspended Drivers" value={metrics.suspendedDriversCount || 0} icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
-                            </div>
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                    <span className="font-semibold text-sm text-slate-700">Ongoing Trips Monitor</span>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Search trips..." 
-                                        className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
-                                        value={tripSearch}
-                                        onChange={e => setTripSearch(e.target.value)}
-                                    />
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                        <span className="font-semibold text-sm text-slate-700">Current Shift Details</span>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search shift..." 
+                                            className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
+                                            value={shiftSearch}
+                                            onChange={e => setShiftSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <DataTable columns={shiftColumns} data={filteredShiftData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
                                 </div>
-                                <DataTable columns={tripColumns} data={filteredTripsData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
-                            </div>
-                        </section>
+                            </section>
 
+                            {/* --- 2. TRIPS & DRIVERS --- */}
+                            <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
+                                <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                    <TruckIcon className="w-5 h-5 mr-2 text-black" />
+                                    Trips & Fleet Operations
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                    <MiniCard title="Active Trips" value={metrics.activeTripsCount || 0} icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
+                                    <MiniCard title="Completed (Today)" value={metrics.completedTodayCount || 0} icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
+                                    <MiniCard title="Available Drivers" value={metrics.availableDriversCount || 0} icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
+                                    <MiniCard title="Off Duty Drivers" value={metrics.offDutyDriversCount || 0} icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
+                                    <MiniCard title="Suspended Drivers" value={metrics.suspendedDriversCount || 0} icon={UserGroupIcon} colorClass="text-red-600" bgColorClass="bg-red-100" subtitle="Action required" />
+                                </div>
+                                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                                        <span className="font-semibold text-sm text-slate-700">Ongoing Trips Monitor</span>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search trips..." 
+                                            className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
+                                            value={tripSearch}
+                                            onChange={e => setTripSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <DataTable columns={tripColumns} data={filteredTripsData} customStyles={tableStyles} responsive dense pagination paginationPerPage={5} paginationRowsPerPageOptions={[5, 10, 20]} />
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                        
+                    <div className="xl:col-span-4">
+                        <VehicleQueueGrid 
+                            vehicles={vehicles}
+                            nextInLineVehicle={nextInLineVehicle}
+                            nextInLineSlotNumber={nextInLineSlotNumber}
+                            getVehicleSlotNumber={getVehicleSlotNumber}
+                        />
+
+                        <div className="mt-8 border-2 border-red-300 p-6 bg-red-50/30">
+                            <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
+                                <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
+                                Suspended Drivers
+                            </h2>
+                            <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-red-50 text-red-800 text-xs uppercase font-semibold">
+                                            <tr>
+                                                <th className="px-4 py-3">Driver Name</th>
+                                                <th className="px-4 py-3">Contact</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-red-100">
+                                            {(!metrics.suspendedDriversList || metrics.suspendedDriversList.length === 0) ? (
+                                                <tr>
+                                                    <td colSpan="2" className="px-4 py-6 text-center text-slate-500">
+                                                        No suspended drivers
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                metrics.suspendedDriversList.map(driver => (
+                                                    <tr key={driver.id} className="hover:bg-red-50/50 transition-colors">
+                                                        <td className="px-4 py-3 font-medium text-black">
+                                                            {driver.first_name} {driver.last_name}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-black">
+                                                            {driver.mobile_number || 'N/A'}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="xl:col-span-12">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-2 border-slate-700 p-6 bg-slate-50/50">
                             {/* --- 3. FINANCE & REPORTS --- */}
                             <section>
@@ -360,48 +412,6 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                                 </div>
                             </section>
                         </div>
-                    </div>
-                        
-                    <div className="xl:col-span-4">
-                        <VehicleQueueGrid 
-                            vehicles={vehicles}
-                            nextInLineVehicle={nextInLineVehicle}
-                            nextInLineSlotNumber={nextInLineSlotNumber}
-                            getVehicleSlotNumber={getVehicleSlotNumber}
-                        />
-
-                        {metrics.suspendedDriversList && metrics.suspendedDriversList.length > 0 && (
-                            <div className="mt-8 border-2 border-red-300 p-6 bg-red-50/30">
-                                <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
-                                    <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
-                                    Suspended Drivers
-                                </h2>
-                                <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-red-50 text-red-800 text-xs uppercase font-semibold">
-                                                <tr>
-                                                    <th className="px-4 py-3">Driver Name</th>
-                                                    <th className="px-4 py-3">Contact</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-red-100">
-                                                {metrics.suspendedDriversList.map(driver => (
-                                                    <tr key={driver.id} className="hover:bg-red-50/50 transition-colors">
-                                                        <td className="px-4 py-3 font-medium text-black">
-                                                            {driver.first_name} {driver.last_name}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-black">
-                                                            {driver.mobile_number || 'N/A'}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
