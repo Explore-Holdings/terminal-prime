@@ -62,10 +62,10 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
     return (
         <AppSidebarLayout title="Manager Reports">
             <div className="mb-6">
-                <h1 className="text-3xl font-extrabold text-gray-900">
+                <h1 className="text-3xl font-extrabold text-black">
                     Manager Reports Dashboard
                 </h1>
-                <p className="text-gray-500 mt-1 text-sm">
+                <p className="text-black mt-1 text-sm">
                     Generate global reports and review individual shift checkouts.
                 </p>
             </div>
@@ -77,7 +77,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                     <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-4 print:hidden">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <span className="text-xs font-bold text-blue-700 uppercase tracking-wider block mb-1">
+                                <span className="text-xs font-bold text-black uppercase tracking-wider block mb-1">
                                     Report Scope
                                 </span>
                                 <div className="flex rounded-lg border bg-white overflow-hidden text-sm font-medium">
@@ -89,7 +89,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                             className={`px-4 py-2 transition ${
                                                 currentRange === opt.value
                                                     ? 'bg-blue-700 text-white'
-                                                    : 'text-gray-600 hover:bg-gray-50 bg-white'
+                                                    : 'text-black hover:bg-gray-50 bg-white'
                                             }`}
                                         >
                                             {opt.label}
@@ -102,14 +102,14 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                 <a
                                     href={`/manager-reports/trips/print${exportQuery}`}
                                     target="_blank"
-                                    className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 border border-slate-200 font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm shadow-sm"
+                                    className="inline-flex items-center gap-1.5 bg-slate-100 text-black border border-slate-200 font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm shadow-sm"
                                 >
                                     <Printer size={16} />
                                     Print Report
                                 </a>
                                 <a
                                     href={`/manager-reports/trips/pdf${exportQuery}`}
-                                    className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 border border-slate-200 font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm shadow-sm"
+                                    className="inline-flex items-center gap-1.5 bg-slate-100 text-black border border-slate-200 font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm shadow-sm"
                                 >
                                     <FileText size={16} />
                                     Download PDF
@@ -121,7 +121,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                         {currentRange === 'custom' && (
                             <form onSubmit={handleApplyCustom} className="flex flex-wrap items-end gap-3 p-4 bg-gray-50 border rounded-xl">
                                 <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase">From Date</label>
+                                    <label className="block text-xs font-bold text-black uppercase">From Date</label>
                                     <input
                                         type="date"
                                         value={fromDate}
@@ -130,7 +130,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase">To Date</label>
+                                    <label className="block text-xs font-bold text-black uppercase">To Date</label>
                                     <input
                                         type="date"
                                         value={toDate}
@@ -152,19 +152,19 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                     <div className="bg-white border rounded-2xl p-5 shadow-sm space-y-4">
                         <div className="border-b pb-3 flex items-center justify-between">
                             <div>
-                                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                                    <Wallet size={18} className="text-blue-700" />
+                                <h2 className="text-base font-bold text-black flex items-center gap-2">
+                                    <Wallet size={18} className="text-black" />
                                     Payment Collections & Cash Notes Summary ({currentRange.toUpperCase()})
                                 </h2>
-                                {/* <p className="text-xs text-gray-500 mt-0.5">Aggregated breakdown of payment methods and cash note denominations</p> */}
+                                {/* <p className="text-xs text-black mt-0.5">Aggregated breakdown of payment methods and cash note denominations</p> */}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Card 1: Collection by Payment Method & Currency */}
                             <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
-                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
-                                    <CreditCard size={15} className="text-blue-600" />
+                                <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide">
+                                    <CreditCard size={15} className="text-black" />
                                     Collection by Payment Method
                                 </h3>
 
@@ -173,20 +173,20 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                         Object.entries(byMethod).map(([method, data]) => (
                                             <div key={method} className="bg-white border rounded-lg p-2.5 space-y-1">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="font-bold text-gray-900 flex items-center gap-1.5">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-extrabold ${method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                    <span className="font-bold text-black flex items-center gap-1.5">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-extrabold ${method === 'Cash' ? 'bg-emerald-100 text-black' : 'bg-blue-100 text-black'}`}>
                                                             {method}
                                                         </span>
                                                         <span>({data.count} txns)</span>
                                                     </span>
-                                                    <span className="font-black text-slate-900">
+                                                    <span className="font-black text-black">
                                                         LKR {data.total.toLocaleString()}
                                                     </span>
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-1 pt-1 border-t">
                                                     {Object.entries(data.currencies || {}).map(([cur, amt]) => (
-                                                        <span key={cur} className="bg-slate-100 text-slate-700 border px-2 py-0.5 rounded font-semibold text-[10px]">
+                                                        <span key={cur} className="bg-slate-100 text-black border px-2 py-0.5 rounded font-semibold text-[10px]">
                                                             {cur} {Number(amt).toLocaleString()}
                                                         </span>
                                                     ))}
@@ -194,22 +194,22 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="text-gray-400 italic">No collections recorded.</p>
+                                        <p className="text-black italic">No collections recorded.</p>
                                     )}
                                 </div>
                             </div>
 
                             {/* Card 2: Cash Denominations Handover */}
                             <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
-                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
-                                    <Banknote size={15} className="text-emerald-600" />
+                                <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide">
+                                    <Banknote size={15} className="text-black" />
                                     Cash Notes Denomination Summary
                                 </h3>
 
                                 {cashNotes.length > 0 ? (
                                     <div className="overflow-hidden rounded-lg border bg-white">
                                         <table className="w-full text-left text-xs">
-                                            <thead className="bg-slate-100 border-b text-slate-600 font-bold uppercase text-[10px]">
+                                            <thead className="bg-slate-100 border-b text-black font-bold uppercase text-[10px]">
                                                 <tr>
                                                     <th className="px-2.5 py-1.5">Currency</th>
                                                     <th className="px-2.5 py-1.5">Note</th>
@@ -217,13 +217,13 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                                     <th className="px-2.5 py-1.5 text-right">Subtotal</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y text-slate-700">
+                                            <tbody className="divide-y text-black">
                                                 {cashNotes.map((cn, idx) => (
                                                     <tr key={idx} className="hover:bg-slate-50">
-                                                        <td className="px-2.5 py-1.5 font-bold text-slate-900">{cn.currency}</td>
+                                                        <td className="px-2.5 py-1.5 font-bold text-black">{cn.currency}</td>
                                                         <td className="px-2.5 py-1.5 font-semibold">{Number(cn.note_value).toLocaleString()}</td>
-                                                        <td className="px-2.5 py-1.5 text-center font-bold text-emerald-700">× {cn.count}</td>
-                                                        <td className="px-2.5 py-1.5 text-right font-black text-slate-900">
+                                                        <td className="px-2.5 py-1.5 text-center font-bold text-black">× {cn.count}</td>
+                                                        <td className="px-2.5 py-1.5 text-right font-black text-black">
                                                             {cn.currency} {Number(cn.total).toLocaleString()}
                                                         </td>
                                                     </tr>
@@ -232,7 +232,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                         </table>
                                     </div>
                                 ) : (
-                                    <div className="p-3 bg-white border rounded-lg text-center text-xs text-gray-400 italic">
+                                    <div className="p-3 bg-white border rounded-lg text-center text-xs text-black italic">
                                         No cash notes recorded for this range.
                                     </div>
                                 )}
@@ -244,16 +244,16 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                     <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
                         <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
                             <div>
-                                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                    <Calendar size={18} className="text-blue-700" />
+                                <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                                    <Calendar size={18} className="text-black" />
                                     Trips list for this range ({totalTrips})
                                 </h2>
-                                <p className="text-xs text-gray-500 mt-0.5">Assigned trips during this period with payment details</p>
+                                <p className="text-xs text-black mt-0.5">Assigned trips during this period with payment details</p>
                             </div>
 
                             <div className="text-right">
-                                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Total Revenue</span>
-                                <span className="text-xl font-black text-blue-700">LKR {totalRevenue.toLocaleString()}</span>
+                                <span className="text-xs font-semibold text-black uppercase tracking-wider block">Total Revenue</span>
+                                <span className="text-xl font-black text-black">LKR {totalRevenue.toLocaleString()}</span>
                             </div>
                         </div>
 
@@ -261,7 +261,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                             {trips.length > 0 ? (
                                 <table className="w-full text-left text-sm whitespace-nowrap">
                                     <thead>
-                                        <tr className="bg-gray-50 border-b text-gray-600 font-semibold uppercase text-[10px]">
+                                        <tr className="bg-gray-50 border-b text-black font-semibold uppercase text-[10px]">
                                             <th className="px-5 py-3">Date & Time</th>
                                             <th className="px-5 py-3">Shift & Officer</th>
                                             <th className="px-5 py-3">Customer</th>
@@ -271,7 +271,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                             <th className="px-5 py-3 text-right">Amount</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y text-gray-700">
+                                    <tbody className="divide-y text-black">
                                         {trips.map((trip) => {
                                             const tripTime = new Date(trip.trip_assigned_at ?? trip.created_at);
                                             const customer = trip.customer;
@@ -282,43 +282,43 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                             return (
                                                 <tr key={trip.id} className="hover:bg-gray-50/50 transition">
                                                     <td className="px-5 py-4 text-xs">
-                                                        <div className="font-semibold text-gray-800">
+                                                        <div className="font-semibold text-black">
                                                             {tripTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                                         </div>
-                                                        <div className="text-gray-400">
+                                                        <div className="text-black">
                                                             {tripTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </div>
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <div className="font-semibold text-blue-700">{trip.shift_id || 'N/A'}</div>
-                                                        <div className="text-xs text-gray-500">{trip.assigned_by?.name || '-'}</div>
+                                                        <div className="font-semibold text-black">{trip.shift_id || 'N/A'}</div>
+                                                        <div className="text-xs text-black">{trip.assigned_by?.name || '-'}</div>
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <div className="font-semibold text-gray-900">{customer?.name ?? 'Guest'}</div>
-                                                        <div className="text-xs text-gray-400">{customer?.customer_code}</div>
+                                                        <div className="font-semibold text-black">{customer?.name ?? 'Guest'}</div>
+                                                        <div className="text-xs text-black">{customer?.customer_code}</div>
                                                     </td>
                                                     <td className="px-5 py-4">
-                                                        <div className="font-semibold text-gray-900">{trip.driver?.first_name + ' ' + trip.driver?.last_name}</div>
-                                                        <div className="text-xs text-gray-400">{trip.driver?.vehicle?.registration_number ?? '-'} ({trip.driver?.vehicle?.vehicle_type ?? ''})</div>
+                                                        <div className="font-semibold text-black">{trip.driver?.first_name + ' ' + trip.driver?.last_name}</div>
+                                                        <div className="text-xs text-black">{trip.driver?.vehicle?.registration_number ?? '-'} ({trip.driver?.vehicle?.vehicle_type ?? ''})</div>
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         {paymentNotes.length > 0 ? (
                                                             <div className="space-y-1">
                                                                 {paymentNotes.map((p, pi) => (
                                                                     <div key={pi} className="flex flex-wrap items-center gap-1 text-xs">
-                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-black' : 'bg-blue-100 text-black'}`}>
                                                                             {p.method}
                                                                         </span>
-                                                                        <span className="font-semibold text-gray-800">
+                                                                        <span className="font-semibold text-black">
                                                                             {p.currency} {Number(p.amount).toLocaleString()}
                                                                         </span>
                                                                         {p.method === 'Cash' && Array.isArray(p.notes) && p.notes.map((n, ni) => (
-                                                                            <span key={ni} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] border">
+                                                                            <span key={ni} className="bg-slate-100 text-black px-1.5 py-0.5 rounded text-[10px] border">
                                                                                 💵 {n.amount} x {n.count} ({n.currency || p.currency})
                                                                             </span>
                                                                         ))}
                                                                         {p.transaction_id && (
-                                                                            <span className="text-[10px] text-blue-600 font-mono">
+                                                                            <span className="text-[10px] text-black font-mono">
                                                                                 TXN: {p.transaction_id}
                                                                             </span>
                                                                         )}
@@ -326,13 +326,13 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                                                 ))}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-xs text-gray-400">{customer?.payment_method ?? 'Cash'}</span>
+                                                            <span className="text-xs text-black">{customer?.payment_method ?? 'Cash'}</span>
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-4 max-w-[150px] truncate" title={customer?.dropoff_location}>
                                                         {customer?.dropoff_location ?? '-'}
                                                     </td>
-                                                    <td className="px-5 py-4 text-right font-bold text-gray-900">
+                                                    <td className="px-5 py-4 text-right font-bold text-black">
                                                         LKR {Number(trip.trip_finance?.total_amount ?? 0).toLocaleString()}
                                                     </td>
                                                 </tr>
@@ -341,7 +341,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     </tbody>
                                 </table>
                             ) : (
-                                <div className="p-12 text-center text-gray-400">
+                                <div className="p-12 text-center text-black">
                                     No trips assigned for this range.
                                 </div>
                             )}
@@ -353,11 +353,11 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                 <div className="lg:col-span-1 space-y-4">
                     <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
                         <div className="p-5 border-b bg-gray-50/50">
-                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                <Clock size={18} className="text-blue-700" />
+                            <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                                <Clock size={18} className="text-black" />
                                 Submitted Shifts
                             </h2>
-                            <p className="text-xs text-gray-500 mt-0.5">Shift checkouts handed over by staff</p>
+                            <p className="text-xs text-black mt-0.5">Shift checkouts handed over by staff</p>
                         </div>
 
                         <div className="divide-y max-h-[600px] overflow-y-auto">
@@ -366,10 +366,10 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     <div key={report.id} className="p-4 hover:bg-gray-50 transition flex flex-col gap-3">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <p className="font-bold text-gray-900 text-sm">{report.user?.name}</p>
-                                                <p className="text-xs text-gray-400">{report.user?.email}</p>
+                                                <p className="font-bold text-black text-sm">{report.user?.name}</p>
+                                                <p className="text-xs text-black">{report.user?.email}</p>
                                             </div>
-                                            <span className="inline-flex items-center gap-0.5 bg-green-50 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded border border-green-200">
+                                            <span className="inline-flex items-center gap-0.5 bg-green-50 text-black text-[10px] font-bold px-2 py-0.5 rounded border border-green-200">
                                                 <CheckCircle size={10} />
                                                 Submitted
                                             </span>
@@ -377,24 +377,24 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
 
                                         <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
                                             <div>
-                                                <span className="text-gray-400 block font-medium">Submitted At</span>
-                                                <span className="font-semibold text-gray-700">
+                                                <span className="text-black block font-medium">Submitted At</span>
+                                                <span className="font-semibold text-black">
                                                     {new Date(report.handed_over_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} @ {new Date(report.handed_over_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-gray-400 block font-medium">Total Trips</span>
-                                                <span className="font-semibold text-gray-700">{report.total_trips} trips</span>
+                                                <span className="text-black block font-medium">Total Trips</span>
+                                                <span className="font-semibold text-black">{report.total_trips} trips</span>
                                             </div>
                                         </div>
 
                                         <div className="flex items-center justify-between border-t pt-2 mt-1">
-                                            <span className="text-xs font-bold text-blue-700">
+                                            <span className="text-xs font-bold text-black">
                                                 LKR {Number(report.total_revenue).toLocaleString()}
                                             </span>
                                             <Link
                                                 href={`/checkout-summary/${report.id}`}
-                                                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 transition"
+                                                className="inline-flex items-center gap-1 text-xs font-bold text-black hover:text-black transition"
                                             >
                                                 View Summary <Eye size={12} />
                                             </Link>
@@ -402,7 +402,7 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     </div>
                                 ))
                             ) : (
-                                <div className="p-8 text-center text-gray-400 text-sm">
+                                <div className="p-8 text-center text-black text-sm">
                                     No shifts handed over yet.
                                 </div>
                             )}
