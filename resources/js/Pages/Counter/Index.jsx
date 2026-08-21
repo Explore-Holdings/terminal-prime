@@ -1612,7 +1612,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             <div className="flex justify-between mb-3">
                 <h3 className="font-bold text-lg">Select Vehicle</h3>
                 <span className="text-sm text-gray-500">
-                    {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered / 100
+                    {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered
                 </span>
             </div>
 
