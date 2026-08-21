@@ -33,8 +33,6 @@ export default function Dashboard({
                         href="/customers"
                         buttonText="Manage"
                         icon="👥"
-                        color="text-blue-600"
-                        bg="bg-blue-50"
                     />
                 )}
 
@@ -46,8 +44,6 @@ export default function Dashboard({
                         href="/drivers"
                         buttonText="Manage"
                         icon="🚕"
-                        color="text-green-600"
-                        bg="bg-green-50"
                     />
                 )}
 
@@ -59,8 +55,6 @@ export default function Dashboard({
                         href="/finance"
                         buttonText="View"
                         icon="💰"
-                        color="text-purple-600"
-                        bg="bg-purple-50"
                     />
                 )}
             </div>
@@ -98,37 +92,37 @@ export default function Dashboard({
     );
 }
 
-function DashboardCard({ title, value, subtitle, href, buttonText, color, bg, icon }) {
+function DashboardCard({ title, value, subtitle, href, buttonText, icon }) {
     return (
         <Link href={href} className="group block">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-50 p-4 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                 <div className="flex items-center justify-between gap-3">
-                    <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center text-lg shrink-0`}>
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg shrink-0">
                         {icon}
                     </div>
 
-                    <span className="text-[11px] font-semibold text-gray-400 group-hover:text-gray-700 whitespace-nowrap">
+                    <span className="text-xs font-bold text-blue-400 group-hover:text-blue-700 whitespace-nowrap">
                         View →
                     </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 mt-3">
+                <div className="flex items-center justify-between gap-3 mt-4">
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-500 truncate">
+                        <p className="text-sm font-bold text-gray-500 truncate">
                             {title}
                         </p>
 
-                        <p className={`text-xl font-bold leading-tight ${color}`}>
+                        <p className="text-2xl font-black leading-tight text-blue-800">
                             {value ?? 0}
                         </p>
                     </div>
 
-                    <span className="bg-slate-900 text-white px-3 py-1 text-xs font-medium group-hover:bg-blue-600 transition whitespace-nowrap">
+                    <span className="bg-[#012643] text-white px-5 py-2 text-sm font-bold group-hover:bg-[#033B65] transition whitespace-nowrap shadow-md">
                         {buttonText}
                     </span>
                 </div>
 
-                <p className="text-[11px] text-gray-400 mt-1 truncate">
+                <p className="text-xs font-medium text-gray-400 mt-1 truncate">
                     {subtitle}
                 </p>
             </div>
@@ -138,29 +132,29 @@ function DashboardCard({ title, value, subtitle, href, buttonText, color, bg, ic
 
 function RecentCard({ title, href, headers, rows, emptyText }) {
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition">
-            <div className="flex justify-between items-center mb-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-blue-50 p-4 hover:shadow-md transition">
+            <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-                    <p className="text-xs text-gray-500">Latest records</p>
+                    <h2 className="text-xl font-black text-gray-800">{title}</h2>
+                    <p className="text-sm font-medium text-gray-500">Latest records</p>
                 </div>
 
                 <Link
                     href={href}
-                    className="bg-blue-50 text-blue-700 px-3 py-1.5 hover:bg-blue-600 hover:text-white text-xs font-semibold transition"
+                    className="bg-[#012643] text-white px-5 py-2 hover:bg-[#033B65] text-sm font-bold transition shadow-md"
                 >
                     View All
                 </Link>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-xl border border-blue-50">
+                <table className="w-full text-base">
                     <thead>
-                        <tr className="bg-gray-50">
+                        <tr className="bg-blue-50/60">
                             {headers.map((header) => (
                                 <th
                                     key={header}
-                                    className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase"
+                                    className="px-4 py-3 text-left text-sm font-bold text-blue-800 uppercase tracking-wider"
                                 >
                                     {header}
                                 </th>
@@ -173,7 +167,7 @@ function RecentCard({ title, href, headers, rows, emptyText }) {
                             rows.map((row, rowIndex) => (
                                 <tr
                                     key={rowIndex}
-                                    className="border-t hover:bg-blue-50/50 transition"
+                                    className="border-t border-blue-50 hover:bg-blue-50/50 transition"
                                 >
                                     {row.map((cell, cellIndex) => (
                                         <td key={cellIndex} className="px-4 py-2 text-gray-700">
@@ -214,8 +208,8 @@ function Badge({ value }) {
 
     return (
         <span
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                colors[value] ?? 'bg-gray-100 text-gray-600'
+            className={`px-2.5 py-1 text-xs font-semibold ${
+                colors[value] ?? 'bg-blue-100 text-blue-700'
             }`}
         >
             {value ?? 'N/A'}

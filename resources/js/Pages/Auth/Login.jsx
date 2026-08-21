@@ -28,7 +28,7 @@ export default function Login({ status, canResetPassword }) {
                 className="min-h-screen flex items-center justify-center bg-cover bg-center px-4"
                 style={{
                     backgroundImage:
-                        "linear-gradient(rgba(2, 6, 23, 0.68), rgba(2, 6, 23, 0.68)), url('/assets/images/airport-login-bg.jpg')",
+                        "linear-gradient(rgba(2, 6, 23, 0.68), rgba(2, 6, 23, 0.68)), url('/assets/images/airport-login-bg-1.jpg')",
                 }}
             >
                 <div className="w-full max-w-md">

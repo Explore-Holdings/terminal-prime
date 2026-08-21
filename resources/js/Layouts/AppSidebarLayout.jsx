@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { ChevronLeftIcon, ChevronRightIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
 
 export default function AppSidebarLayout({ children, title = 'Airport Counter', defaultSidebarOpen = true }) {
     const { url, props } = usePage();
@@ -30,25 +30,26 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
     const isActive = (path) => url === path;
 
     const menuClass = (path) =>
-        `block px-4 py-3 rounded transition ${isActive(path)
-            ? 'bg-blue-700 text-white font-semibold'
-            : 'hover:bg-slate-700 text-gray-200'
+        `block px-4 py-3  text-base font-semibold transition ${isActive(path)
+            ? 'bg-white text-blue-800 shadow-sm'
+            : 'text-blue-100 hover:bg-white/10 hover:text-white'
         }`;
 
     return (
         <>
             <Head title={title} />
 
-            <div className="min-h-screen bg-gray-100 flex">
+            <div className="min-h-screen bg-gray-50 flex">
                 <aside
-                    className={`fixed left-0 top-0 w-64 bg-slate-900 text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    className={`fixed left-0 top-0 w-64 bg-gradient-to-b from-[#12275c] via-[#1e4a8f] to-[#2a5fa8] text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                         }`}
                 >
-                    <div className="p-6 border-b border-slate-700">
-                        <h2 className="text-2xl font-bold">TERMINAL PRIME</h2>
+                    <div className="p-4 border-b border-white/10 flex items-center gap-2">
+                        <PaperAirplaneIcon className="w-7 h-7 -rotate-45 text-white shrink-0" />
+                        <h2 className="text-xl font-black tracking-tight">TERMINAL PRIME</h2>
                     </div>
 
-                    <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
+                    <nav className="p-4 space-y-1.5 flex-1 overflow-y-auto">
                         {visibleMenuItems.map((item) => (
                             <Link
                                 key={item.path}
@@ -60,11 +61,11 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                         ))}
                     </nav>
 
-                    <div className="p-4 border-t border-slate-700 space-y-2">
-                        <div className="px-4 py-2 text-sm text-gray-300">
+                    <div className="p-4 border-t border-white/10 space-y-2">
+                        <div className="px-4 py-2 text-base font-bold text-white">
                             {user?.name ?? 'User'}
                             <br />
-                            <span className="text-xs text-gray-400 capitalize">
+                            <span className="text-sm font-medium text-blue-200 capitalize">
                                 {role || 'No role'}
                             </span>
                         </div>
@@ -73,7 +74,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                             href={route('logout')}
                             method="post"
                             as="button"
-                            className="w-full text-left block px-4 py-3 rounded bg-red-600 hover:bg-red-700 text-white"
+                            className="w-full text-left block px-4 py-3 bg-red-900 hover:bg-[#450a0a] text-white text-base font-bold transition shadow-sm border border-[#450a0a]"
                         >
                             Logout
                         </Link>
@@ -81,14 +82,14 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                 </aside>
 
                 <main
-                    className={`flex-1 p-4 overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'
+                    className={`flex-1 flex flex-col overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'
                         }`}
                 >
-                    <div className="mb-6">
+                    <div className="p-4 pb-0">
                         <button
                             type="button"
                             onClick={() => setSidebarOpen((open) => !open)}
-                            className="inline-flex items-center justify-center rounded-lg bg-slate-900 p-2 text-white shadow hover:bg-slate-800"
+                            className="inline-flex items-center justify-center rounded-lg bg-[#012643] p-2 text-white shadow hover:bg-[#033B65] transition"
                         >
                             {sidebarOpen ? (
                                 <ChevronLeftIcon className="w-5 h-5" />
@@ -98,7 +99,9 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                         </button>
                     </div>
 
-                    {children}
+                    <div className="p-4 flex-1">
+                        {children}
+                    </div>
                 </main>
             </div>
         </>
