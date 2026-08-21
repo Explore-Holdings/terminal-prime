@@ -1364,6 +1364,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
+    const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
@@ -1486,6 +1487,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 preserveScroll: true,
                 onSuccess: () => {
                     closeConfirm();
+                    setShowFinalConfirm(false);
                     onClose();
                     router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'] });
                 },
@@ -2111,10 +2113,42 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             <button
                                 type="button"
                                 disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null)) || (rateMode === 'per_km' && (Number(agent?.distance_km || 0) <= 0 || vehicleRateValue <= 0))}
-                                onClick={confirmAssign}
+                                onClick={() => setShowFinalConfirm(true)}
                                 className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
                             >
                                 {submitting ? 'Assigning...' : 'Confirm & Assign'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Final Confirmation Modal ── */}
+            {showFinalConfirm && (
+                <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden p-6 text-center">
+                        <div className="w-14 h-14 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                            <Car size={26} />
+                        </div>
+                        <h3 className="text-[17px] font-extrabold text-gray-900 mb-1.5">Confirm Assignment</h3>
+                        <p className="text-[13px] font-medium text-gray-500 mb-6">Do you want to proceed with this assignment?</p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowFinalConfirm(false)}
+                                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowFinalConfirm(false);
+                                    confirmAssign();
+                                }}
+                                className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-bold hover:bg-blue-800 transition shadow-sm"
+                            >
+                                Yes, Proceed
                             </button>
                         </div>
                     </div>
