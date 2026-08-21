@@ -69,7 +69,7 @@ export default function Index({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h1 className="text-2xl font-bold">Finance</h1>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-black mt-1">
                                 Daily operations, settlements, reports and expenses.
                             </p>
                         </div>
@@ -89,7 +89,7 @@ export default function Index({
                                         className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
                                             range === item.key
                                                 ? 'bg-blue-700 text-white'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                : 'bg-gray-100 text-black hover:bg-gray-200'
                                         }`}
                                     >
                                         {item.label}
@@ -291,19 +291,19 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
     return (
         <>
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-gray-800">
+                <h2 className="text-lg font-semibold text-black">
                     {range === 'today' ? 'Today assigned trips' : 'Assigned trips'}
                 </h2>
                 <div className="flex items-center gap-3 text-sm">
-                    <span className="text-gray-500">{filteredTrips.length} trip(s)</span>
-                    <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                    <span className="text-black">{filteredTrips.length} trip(s)</span>
+                    <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-black">
                         Total : LKR {totalAmount.toLocaleString()}
                     </span>
                 </div>
             </div>
 
             {filteredTrips.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-black">
                     No assigned trips found for this period.
                 </div>
             ) : (
@@ -320,7 +320,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                     setPage(1);
                                 }}
                             />
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-black">
                                 Page {page} of {totalPages}
                             </div>
                         </div>
@@ -329,28 +329,28 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                             <table className="min-w-full text-sm">
                                 <thead className="bg-gray-50 border-b border-gray-200">
                                     <tr>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Trip</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Amount</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Agent Share</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Driver Share</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Balance</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Rate</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-gray-700">Action</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Agent Share</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Driver Share</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Balance</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Rate</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Action</th>
                                     </tr>
                                 </thead>
                                 {pagedGroups.map((group) => (
                                     <tbody key={group.date} className="divide-y divide-gray-100 bg-white">
                                         <tr className="bg-gray-100 hover:bg-gray-200 cursor-pointer border-t border-gray-300 transition-colors" onClick={() => toggleDate(group.date)}>
-                                            <td className="px-3 py-3 font-bold text-gray-800">
+                                            <td className="px-3 py-3 font-bold text-black">
                                                 {new Date(group.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                                             </td>
-                                            <td className="px-3 py-3 font-bold text-blue-700">
+                                            <td className="px-3 py-3 font-bold text-black">
                                                 LKR {group.totalAmount.toLocaleString()}
                                             </td>
-                                            <td className="px-3 py-3 text-gray-600 font-medium" colSpan={4}>
+                                            <td className="px-3 py-3 text-black font-medium" colSpan={4}>
                                                 {group.trips.length} Trip{group.trips.length !== 1 && 's'}
                                             </td>
-                                            <td className="px-3 py-3 text-right text-gray-500 font-semibold text-xs uppercase tracking-wider">
+                                            <td className="px-3 py-3 text-right text-black font-semibold text-xs uppercase tracking-wider">
                                                 {expandedDates.includes(group.date) ? '▲ Hide' : '▼ Show'}
                                             </td>
                                         </tr>
@@ -423,13 +423,13 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             return (
                                                 <tr key={trip.id} className="hover:bg-blue-50/50 bg-white">
                                                     <td className="px-3 py-2 border-l-2 border-blue-500">
-                                                        <div className="font-semibold text-gray-800">#{trip.id}</div>
-                                                        <div className="text-xs text-gray-500">{customer?.name ?? '-'}</div>
+                                                        <div className="font-semibold text-black">#{trip.id}</div>
+                                                        <div className="text-xs text-black">{customer?.name ?? '-'}</div>
                                                     </td>
-                                                    <td className="px-3 py-2 font-medium text-gray-700">
+                                                    <td className="px-3 py-2 font-medium text-black">
                                                         <div>LKR {amountInLkr.toLocaleString()}</div>
                                                         {originalCurrency !== 'LKR' && (
-                                                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1 mb-1">
+                                                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-black border border-blue-100 mt-1 mb-1">
                                                                 {originalCurrency} {originalAmount.toLocaleString()}
                                                             </span>
                                                         )}
@@ -437,11 +437,11 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                             <div className="mt-1 space-y-1">
                                                                 {paymentNotes.map((p, pi) => (
                                                                     <div key={pi} className="flex flex-wrap items-center gap-1 text-[10px]">
-                                                                        <span className={`px-1 py-0.5 rounded font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                                        <span className={`px-1 py-0.5 rounded font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-black' : 'bg-blue-100 text-black'}`}>
                                                                             {p.method}
                                                                         </span>
                                                                         {p.method === 'Cash' && Array.isArray(p.notes) && p.notes.map((n, ni) => (
-                                                                            <span key={ni} className="bg-slate-100 text-slate-700 px-1 py-0.5 rounded border font-semibold">
+                                                                            <span key={ni} className="bg-slate-100 text-black px-1 py-0.5 rounded border font-semibold">
                                                                                 💵 {n.amount} x {n.count} ({n.currency || p.currency})
                                                                             </span>
                                                                         ))}
@@ -451,26 +451,26 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="font-medium text-gray-700">LKR {agentPortion.toLocaleString()}</div>
+                                                        <div className="font-medium text-black">LKR {agentPortion.toLocaleString()}</div>
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="font-medium text-gray-700">LKR {driverPortion.toLocaleString()}</div>
+                                                        <div className="font-medium text-black">LKR {driverPortion.toLocaleString()}</div>
                                                     </td>
-                                                    <td className="px-3 py-2 font-medium text-gray-700">LKR {balance.toLocaleString()}</td>
+                                                    <td className="px-3 py-2 font-medium text-black">LKR {balance.toLocaleString()}</td>
                                                     <td className="px-3 py-2">
                                                         {isCustomRate ? (
-                                                            <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-700">
+                                                            <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-black">
                                                                 ✦ Custom
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                                                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-black">
                                                                 Standard
                                                             </span>
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         {isReceived ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
                                                                 ✓ Received
                                                             </span>
                                                         ) : (
@@ -491,7 +491,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                             </table>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-gray-200 p-3 text-sm text-gray-600">
+                        <div className="flex items-center justify-between border-t border-gray-200 p-3 text-sm text-black">
                             <button
                                 type="button"
                                 onClick={() => setPage((current) => Math.max(1, current - 1))}
@@ -566,9 +566,9 @@ function SettlementsTable({ trips, onSettle }) {
                     : originalAmount;
                 return (
                     <div className="text-right">
-                        <div className="font-semibold text-gray-800">LKR {amountInLkr.toLocaleString()}</div>
+                        <div className="font-semibold text-black">LKR {amountInLkr.toLocaleString()}</div>
                         {originalCurrency !== 'LKR' && (
-                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100 mt-1">
+                            <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-black border border-blue-100 mt-1">
                                 {originalCurrency} {originalAmount.toLocaleString()}
                             </span>
                         )}
@@ -581,8 +581,8 @@ function SettlementsTable({ trips, onSettle }) {
             cell: row => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${
                     row.finance?.status === 'Settled'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
+                        ? 'bg-green-100 text-black'
+                        : 'bg-yellow-100 text-black'
                 }`}>
                     {row.finance?.status ?? 'Pending'}
                 </span>
@@ -707,7 +707,7 @@ function PayoutsTab({ drivers, agents }) {
             sortable: true,
             right: true,
             cell: row => (
-                <span className={`font-bold ${row.balance > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                <span className={`font-bold ${row.balance > 0 ? 'text-black' : 'text-black'}`}>
                     {money(row.balance)}
                 </span>
             ),
@@ -766,7 +766,7 @@ function PayoutsTab({ drivers, agents }) {
                     />
                 </div>
                 {search && (
-                    <button onClick={() => setSearch('')} className="text-xs text-gray-400 hover:text-gray-600">
+                    <button onClick={() => setSearch('')} className="text-xs text-black hover:text-black">
                         Clear
                     </button>
                 )}
@@ -849,7 +849,7 @@ function IncentivesTab({ drivers, incentives }) {
             sortable: true,
             right: true,
             cell: row => (
-                <span className="font-semibold text-gray-700">
+                <span className="font-semibold text-black">
                     {Number(totals[row.id] || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             )
@@ -921,7 +921,7 @@ function IncentivesTab({ drivers, incentives }) {
                     />
                 </div>
                 {search && (
-                    <button onClick={() => setSearch('')} className="text-xs text-gray-400 hover:text-gray-600">
+                    <button onClick={() => setSearch('')} className="text-xs text-black hover:text-black">
                         Clear
                     </button>
                 )}
@@ -974,29 +974,29 @@ function IncentiveHistoryModal({ driver, incentives, onClose }) {
                     <h2 className="text-lg font-bold">
                         Incentive History - {driver.full_name}
                     </h2>
-                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-red-600 font-bold text-xl">
+                    <button type="button" onClick={onClose} className="text-black hover:text-black font-bold text-xl">
                         ✕
                     </button>
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-1">
                     {incentives.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">No incentives found for this driver.</p>
+                        <p className="text-black text-center py-4">No incentives found for this driver.</p>
                     ) : (
                         <div className="border border-gray-200 rounded-lg overflow-hidden">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-50 border-b">
                                     <tr>
-                                        <th className="px-4 py-3 font-semibold text-gray-700">Date</th>
-                                        <th className="px-4 py-3 font-semibold text-gray-700">Amount (LKR)</th>
-                                        <th className="px-4 py-3 font-semibold text-gray-700">Remarks</th>
-                                        <th className="px-4 py-3 font-semibold text-gray-700 text-right">Actions</th>
+                                        <th className="px-4 py-3 font-semibold text-black">Date</th>
+                                        <th className="px-4 py-3 font-semibold text-black">Amount (LKR)</th>
+                                        <th className="px-4 py-3 font-semibold text-black">Remarks</th>
+                                        <th className="px-4 py-3 font-semibold text-black text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {incentives.map(inc => (
                                         <tr key={inc.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-gray-500">
+                                            <td className="px-4 py-3 text-black">
                                                 {new Date(inc.created_at).toLocaleDateString()}
                                             </td>
                                             <td className="px-4 py-3 font-medium">
@@ -1012,7 +1012,7 @@ function IncentiveHistoryModal({ driver, incentives, onClose }) {
                                                     Number(inc.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">
+                                            <td className="px-4 py-3 text-black">
                                                 {editingId === inc.id ? (
                                                     <input 
                                                         type="text" 
@@ -1027,13 +1027,13 @@ function IncentiveHistoryModal({ driver, incentives, onClose }) {
                                             <td className="px-4 py-3 text-right">
                                                 {editingId === inc.id ? (
                                                     <div className="flex justify-end gap-2">
-                                                        <button onClick={() => setEditingId(null)} className="text-gray-500 hover:text-gray-700 font-semibold text-xs">Cancel</button>
-                                                        <button onClick={() => handleSave(inc.id)} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Save</button>
+                                                        <button onClick={() => setEditingId(null)} className="text-black hover:text-black font-semibold text-xs">Cancel</button>
+                                                        <button onClick={() => handleSave(inc.id)} className="text-black hover:text-black font-semibold text-xs">Save</button>
                                                     </div>
                                                 ) : (
                                                     <div className="flex justify-end gap-3">
-                                                        <button onClick={() => handleEdit(inc)} className="text-blue-600 hover:text-blue-800 font-semibold text-xs">Edit</button>
-                                                        <button onClick={() => handleDelete(inc.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs">Delete</button>
+                                                        <button onClick={() => handleEdit(inc)} className="text-black hover:text-black font-semibold text-xs">Edit</button>
+                                                        <button onClick={() => handleDelete(inc.id)} className="text-black hover:text-black font-semibold text-xs">Delete</button>
                                                     </div>
                                                 )}
                                             </td>
@@ -1052,8 +1052,8 @@ function IncentiveHistoryModal({ driver, incentives, onClose }) {
 function EmptyState({ title, description }) {
     return (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-            <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-            <p className="mt-2 text-sm text-gray-500">{description}</p>
+            <h2 className="text-lg font-semibold text-black">{title}</h2>
+            <p className="mt-2 text-sm text-black">{description}</p>
         </div>
     );
 }
@@ -1066,7 +1066,7 @@ function MainTabCard({ active, onClick, children }) {
             className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                 active
                     ? 'border-blue-700 bg-blue-700 text-white shadow'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700'
+                    : 'border-gray-200 bg-white text-black hover:border-blue-300 hover:text-black'
             }`}
         >
             {children}
@@ -1082,7 +1082,7 @@ function SubTab({ active, onClick, children }) {
             className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
                 active
                     ? 'bg-blue-700 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-black hover:bg-gray-200'
             }`}
         >
             {children}
@@ -1130,7 +1130,7 @@ function SettlementModal({ trip, onClose }) {
                         {trip.finance ? 'Edit' : 'Settle'} Trip #{trip.id}
                     </h2>
 
-                    <button type="button" onClick={onClose} className="text-red-600 font-bold">
+                    <button type="button" onClick={onClose} className="text-black font-bold">
                         ✕
                     </button>
                 </div>
@@ -1150,7 +1150,7 @@ function SettlementModal({ trip, onClose }) {
                     <Input label="Remarks" value={form.data.remarks} onChange={(e) => form.setData('remarks', e.target.value)} />
 
                     <div className={`p-2 rounded text-sm font-bold ${
-                        total === amount ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        total === amount ? 'bg-green-100 text-black' : 'bg-red-100 text-black'
                     }`}>
                         Total : {currency} {total.toLocaleString()} / {currency} {amount.toLocaleString()}
                     </div>
@@ -1191,7 +1191,7 @@ function Table({ columns, data, empty }) {
                     },
                 },
             }}
-            noDataComponent={<div className="p-6 text-gray-500">{empty}</div>}
+            noDataComponent={<div className="p-6 text-black">{empty}</div>}
         />
     );
 }
@@ -1204,7 +1204,7 @@ function Tab({ active, children, onClick }) {
             className={`px-4 py-2 rounded text-sm font-bold ${
                 active
                     ? 'bg-blue-700 text-white'
-                    : 'bg-gray-100 text-gray-700'
+                    : 'bg-gray-100 text-black'
             }`}
         >
             {children}
@@ -1295,8 +1295,8 @@ function DriversTable({ drivers }) {
             cell: row => (
                 <span className={`px-2 py-1 rounded text-xs font-bold ${
                     row.payment_received
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-green-100 text-black'
+                        : 'bg-red-100 text-black'
                 }`}>
                     {row.payment_received ? 'Received' : 'Pending'}
                 </span>
@@ -1314,12 +1314,12 @@ function DriversTable({ drivers }) {
                     href={`/storage/${row.payment_attachment}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline font-semibold text-xs"
+                    className="text-black hover:text-black underline font-semibold text-xs"
                 >
                     View
                 </a>
             ) : (
-                <span className="text-gray-400 text-xs">No file</span>
+                <span className="text-black text-xs">No file</span>
             ),
         },
         {
@@ -1331,9 +1331,9 @@ function DriversTable({ drivers }) {
                         value={row.driver_status ?? 'Inactive'}
                         onChange={(e) => handleStatusChange(row.id, e.target.value)}
                         className={`border rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer ${
-                            row.driver_status === 'Active' ? 'border-green-300 bg-green-50 text-green-700 font-bold' :
-                            row.driver_status === 'Suspended' ? 'border-red-300 bg-red-50 text-red-700 font-bold' :
-                            'border-gray-300 bg-gray-50 text-gray-700 font-bold'
+                            row.driver_status === 'Active' ? 'border-green-300 bg-green-50 text-black font-bold' :
+                            row.driver_status === 'Suspended' ? 'border-red-300 bg-red-50 text-black font-bold' :
+                            'border-gray-300 bg-gray-50 text-black font-bold'
                         }`}
                     >
                         <option value="Active">Active</option>
@@ -1407,7 +1407,7 @@ function DriverPaymentModal({ driver, onClose }) {
                         Edit Payment Info - {driver.full_name}
                     </h2>
 
-                    <button type="button" onClick={onClose} className="text-red-600 font-bold">
+                    <button type="button" onClick={onClose} className="text-black font-bold">
                         ✕
                     </button>
                 </div>
@@ -1447,7 +1447,7 @@ function DriverPaymentModal({ driver, onClose }) {
                         <input
                             type="checkbox"
                             id="payment_received"
-                            className="rounded text-blue-700 focus:ring-blue-700 h-4 w-4"
+                            className="rounded text-black focus:ring-blue-700 h-4 w-4"
                             checked={form.data.payment_received}
                             onChange={(e) => form.setData('payment_received', e.target.checked)}
                         />
@@ -1485,7 +1485,7 @@ function DriverPaymentModal({ driver, onClose }) {
                                     href={`/storage/${driver.payment_attachment}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-blue-600 underline font-semibold"
+                                    className="text-black underline font-semibold"
                                 >
                                     View File
                                 </a>
@@ -1503,7 +1503,7 @@ function DriverPaymentModal({ driver, onClose }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded font-bold transition-colors"
+                            className="w-1/2 bg-gray-100 hover:bg-gray-200 text-black py-2 rounded font-bold transition-colors"
                         >
                             Cancel
                         </button>
@@ -1602,8 +1602,8 @@ function ExpensesPanel({ expenses = [] }) {
             sortable: true,
             cell: row => (
                 <div>
-                    <div className="font-semibold text-gray-800">{row.title}</div>
-                    {row.remarks && <div className="text-xs text-gray-500 truncate max-w-[250px]">{row.remarks}</div>}
+                    <div className="font-semibold text-black">{row.title}</div>
+                    {row.remarks && <div className="text-xs text-black truncate max-w-[250px]">{row.remarks}</div>}
                 </div>
             )
         },
@@ -1613,7 +1613,7 @@ function ExpensesPanel({ expenses = [] }) {
             sortable: true,
             right: true,
             width: '140px',
-            cell: row => <span className="font-bold text-gray-900">LKR {Number(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>,
+            cell: row => <span className="font-bold text-black">LKR {Number(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>,
         },
         {
             name: 'Created By',
@@ -1629,14 +1629,14 @@ function ExpensesPanel({ expenses = [] }) {
                     <button
                         type="button"
                         onClick={() => handleEdit(row)}
-                        className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium text-xs border border-blue-200"
+                        className="px-2 py-1 rounded bg-blue-50 text-black hover:bg-blue-100 font-medium text-xs border border-blue-200"
                     >
                         Edit
                     </button>
                     <button
                         type="button"
                         onClick={() => handleDelete(row.id)}
-                        className="px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 font-medium text-xs border border-red-200"
+                        className="px-2 py-1 rounded bg-red-50 text-black hover:bg-red-100 font-medium text-xs border border-red-200"
                     >
                         Delete
                     </button>
@@ -1650,12 +1650,12 @@ function ExpensesPanel({ expenses = [] }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form column */}
                 <div className="bg-white border rounded-xl shadow-sm p-5 space-y-4 h-fit">
-                    <h3 className="font-bold text-lg text-gray-800">
+                    <h3 className="font-bold text-lg text-black">
                         {editingExpense ? '✏️ Edit Expense' : '➕ Add Expense'}
                     </h3>
                     <form onSubmit={submit} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+                            <label className="block text-xs font-semibold text-black uppercase mb-1">Title</label>
                             <input
                                 type="text"
                                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1664,11 +1664,11 @@ function ExpensesPanel({ expenses = [] }) {
                                 placeholder="e.g. Office rent, Fuel reimbursement"
                                 required
                             />
-                            {form.errors.title && <p className="text-red-500 text-xs mt-1">{form.errors.title}</p>}
+                            {form.errors.title && <p className="text-black text-xs mt-1">{form.errors.title}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Amount (LKR)</label>
+                            <label className="block text-xs font-semibold text-black uppercase mb-1">Amount (LKR)</label>
                             <input
                                 type="number"
                                 step="0.01"
@@ -1679,11 +1679,11 @@ function ExpensesPanel({ expenses = [] }) {
                                 placeholder="0.00"
                                 required
                             />
-                            {form.errors.amount && <p className="text-red-500 text-xs mt-1">{form.errors.amount}</p>}
+                            {form.errors.amount && <p className="text-black text-xs mt-1">{form.errors.amount}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Expense Date</label>
+                            <label className="block text-xs font-semibold text-black uppercase mb-1">Expense Date</label>
                             <input
                                 type="date"
                                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1691,11 +1691,11 @@ function ExpensesPanel({ expenses = [] }) {
                                 onChange={(e) => form.setData('expense_date', e.target.value)}
                                 required
                             />
-                            {form.errors.expense_date && <p className="text-red-500 text-xs mt-1">{form.errors.expense_date}</p>}
+                            {form.errors.expense_date && <p className="text-black text-xs mt-1">{form.errors.expense_date}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Remarks</label>
+                            <label className="block text-xs font-semibold text-black uppercase mb-1">Remarks</label>
                             <textarea
                                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 rows="3"
@@ -1703,7 +1703,7 @@ function ExpensesPanel({ expenses = [] }) {
                                 onChange={(e) => form.setData('remarks', e.target.value)}
                                 placeholder="Additional details..."
                             />
-                            {form.errors.remarks && <p className="text-red-500 text-xs mt-1">{form.errors.remarks}</p>}
+                            {form.errors.remarks && <p className="text-black text-xs mt-1">{form.errors.remarks}</p>}
                         </div>
 
                         <div className="flex gap-2 justify-end pt-2">
@@ -1711,7 +1711,7 @@ function ExpensesPanel({ expenses = [] }) {
                                 <button
                                     type="button"
                                     onClick={handleCancelEdit}
-                                    className="px-4 py-2 border rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                                    className="px-4 py-2 border rounded-lg text-sm text-black hover:bg-gray-50 font-medium"
                                 >
                                     Cancel
                                 </button>
@@ -1730,8 +1730,8 @@ function ExpensesPanel({ expenses = [] }) {
                 {/* Table column */}
                 <div className="lg:col-span-2 bg-white border rounded-xl shadow-sm p-5 space-y-4">
                     <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-lg text-gray-800">Expense List</h3>
-                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100">
+                        <h3 className="font-bold text-lg text-black">Expense List</h3>
+                        <span className="bg-blue-50 text-black text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100">
                             Total: LKR {expenses.reduce((sum, exp) => sum + Number(exp.amount), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </span>
                     </div>
@@ -1841,21 +1841,21 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                         alt="Terminal Prime Logo"
                         className="h-16 w-auto object-contain mb-3"
                     />
-                    <h1 className="text-xl font-black text-gray-900 uppercase tracking-widest mb-1">Terminal Prime</h1>
-                    <h2 className="text-lg font-bold text-gray-700 uppercase tracking-wider">FINANCIAL STATEMENT</h2>
+                    <h1 className="text-xl font-black text-black uppercase tracking-widest mb-1">Terminal Prime</h1>
+                    <h2 className="text-lg font-bold text-black uppercase tracking-wider">FINANCIAL STATEMENT</h2>
                     
-                    <div className="text-sm text-gray-500 mt-3 flex flex-col items-center space-y-1">
-                        <p>For the period : <span className="font-semibold text-gray-700">{dateLabel}</span></p>
-                        <p>Generated as at : <span className="font-semibold text-gray-700">{new Date().toLocaleString()}</span></p>
+                    <div className="text-sm text-black mt-3 flex flex-col items-center space-y-1">
+                        <p>For the period : <span className="font-semibold text-black">{dateLabel}</span></p>
+                        <p>Generated as at : <span className="font-semibold text-black">{new Date().toLocaleString()}</span></p>
                     </div>
 
                     <div className="absolute top-6 right-6">
                         <button 
                             type="button"
                             onClick={exportToExcel}
-                            className="flex items-center gap-2 bg-white border border-green-600 text-green-700 hover:bg-green-50 px-3 py-1.5 rounded text-sm font-semibold shadow-sm transition"
+                            className="flex items-center gap-2 bg-white border border-green-600 text-black hover:bg-green-50 px-3 py-1.5 rounded text-sm font-semibold shadow-sm transition"
                         >
-                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             Export to Excel
                         </button>
                     </div>
@@ -1864,33 +1864,33 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                 <div className="p-4 space-y-8">
                     {/* Income Section */}
                     <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                        <h3 className="text-sm font-bold text-black uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
                             Revenue
                         </h3>
-                        <div className="space-y-3 text-gray-700">
+                        <div className="space-y-3 text-black">
                             <div className="flex justify-between items-center text-lg">
                                 <span>Gross Revenue (Trips: {filteredTrips.length})</span>
-                                <span className="font-semibold text-gray-900">LKR {formatCurrency(grossRevenue)}</span>
+                                <span className="font-semibold text-black">LKR {formatCurrency(grossRevenue)}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Cost of Sales Section */}
                     <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                        <h3 className="text-sm font-bold text-black uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
                             Cost of Sales (Commissions)
                         </h3>
-                        <div className="space-y-3 text-gray-700 pl-4 border-l-2 border-gray-100">
+                        <div className="space-y-3 text-black pl-4 border-l-2 border-gray-100">
                             <div className="flex justify-between items-center">
                                 <span>Driver Payouts</span>
-                                <span className="font-medium text-red-600">- LKR {formatCurrency(driverPayouts)}</span>
+                                <span className="font-medium text-black">- LKR {formatCurrency(driverPayouts)}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span>Agent Payouts</span>
-                                <span className="font-medium text-red-600">- LKR {formatCurrency(agentPayouts)}</span>
+                                <span className="font-medium text-black">- LKR {formatCurrency(agentPayouts)}</span>
                             </div>
                         </div>
-                        <div className="flex justify-between items-center text-lg font-bold text-gray-900 mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <div className="flex justify-between items-center text-lg font-bold text-black mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
                             <span>Net Revenue</span>
                             <span>LKR {formatCurrency(netRevenue)}</span>
                         </div>
@@ -1898,30 +1898,30 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
 
                     {/* Operating Expenses Section */}
                     <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
+                        <h3 className="text-sm font-bold text-black uppercase tracking-wider border-b border-gray-200 pb-2 mb-4">
                             Operating Expenses
                         </h3>
-                        <div className="space-y-3 text-gray-700 pl-4 border-l-2 border-gray-100">
+                        <div className="space-y-3 text-black pl-4 border-l-2 border-gray-100">
                             {filteredExpenses.length === 0 ? (
-                                <div className="text-sm text-gray-400 italic">No expenses recorded for this period.</div>
+                                <div className="text-sm text-black italic">No expenses recorded for this period.</div>
                             ) : (
                                 filteredExpenses.map(exp => (
                                     <div key={exp.id} className="flex justify-between items-center text-sm">
                                         <span>{exp.title}</span>
-                                        <span className="font-medium text-red-600">- LKR {formatCurrency(exp.amount)}</span>
+                                        <span className="font-medium text-black">- LKR {formatCurrency(exp.amount)}</span>
                                     </div>
                                 ))
                             )}
                         </div>
-                        <div className="flex justify-between items-center text-md font-semibold text-gray-800 mt-4 border-t border-gray-100 pt-3">
+                        <div className="flex justify-between items-center text-md font-semibold text-black mt-4 border-t border-gray-100 pt-3">
                             <span>Total Operating Expenses</span>
-                            <span className="text-red-600">- LKR {formatCurrency(totalExpenses)}</span>
+                            <span className="text-black">- LKR {formatCurrency(totalExpenses)}</span>
                         </div>
                     </div>
 
                     {/* Net Profit Section */}
                     <div className={`p-3 rounded-xl border-2 flex justify-between items-center text-xl font-black uppercase tracking-wide
-                        ${netProfit >= 0 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}
+                        ${netProfit >= 0 ? 'bg-green-50 border-green-200 text-black' : 'bg-red-50 border-red-200 text-black'}
                     `}>
                         <span>{netProfit >= 0 ? 'Net Profit' : 'Net Loss'}</span>
                         <span>LKR {formatCurrency(Math.abs(netProfit))}</span>

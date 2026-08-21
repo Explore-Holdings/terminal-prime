@@ -202,7 +202,7 @@ export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLi
                 {/* Left Side: Next In Line Square Card */}
                 <div className="flex flex-col gap-2 shrink-0">
                     <div 
-                        className="w-[180px] h-[180px] border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
+                        className="w-[180px] h-[140px] border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
                         onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
                     >
                         <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg tracking-wider uppercase">

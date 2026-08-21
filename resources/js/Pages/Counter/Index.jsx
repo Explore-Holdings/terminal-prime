@@ -1,7 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const convertToLkr = (amount, currency, rates) => {
@@ -150,6 +150,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [showReorderModal, setShowReorderModal] = useState(false);
     const [reorderSaving, setReorderSaving] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
     const [searchMyTrips, setSearchMyTrips] = useState('');
 
@@ -186,6 +187,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'],
                 preserveScroll: true,
                 preserveState: true,
+                onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
             });
         }, 10000); // 10 seconds
 
@@ -302,7 +304,21 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         <p className="text-gray-500 mt-1">Airport counter customer handling</p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
+                        <div className="flex items-center mr-2">
+                            <span className="flex items-center text-[13px] font-medium text-gray-500 bg-white px-3 py-2 rounded-l-lg shadow-sm border border-gray-200 border-r-0">
+                                <Clock size={15} className="mr-1.5 text-gray-400" /> 
+                                Last updated: {lastUpdated}
+                            </span>
+                            <button 
+                                type="button"
+                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
+                                className="flex items-center text-[13px] font-medium text-gray-600 bg-white px-3 py-2 rounded-r-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                            >
+                                <RefreshCw size={14} className="mr-1.5 text-gray-500" />
+                                Refresh
+                            </button>
+                        </div>
                         <style>{`@keyframes blink-checkout { 0%, 100% { outline: 2px solid #dc2626; outline-offset: 2px; } 50% { outline: 2px solid transparent; outline-offset: 2px; } }`}</style>
                         <button
                             type="button"
@@ -340,7 +356,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
                             <button 
                                 type="button"
-                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'] })}
+                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
                                 className="p-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg shadow-sm transition flex items-center"
                                 title="Refresh Data"
                             >
@@ -1364,6 +1380,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
+    const [showFinalConfirm, setShowFinalConfirm] = useState(false);
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
@@ -1486,6 +1503,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 preserveScroll: true,
                 onSuccess: () => {
                     closeConfirm();
+                    setShowFinalConfirm(false);
                     onClose();
                     router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'] });
                 },
@@ -1612,7 +1630,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             <div className="flex justify-between mb-3">
                 <h3 className="font-bold text-lg">Select Vehicle</h3>
                 <span className="text-sm text-gray-500">
-                    {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered / 100
+                    {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered
                 </span>
             </div>
 
@@ -2111,10 +2129,42 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             <button
                                 type="button"
                                 disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null)) || (rateMode === 'per_km' && (Number(agent?.distance_km || 0) <= 0 || vehicleRateValue <= 0))}
-                                onClick={confirmAssign}
+                                onClick={() => setShowFinalConfirm(true)}
                                 className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
                             >
                                 {submitting ? 'Assigning...' : 'Confirm & Assign'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Final Confirmation Modal ── */}
+            {showFinalConfirm && (
+                <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden p-6 text-center">
+                        <div className="w-14 h-14 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                            <Car size={26} />
+                        </div>
+                        <h3 className="text-[17px] font-extrabold text-gray-900 mb-1.5">Confirm Assignment</h3>
+                        <p className="text-[13px] font-medium text-gray-500 mb-6">Do you want to proceed with this assignment?</p>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowFinalConfirm(false)}
+                                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowFinalConfirm(false);
+                                    confirmAssign();
+                                }}
+                                className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-bold hover:bg-blue-800 transition shadow-sm"
+                            >
+                                Yes, Proceed
                             </button>
                         </div>
                     </div>
