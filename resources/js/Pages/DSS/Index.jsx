@@ -138,8 +138,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
         id: trip.id,
         driver: `${trip.driver?.first_name || ''} ${trip.driver?.last_name || ''}`.trim() || 'N/A',
         vehicle: trip.driver?.vehicle?.registration_number || 'N/A',
-        customer: `${trip.customer?.first_name || ''} ${trip.customer?.last_name || ''}`.trim() || 'N/A',
-        destination: trip.remarks || 'Unknown',
+        customer: `${trip.customer?.name || ''}`.trim() || 'N/A',
         status: trip.status,
     }));
 
@@ -182,7 +181,6 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
         { name: 'Driver', selector: row => row.driver, sortable: true },
         { name: 'Vehicle', selector: row => row.vehicle },
         { name: 'Customer', selector: row => row.customer },
-        { name: 'Destination', selector: row => row.destination },
         { name: 'Status', selector: row => row.status, cell: row => (
             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${row.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
                 {row.status}
@@ -316,7 +314,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                             getVehicleSlotNumber={getVehicleSlotNumber}
                         />
 
-                        <div className="mt-8 border-2 border-red-300 p-6 bg-red-50/30">
+                        <div className="mt-2 border-2 border-red-300 p-2 bg-red-50/30">
                             <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
                                 <UserGroupIcon className="w-5 h-5 mr-2 text-red-600" />
                                 Suspended Drivers
