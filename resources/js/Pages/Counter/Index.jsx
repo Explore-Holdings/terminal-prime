@@ -2065,17 +2065,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                             <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
                                             <div className="text-right">
                                                 <span className="font-bold text-orange-700 block">
-                                                    {paymentForm?.data?.currency ?? 'LKR'} {Number(selectedCity.price).toLocaleString()}
+                                                    LKR {Number(selectedCity.price).toLocaleString()}
                                                 </span>
-                                                {(() => {
-                                                    const cur = paymentForm?.data?.currency ?? 'LKR';
-                                                    const lkrVal = formatToLkrString(selectedCity.price, cur, eurRates);
-                                                    return lkrVal ? (
-                                                        <span className="text-[10px] text-orange-600 font-semibold block mt-0.5">
-                                                            ≈ {lkrVal}
-                                                        </span>
-                                                    ) : null;
-                                                })()}
                                             </div>
                                         </div>
                                     )}
