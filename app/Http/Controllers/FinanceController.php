@@ -41,6 +41,8 @@ class FinanceController extends Controller
             return [
                 'id' => $driver->id,
                 'name' => $driver->full_name,
+                'first_name' => $driver->first_name,
+                'last_name' => $driver->last_name,
                 'share_total' => $driverFinance->sum('driver_share'),
                 'incentive_total' => $driver->incentives->sum('amount'),
                 'grand_total' => $totalEarned,
@@ -72,6 +74,8 @@ class FinanceController extends Controller
             return [
                 'id' => $agent->id,
                 'name' => $agent->user->name ?? $agent->name ?? '-',
+                'first_name' => $agent->user->name ?? $agent->name ?? '',
+                'last_name' => '',
                 'share_total' => $agentFinance->sum('agent_share'),
                 'incentive_total' => $agent->incentives->sum('amount'),
                 'grand_total' => $totalEarned,
