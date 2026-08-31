@@ -671,7 +671,7 @@ function PayoutsTab({ drivers, agents }) {
             name: 'Name',
             selector: row => row.name ?? '-',
             sortable: true,
-            cell: row => <strong>{row.name ?? '-'}</strong>,
+            cell: row => <strong>{`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || row.name || '-'}</strong>,
         },
         {
             name: 'Trip Shares',
