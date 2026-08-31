@@ -595,7 +595,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section
                     title={
                         <div className="flex flex-wrap items-center gap-3">
-                            <span>Trips</span>
+                            <span>Tours</span>
 
                             <div className="flex flex-wrap items-center gap-4 text-[11px]">
                                 <div className="flex items-center gap-1">
@@ -623,7 +623,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     icon={<Car className="text-orange-700" size={22} />}
                     actions={
                         <Link href="/trips" className="ml-auto bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700" >
-                            View Trips
+                            View Tours
                         </Link>
                     }
                 >
@@ -634,7 +634,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             ))}
                         </div>
                     ) : (
-                        <Empty text="No ongoing trips found." />
+                        <Empty text="No ongoing tours found." />
                     )}
                 </Section>
 
@@ -642,7 +642,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section
                     title={
                         <div className="flex items-center gap-3">
-                            <span>My Trips</span>
+                            <span>My Tours</span>
                             <span className="bg-slate-700 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                                 {myTrips.length}
                             </span>
@@ -653,7 +653,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                         myTrips.length > 0 && (
                             <input
                                 type="text"
-                                placeholder="Search my trips..."
+                                placeholder="Search my tours..."
                                 className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-1 focus:ring-slate-400 focus:border-slate-400 font-normal"
                                 value={searchMyTrips}
                                 onChange={(e) => setSearchMyTrips(e.target.value)}
@@ -780,7 +780,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             />
                         </div>
                     ) : (
-                        <Empty text="You haven't assigned any trips yet." />
+                        <Empty text="You haven't assigned any tours yet." />
                     )}
                 </Section>
 
@@ -795,7 +795,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h2>
                         <p className="text-sm text-gray-600 mb-4">
-                            Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift trips.
+                            Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift tours.
                         </p>
 
                         <div className="mb-5">
