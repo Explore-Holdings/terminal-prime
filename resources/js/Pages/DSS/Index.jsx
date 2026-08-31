@@ -280,10 +280,10 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                             <section className="border-2 border-slate-700 p-6 bg-slate-50/50">
                                 <h2 className="text-lg font-semibold text-black mb-4 flex items-center">
                                     <TruckIcon className="w-5 h-5 mr-2 text-black" />
-                                    Trips & Fleet Operations
+                                    Tours & Fleet Operations
                                 </h2>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                    <MiniCard title="Active Trips" value={metrics.activeTripsCount || 0} icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
+                                    <MiniCard title="Active Tours" value={metrics.activeTripsCount || 0} icon={TruckIcon} colorClass="text-blue-600" bgColorClass="bg-blue-100" />
                                     <MiniCard title="Completed (Today)" value={metrics.completedTodayCount || 0} icon={ClipboardDocumentCheckIcon} colorClass="text-emerald-600" bgColorClass="bg-emerald-100" />
                                     <MiniCard title="Available Drivers" value={metrics.availableDriversCount || 0} icon={UserGroupIcon} colorClass="text-indigo-600" bgColorClass="bg-indigo-100" />
                                     <MiniCard title="Off Duty Drivers" value={metrics.offDutyDriversCount || 0} icon={UserGroupIcon} colorClass="text-slate-600" bgColorClass="bg-slate-100" />
@@ -291,10 +291,10 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                                 </div>
                                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                        <span className="font-semibold text-sm text-slate-700">Ongoing Trips Monitor</span>
+                                        <span className="font-semibold text-sm text-slate-700">Ongoing Tours Monitor</span>
                                         <input 
                                             type="text" 
-                                            placeholder="Search trips..." 
+                                            placeholder="Search tours..." 
                                             className="text-sm border-slate-300 rounded-md shadow-sm py-1 px-3 w-48"
                                             value={tripSearch}
                                             onChange={e => setTripSearch(e.target.value)}
