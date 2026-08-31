@@ -737,13 +737,13 @@ export default function Create({ serviceCategories = [] }) {
 
                                 <Select {...fieldProps} label="Vehicle Type" name="vehicle_type">
                                     <option value="">Select Vehicle Type</option>
-                                    <option>Economy</option>
+                                    {/* <option>Economy</option> */}
                                     <option>Sedan</option>
                                     <option>SUV</option>
                                     <option>Van</option>
                                     <option>Luxury Sedan</option>
-                                    <option>Luxury SUV</option>
-                                    <option>Mini Coach</option>
+                                    {/* <option>Luxury SUV</option>
+                                    <option>Mini Coach</option> */}
                                 </Select>
 
                                 <Input {...fieldProps} label="Brand" name="brand" />
