@@ -1,6 +1,36 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import {
+    ChevronLeftIcon,
+    ChevronRightIcon,
+    PaperAirplaneIcon,
+    Squares2X2Icon,
+    CpuChipIcon,
+    BuildingStorefrontIcon,
+    ClipboardDocumentListIcon,
+    BanknotesIcon,
+    TruckIcon,
+    UserGroupIcon,
+    MapIcon,
+    ChatBubbleLeftRightIcon,
+    ChartBarIcon,
+    UsersIcon,
+    ArrowRightStartOnRectangleIcon,
+} from '@heroicons/react/24/outline';
+
+const iconMap = {
+    Dashboard: Squares2X2Icon,
+    DSS: CpuChipIcon,
+    Counter: BuildingStorefrontIcon,
+    Manager: ClipboardDocumentListIcon,
+    Finance: BanknotesIcon,
+    Drivers: TruckIcon,
+    Customers: UserGroupIcon,
+    Trips: MapIcon,
+    'Customer Surveys': ChatBubbleLeftRightIcon,
+    Reports: ChartBarIcon,
+    Users: UsersIcon,
+};
 
 export default function AppSidebarLayout({ children, title = 'Airport Counter', defaultSidebarOpen = true }) {
     const { url, props } = usePage();
@@ -29,77 +59,108 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
 
     const isActive = (path) => url === path;
 
-    const menuClass = (path) =>
-        `block px-4 py-3  text-base font-semibold transition ${isActive(path)
-            ? 'bg-white text-blue-800 shadow-sm'
-            : 'text-blue-100 hover:bg-white/10 hover:text-white'
-        }`;
-
     return (
         <>
             <Head title={title} />
 
-            <div className="min-h-screen bg-gray-50 flex">
+            <div className="min-h-screen bg-[#f5f6fa] flex">
+                {/* ── Sidebar ── */}
                 <aside
-                    className={`fixed left-0 top-0 w-64 bg-gradient-to-b from-[#12275c] via-[#1e4a8f] to-[#2a5fa8] text-white h-screen flex flex-col transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                        }`}
+                    className={`fixed left-0 top-0 w-64 bg-white h-screen flex flex-col border-r border-gray-200 transition-transform duration-300 z-30 ${
+                        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    }`}
+                    style={{ boxShadow: '2px 0 12px rgba(0,0,0,0.04)' }}
                 >
-                    <div className="p-4 border-b border-white/10 flex items-center gap-2">
-                        <PaperAirplaneIcon className="w-7 h-7 -rotate-45 text-white shrink-0" />
-                        <h2 className="text-xl font-black tracking-tight">TERMINAL PRIME</h2>
+                    {/* Brand */}
+                    <div className="px-5 py-5 pb-2 flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[#0f1d45] flex items-center justify-center">
+                            <PaperAirplaneIcon className="w-5 h-5 -rotate-45 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-base font-black tracking-tight text-[#0f1d45] leading-none">Terminal Prime</h2>
+                            <p className="text-[11px] text-blsck-400 font-medium mt-0.5">Airport Counter System</p>
+                        </div>
                     </div>
 
-                    <nav className="p-4 space-y-1.5 flex-1 overflow-y-auto">
-                        {visibleMenuItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                href={item.path}
-                                className={menuClass(item.path)}
-                            >
-                                {item.label}
-                            </Link>
-                        ))}
+                    {/* Divider */}
+                    <div className="mx-4 border-t border-gray-100" />
+
+                    {/* Menu Section */}
+                    <div className="px-4 pt-3 pb-1">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-3">Menu</p>
+                    </div>
+
+                    <nav className="px-3 space-y-0.5 flex-1 overflow-y-auto">
+                        {visibleMenuItems.map((item) => {
+                            const Icon = iconMap[item.label] || Squares2X2Icon;
+                            const active = isActive(item.path);
+                            return (
+                                <Link
+                                    key={item.path}
+                                    href={item.path}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                                        active
+                                            ? 'bg-[#0f1d45] text-white shadow-md shadow-[#0f1d45]/20'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-[#0f1d45]'
+                                    }`}
+                                >
+                                    <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
+                                    {item.label}
+                                </Link>
+                            );
+                        })}
                     </nav>
 
-                    <div className="p-4 border-t border-white/10 space-y-2">
-                        <div className="px-4 py-2 text-base font-bold text-white">
-                            {user?.name ?? 'User'}
-                            <br />
-                            <span className="text-sm font-medium text-blue-200 capitalize">
-                                {role || 'No role'}
-                            </span>
-                        </div>
-
+                    {/* Logout */}
+                    <div className="mx-4 border-t border-gray-100" />
+                    <div className="px-3 py-3">
                         <Link
                             href={route('logout')}
                             method="post"
                             as="button"
-                            className="w-full text-left block px-4 py-3 bg-red-900 hover:bg-[#450a0a] text-white text-base font-bold transition shadow-sm border border-[#450a0a]"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                         >
+                            <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px] shrink-0" />
                             Logout
                         </Link>
                     </div>
+
+                    {/* User Info */}
+                    <div className="mx-4 border-t border-gray-100" />
+                    <div className="px-4 py-4 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[#0f1d45] flex items-center justify-center text-white text-sm font-bold shrink-0">
+                            {(user?.name ?? 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#0f1d45] truncate">{user?.name ?? 'User'}</p>
+                            <p className="text-xs text-gray-400 capitalize truncate">{role || 'No role'}</p>
+                        </div>
+                    </div>
                 </aside>
 
+                {/* ── Main Content ── */}
                 <main
-                    className={`flex-1 flex flex-col overflow-auto transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'
-                        }`}
+                    className={`flex-1 flex flex-col overflow-auto transition-all duration-300 ${
+                        sidebarOpen ? 'ml-64' : 'ml-0'
+                    }`}
                 >
-                    <div className="p-4 pb-0">
+                    {/* Top Bar */}
+                    <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-100 px-5 py-3 flex items-center gap-4">
                         <button
                             type="button"
                             onClick={() => setSidebarOpen((open) => !open)}
-                            className="inline-flex items-center justify-center rounded-lg bg-[#012643] p-2 text-white shadow hover:bg-[#033B65] transition"
+                            className="inline-flex items-center justify-center rounded-xl bg-[#0f1d45] p-2 text-white shadow-md shadow-[#0f1d45]/20 hover:bg-[#1a2d5c] transition-all duration-200"
                         >
                             {sidebarOpen ? (
-                                <ChevronLeftIcon className="w-5 h-5" />
+                                <ChevronLeftIcon className="w-4 h-4" />
                             ) : (
-                                <ChevronRightIcon className="w-5 h-5" />
+                                <ChevronRightIcon className="w-4 h-4" />
                             )}
                         </button>
+                        <h1 className="text-lg font-bold text-[#0f1d45]">{title}</h1>
                     </div>
 
-                    <div className="p-4 flex-1">
+                    <div className="p-5 flex-1">
                         {children}
                     </div>
                 </main>
