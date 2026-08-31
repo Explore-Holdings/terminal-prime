@@ -292,7 +292,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
         <>
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-black">
-                    {range === 'today' ? 'Today assigned trips' : 'Assigned trips'}
+                    {range === 'today' ? 'Today assigned tours' : 'Assigned tours'}
                 </h2>
                 <div className="flex items-center gap-3 text-sm">
                     <span className="text-black">{filteredTrips.length} trip(s)</span>
@@ -304,7 +304,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
 
             {filteredTrips.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-black">
-                    No assigned trips found for this period.
+                    No assigned tours found for this period.
                 </div>
             ) : (
                 <>
@@ -312,7 +312,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-3">
                             <input
                                 type="text"
-                                placeholder="Search trips..."
+                                placeholder="Search tours..."
                                 className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
                                 value={searchTerm}
                                 onChange={(e) => {
@@ -606,7 +606,7 @@ function SettlementsTable({ trips, onSettle }) {
         },
     ];
 
-    return <Table columns={columns} data={trips} empty="No trips found." />;
+    return <Table columns={columns} data={trips} empty="No tours found." />;
 }
 
 function PayoutsTab({ drivers, agents }) {
@@ -1869,7 +1869,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                         </h3>
                         <div className="space-y-3 text-black">
                             <div className="flex justify-between items-center text-lg">
-                                <span>Gross Revenue (Trips: {filteredTrips.length})</span>
+                                <span>Gross Revenue (Tours: {filteredTrips.length})</span>
                                 <span className="font-semibold text-black">LKR {formatCurrency(grossRevenue)}</span>
                             </div>
                         </div>
