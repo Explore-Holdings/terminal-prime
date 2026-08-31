@@ -1458,6 +1458,22 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         setConfirmModal({ vehicle });
     };
 
+    // Auto-select city based on agent's dropoff_location when confirm modal opens
+    useEffect(() => {
+        if (!confirmModal || cityPrices.length === 0) return;
+        const dropoff = (agent?.dropoff_location ?? customerForm?.data?.dropoff_location ?? '').trim().toLowerCase();
+        if (!dropoff) return;
+        const match = cityPrices.find(r =>
+            (r.city ?? '').toLowerCase() === dropoff ||
+            (r.district ?? '').toLowerCase() === dropoff ||
+            (r.city ?? '').toLowerCase().includes(dropoff) ||
+            dropoff.includes((r.city ?? '').toLowerCase())
+        );
+        if (match) {
+            setSelectedCityId(String(match.id));
+        }
+    }, [confirmModal, cityPrices.length]);
+
     const closeConfirm = () => setConfirmModal(null);
 
     const confirmAssign = () => {
