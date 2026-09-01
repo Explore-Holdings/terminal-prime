@@ -415,9 +415,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                     onClick={() => setShowReorderModal(true)}
                                     disabled={hasCheckedInCurrentQueue}
                                     className={`w-full py-1.5 text-white text-xs font-bold rounded-lg shadow-sm transition ${hasCheckedInCurrentQueue ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder previous session drivers"}
+                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder previous queue drivers"}
                                 >
-                                    Reorder Session {previousSessionId}
+                                    Reorder Queue {previousSessionId}
                                 </button>
                             )}
                         </div>
@@ -478,7 +478,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                                         <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
                                                             <div className="flex items-center gap-2 mb-2">
                                                                 <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                                                                    Session {sid} Queue
+                                                                    Queue {sid}
                                                                 </span>
                                                                 <span className="text-[10px] text-amber-700 font-medium">
                                                                     {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
@@ -845,13 +845,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">Reorder Session {previousSessionId}</h2>
+                            <h2 className="text-xl font-bold text-gray-900">Reorder Queue {previousSessionId}</h2>
                             <button onClick={() => setShowReorderModal(false)} className="text-gray-400 hover:text-gray-600">
                                 <X size={20} />
                             </button>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            Move these slots from session {previousSessionId} to the latest session ({maxSessionId}):
+                            Move these slots from queue {previousSessionId} to the latest queue ({maxSessionId}):
                         </p>
                         
                         <div className="flex flex-wrap gap-2 mb-6 max-h-48 overflow-y-auto p-1">
@@ -1749,7 +1749,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                 <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                                                            Session {sid} Queue
+                                                            Queue {sid}
                                                         </span>
                                                         <span className="text-[10px] text-amber-700 font-medium">
                                                             {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
@@ -2360,15 +2360,10 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter mt-0.5">Trip</span>
-                {sessionId !== null && sessionId >= 2 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                        S{sessionId}
-                    </span>
-                )}
                 {languageDots}
             </div>
         );
@@ -2380,15 +2375,10 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-semibold text-red-500 uppercase mt-0.5">Off</span>
-                {sessionId !== null && sessionId >= 2 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                        S{sessionId}
-                    </span>
-                )}
                 {languageDots}
             </div>
         );
@@ -2399,14 +2389,9 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
         <div
             className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-1 text-[16px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 shrink-0 relative ${dimClass} ${highlightRing}`}
             onClick={() => onClick?.(vehicle)}
-            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
         >
             <span className="leading-none">{number}</span>
-            {sessionId !== null && sessionId >= 2 && (
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                    S{sessionId}
-                </span>
-            )}
                 {languageDots}
         </div>
     );

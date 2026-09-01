@@ -199,9 +199,12 @@
         <div class="header">
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                    <td style="border: none; padding: 0;">
-                        <h1 class="brand">Terminal Prime</h1>
-                        <div class="subtitle">Airport Counter Receipt</div>
+                    <td style="border: none; padding: 0 10px 0 0; vertical-align: middle;">
+                        <img src="{{ public_path('assets/images/logo.png') }}" style="height: 55px; width: auto; display: block;" alt="Logo">
+                    </td>
+                    <td style="border: none; padding: 0; vertical-align: middle;">
+                        <h1 class="brand" style="margin: 0; padding: 0; line-height: 1.1;">Terminal Prime</h1>
+                        <div class="subtitle" style="margin: 2px 0 0 0; padding: 0;">Airport Counter Receipt</div>
                     </td>
 
                     <td class="right" style="border: none; padding: 0;">
