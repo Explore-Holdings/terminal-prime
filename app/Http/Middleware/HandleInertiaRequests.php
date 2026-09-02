@@ -47,6 +47,11 @@ class HandleInertiaRequests extends Middleware
                     'isExecutiveStaff' => str_contains(strtolower($user->role?->name ?? ''), 'executive'),
                 ] : null,
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'invoice_path' => fn () => $request->session()->get('invoice_path'),
+            ],
         ];
     }
 }

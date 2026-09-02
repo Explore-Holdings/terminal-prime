@@ -79,6 +79,21 @@ export default function Index({ trips = [] }) {
                     : '-',
         },
         {
+            name: 'Selection Reason',
+            selector: row => row.selection_reason ?? '',
+            sortable: true,
+            wrap: true,
+            cell: row => (
+                row.selection_reason ? (
+                    <span className="text-red-600 text-xs font-semibold">
+                        {row.selection_reason}
+                    </span>
+                ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                )
+            ),
+        },
+        {
             name: 'Status',
             selector: row => row.status ?? '',
             sortable: true,

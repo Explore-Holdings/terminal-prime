@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Cache;
 
 class CustomerController extends Controller
 {
@@ -51,17 +52,30 @@ class CustomerController extends Controller
 
         $agent = Agent::findOrFail($data['agent_id']);
 
-        $customer = Customer::create([
-            ...$data,
-            'customer_code' => $this->generateCustomerCode(),
-            'passport_image' => $agent->customer_passport,
-            'name' => $data['name'] ?: $agent->name,
-            'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-            'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-            'remarks' => $data['remarks'] ?: $agent->remarks,
-            'status' => $data['status'] ?? 'New',
-            'created_by' => Auth::id(),
-        ]);
+        $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
+        if ($existing) {
+            $existing->update([
+                ...$data,
+                'name' => $data['name'] ?: $agent->name,
+                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
+                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+                'remarks' => $data['remarks'] ?: $agent->remarks,
+                'status' => $data['status'] ?? 'New',
+            ]);
+            $customer = $existing;
+        } else {
+            $customer = Customer::create([
+                ...$data,
+                'customer_code' => $this->generateCustomerCode(),
+                'passport_image' => $agent->customer_passport,
+                'name' => $data['name'] ?: $agent->name,
+                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
+                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+                'remarks' => $data['remarks'] ?: $agent->remarks,
+                'status' => $data['status'] ?? 'New',
+                'created_by' => Auth::id(),
+            ]);
+        }
 
         return redirect()
             ->route('counter.index')
@@ -199,6 +213,7 @@ class CustomerController extends Controller
             'driver_share'   => 'nullable|numeric|min:0',
             'agent_share'    => 'nullable|numeric|min:0',
             'balance'        => 'nullable|numeric',
+            'selection_reason' => 'nullable|string',
         ]);
 
         $trip = null;
@@ -215,42 +230,58 @@ class CustomerController extends Controller
                 $driver->refresh();
             }
 
+            $selectionReason = !empty($data['selection_reason']) ? trim($data['selection_reason']) : null;
+
             // ── Bump skipped drivers to next session ──
             // Extract slot number from assigned driver's registration_number.
             // All drivers with a lower slot number in the SAME session
             // are "skipped" and move to the next session — EXCEPT drivers
             // who are currently on an active trip (they'll be bumped by
             // TripObserver when their trip completes).
-            $assignedSlot = null;
-            if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
-                $assignedSlot = (int) $m[0];
+            // NOTE: If this is an out-of-turn assignment (selectionReason provided),
+            // we do NOT bump skipped drivers. The next-in-line remains unchanged.
+            if (!$selectionReason) {
+                $assignedSlot = null;
+                if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
+                    $assignedSlot = (int) $m[0];
+                }
+
+                if ($assignedSlot !== null && $driver->session_id !== null) {
+                    $currentSession = $driver->session_id;
+
+                    // IDs of drivers who currently have an active (non-completed) trip
+                    $onTripDriverIds = Trip::whereNotIn('status', ['Completed', 'Cancelled'])
+                        ->pluck('driver_id')
+                        ->toArray();
+
+                    // Get all drivers in the same session with a lower slot number
+                    // who are NOT currently on a trip AND are OFF DUTY.
+                    // On-duty drivers remain in the current queue.
+                    $skippedDrivers = Driver::where('session_id', $currentSession)
+                        ->where('id', '!=', $driver->id)
+                        ->where(function ($q) {
+                            $q->where('duty_status', '!=', 'on_duty')
+                            ->orWhereNull('duty_status');
+                        })
+                        ->whereNotIn('id', $onTripDriverIds)
+                        ->get()
+                        ->filter(function ($d) use ($assignedSlot) {
+                            if (preg_match('/\d+/', $d->registration_number ?? '', $m)) {
+                                return (int) $m[0] < $assignedSlot;
+                            }
+                            return false;
+                        });
+
+                    if ($skippedDrivers->isNotEmpty()) {
+                        Driver::whereIn('id', $skippedDrivers->pluck('id'))
+                            ->update(['session_id' => $currentSession + 1]);
+                    }
+                }
             }
 
-            if ($assignedSlot !== null && $driver->session_id !== null) {
-                $currentSession = $driver->session_id;
-
-                // IDs of drivers who currently have an active (non-completed) trip
-                $onTripDriverIds = Trip::whereNotIn('status', ['Completed', 'Cancelled'])
-                    ->pluck('driver_id')
-                    ->toArray();
-
-                // Get all drivers in the same session with a lower slot number
-                // who are NOT currently on a trip
-                $skippedDrivers = Driver::where('session_id', $currentSession)
-                    ->where('id', '!=', $driver->id)
-                    ->whereNotIn('id', $onTripDriverIds)
-                    ->get()
-                    ->filter(function ($d) use ($assignedSlot) {
-                        if (preg_match('/\d+/', $d->registration_number ?? '', $m)) {
-                            return (int) $m[0] < $assignedSlot;
-                        }
-                        return false;
-                    });
-
-                if ($skippedDrivers->isNotEmpty()) {
-                    Driver::whereIn('id', $skippedDrivers->pluck('id'))
-                        ->update(['session_id' => $currentSession + 1]);
-                }
+            // Move the assigned driver to the waiting queue immediately
+            if ($driver->session_id !== null) {
+                $driver->update(['session_id' => $driver->session_id + 1]);
             }
 
             $trip = Trip::create([
@@ -259,6 +290,8 @@ class CustomerController extends Controller
                 'agent_id'         => $data['agent_id'],
                 'trip_assigned_at' => now(),
                 'trip_assigned_by' => auth()->id(),
+                'selection_reason' => $selectionReason,
+                'selection_reason_by' => $selectionReason ? auth()->id() : null,
                 'remarks'          => $data['remarks'] ?? null,
                 'status'           => 'Assigned',
             ]);
@@ -268,6 +301,7 @@ class CustomerController extends Controller
             $agent->update([
                 'status' => 'Approved',
             ]);
+            Cache::forget('active_counter_processing_agent');
 
             $totalAmount = (float) ($data['total_amount'] ?? 0);
             $driverRate  = (float) ($data['driver_rate'] ?? 0);
@@ -338,7 +372,9 @@ class CustomerController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Trip assigned successfully.');
+        $customer->refresh();
+        return back()->with('success', 'Trip assigned successfully.')
+            ->with('invoice_path', $customer->invoice_path);
     }
 
     private static function sendFcmNotification(
@@ -459,10 +495,12 @@ class CustomerController extends Controller
             'external_vehicle_reg'   => $data['external_vehicle_reg'],
             'external_vehicle_make'  => $data['external_vehicle_make'],
             'external_vehicle_model' => $data['external_vehicle_model'],
-            'external_company_name'  => $data['external_company_name'],
+            'external_company_name'  => $data['external_company_name'] ?? null,
+            'status'                 => 'Approved',
             'rent_start_date'        => $data['start_date'],
             'rent_end_date'          => $data['end_date'],
         ]);
+        Cache::forget('active_counter_processing_agent');
 
         // Sync to FMS rentals table
         try {

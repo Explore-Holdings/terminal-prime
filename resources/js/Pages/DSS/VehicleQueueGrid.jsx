@@ -133,15 +133,10 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-blue-300 bg-blue-50 text-blue-500 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-blue-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-bold text-blue-600 uppercase tracking-tighter mt-0.5">Trip</span>
-                {sessionId !== null && sessionId >= 2 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                        S{sessionId}
-                    </span>
-                )}
                 {languageDots}
             </div>
         );
@@ -152,15 +147,10 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
             <div
                 className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-0.5 text-[9px] font-bold border border-red-300 bg-red-50 text-red-400 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-red-100 shrink-0 relative ${dimClass} ${highlightRing}`}
                 onClick={() => onClick?.(vehicle)}
-                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+                title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
             >
                 <span className="text-[12px] leading-none">{number}</span>
                 <span className="text-[8px] font-semibold text-red-500 uppercase mt-0.5">Off</span>
-                {sessionId !== null && sessionId >= 2 && (
-                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                        S{sessionId}
-                    </span>
-                )}
                 {languageDots}
             </div>
         );
@@ -170,24 +160,28 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
         <div
             className={`w-[38px] h-[38px] rounded-lg flex flex-col items-center justify-start pt-1 text-[16px] font-bold border border-green-400 bg-green-50 text-green-700 cursor-pointer select-none leading-tight text-center px-0.5 transition hover:bg-green-100 hover:shadow-md hover:scale-110 shrink-0 relative ${dimClass} ${highlightRing}`}
             onClick={() => onClick?.(vehicle)}
-            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})${sessionId ? ` · Session ${sessionId}` : ''}`}
+            title={`${vehicle.driver?.first_name || ''} (${languageNames.join(', ')})`}
         >
             <span className="leading-none">{number}</span>
-            {sessionId !== null && sessionId >= 2 && (
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[7px] font-bold w-3 h-3 rounded-full flex items-center justify-center border border-white shadow-sm z-10">
-                    S{sessionId}
-                </span>
-            )}
-                {languageDots}
+            {languageDots}
         </div>
     );
 }
 
-export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLineSlotNumber, getVehicleSlotNumber }) {
+export default function VehicleQueueGrid({ vehicles, ongoingTrips = [], nextInLineVehicle, nextInLineSlotNumber, getVehicleSlotNumber }) {
     const [selectedVehicle, setSelectedVehicle] = useState(null);
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
+
+    const isVehicleOnTrip = (v) => {
+        if (!v?.driver) return false;
+        const driverId = v.driver.id;
+        if (v.driver.duty_status === 'on_trip') return true;
+        if (v.driver.trips && v.driver.trips.length > 0) return true;
+        if (ongoingTrips && ongoingTrips.some(t => t.driver_id === driverId || t.driver?.id === driverId)) return true;
+        return false;
+    };
     
     return (
         <section className="bg-white shadow p-5 mb-6 overflow-visible w-full border-2 border-slate-700 sticky top-6">
@@ -246,7 +240,7 @@ export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLi
                     <div className="max-h-[420px] overflow-y-auto pb-4 pr-2 space-y-4">
                         {(() => {
                             const vehicleMap = {};
-                            const sessionQueues = {};
+                            const waitingQueueVehicles = [];
 
                             vehicles.forEach((v) => {
                                 const reg = v.driver?.registration_number ?? '';
@@ -258,60 +252,115 @@ export default function VehicleQueueGrid({ vehicles, nextInLineVehicle, nextInLi
 
                                 const sid = v.driver?.session_id ?? null;
                                 if (sid !== null && sid > baseSessionId) {
-                                    if (!sessionQueues[sid]) sessionQueues[sid] = [];
-                                    sessionQueues[sid].push({ vehicle: v, originalSlot: num });
+                                    waitingQueueVehicles.push({ vehicle: v, originalSlot: num, sessionId: sid });
                                 }
                             });
 
-                            const sessionKeys = Object.keys(sessionQueues).map(Number).sort((a, b) => a - b);
+                            waitingQueueVehicles.sort((a, b) => {
+                                if (a.sessionId !== b.sessionId) {
+                                    return a.sessionId - b.sessionId;
+                                }
+                                return (a.originalSlot || 0) - (b.originalSlot || 0);
+                            });
 
                             return (
                                 <>
-                                    {/* Main 1-95 Grid */}
-                                    <div className="flex flex-wrap gap-1.5 w-full">
-                                        {Array.from({ length: 95 }, (_, i) => {
-                                            const slotNum = i + 1;
-                                            const vehicle = vehicleMap[slotNum] ?? null;
-                                            if (!vehicle) return null;
-                                            const isMoved = vehicle?.driver?.session_id > baseSessionId;
-                                            
-                                            return (
-                                                <VehicleSlot
-                                                    key={`main-slot-${slotNum}`}
-                                                    vehicle={vehicle}
-                                                    number={slotNum}
-                                                    isMovedToNextQueue={isMoved}
-                                                    onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                                />
-                                            );
-                                        })}
+                                    {/* Current Queue */}
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="bg-slate-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                Current Queue
+                                            </span>
+                                            {/* <span className="text-[10px] text-gray-500 font-medium">
+                                                (Slots 1–95)
+                                            </span> */}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 w-full">
+                                            {Array.from({ length: 95 }, (_, i) => {
+                                                const slotNum = i + 1;
+                                                const vehicle = vehicleMap[slotNum] ?? null;
+                                                if (!vehicle) return null;
+                                                const isMoved = vehicle?.driver?.session_id > baseSessionId;
+                                                
+                                                return (
+                                                    <VehicleSlot
+                                                        key={`main-slot-${slotNum}`}
+                                                        vehicle={vehicle}
+                                                        number={slotNum}
+                                                        isMovedToNextQueue={isMoved}
+                                                        onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
-                                    {/* Next Sessions Rows */}
-                                    {sessionKeys.length > 0 && (
-                                        <div className="mt-6 border-t border-gray-200 pt-4 space-y-3">
-                                            {sessionKeys.map((sid) => (
-                                                <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                                                            Session {sid} Queue
+                                    {/* Waiting Queue (All sessions > baseSessionId) */}
+                                    {waitingQueueVehicles.length > 0 && (
+                                        <div className="mt-4 border-t border-gray-200 pt-3">
+                                            <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 shadow-xs">
+                                                <div className="flex items-center justify-between mb-2.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                            Waiting Queue
                                                         </span>
                                                         <span className="text-[10px] text-amber-700 font-medium">
-                                                            {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
+                                                            {waitingQueueVehicles.length} driver{waitingQueueVehicles.length !== 1 ? 's' : ''} waiting
                                                         </span>
                                                     </div>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {sessionQueues[sid].map((item) => (
-                                                            <VehicleSlot
-                                                                key={`session-${sid}-slot-${item.originalSlot}`}
-                                                                vehicle={item.vehicle}
-                                                                number={item.originalSlot}
-                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
-                                                            />
-                                                        ))}
-                                                    </div>
                                                 </div>
-                                            ))}
+                                                {(() => {
+                                                    const carItems = waitingQueueVehicles.filter(item => {
+                                                        const type = (item.vehicle?.vehicle_type ?? '').toLowerCase();
+                                                        return type !== 'van';
+                                                    });
+                                                    const vanItems = waitingQueueVehicles.filter(item => {
+                                                        const type = (item.vehicle?.vehicle_type ?? '').toLowerCase();
+                                                        return type === 'van';
+                                                    });
+                                                    const hasBoth = carItems.length > 0 && vanItems.length > 0;
+                                                    return (
+                                                        <div className={`grid gap-2.5 items-start ${hasBoth ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                                                            {carItems.length > 0 && (
+                                                                <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                        <span className="text-[11px]">🚗</span>
+                                                                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Car ({carItems.length})</span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {carItems.map((item) => (
+                                                                            <VehicleSlot
+                                                                                key={`waiting-car-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                vehicle={item.vehicle}
+                                                                                number={item.originalSlot}
+                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {vanItems.length > 0 && (
+                                                                <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                        <span className="text-[11px]">🚐</span>
+                                                                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Van ({vanItems.length})</span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {vanItems.map((item) => (
+                                                                            <VehicleSlot
+                                                                                key={`waiting-van-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                vehicle={item.vehicle}
+                                                                                number={item.originalSlot}
+                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     )}
                                 </>

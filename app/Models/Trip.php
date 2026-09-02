@@ -15,6 +15,8 @@ class Trip extends Model
         'trip_started_at',
         'trip_ended_at',
         'remarks',
+        'selection_reason',
+        'selection_reason_by',
         'status',
         'survey_sent_at',
         'cash_received',
@@ -55,6 +57,11 @@ class Trip extends Model
     public function assignedBy()
     {
         return $this->belongsTo(User::class, 'trip_assigned_by');
+    }
+
+    public function selectionReasonBy()
+    {
+        return $this->belongsTo(User::class, 'selection_reason_by');
     }
 
     public function getShiftIdAttribute()

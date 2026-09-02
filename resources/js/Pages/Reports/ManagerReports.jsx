@@ -61,13 +61,22 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
 
     return (
         <AppSidebarLayout title="Manager Reports">
-            <div className="mb-6">
-                <h1 className="text-3xl font-extrabold text-black">
-                    Manager Reports Dashboard
-                </h1>
-                <p className="text-black mt-1 text-sm">
-                    Generate global reports and review individual shift checkouts.
-                </p>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-black">
+                        Manager Reports Dashboard
+                    </h1>
+                    <p className="text-black mt-1 text-sm">
+                        Generate global reports and review individual shift checkouts.
+                    </p>
+                </div>
+                <Link
+                    href="#"
+                    className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap"
+                >
+                    <Calendar size={18} />
+                    Attendance Requests
+                </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

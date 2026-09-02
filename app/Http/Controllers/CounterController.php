@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class CounterController extends Controller
 {
@@ -160,13 +161,22 @@ class CounterController extends Controller
 
     public function index()
     {
+        // Auto-release stale locks older than 5 minutes
+        Agent::where('status', 'Pending')
+            ->whereNotNull('processing_by')
+            ->where('processing_at', '<', now()->subMinutes(5))
+            ->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+
         return Inertia::render('Counter/Index', [
-            'pendingAgents' => Agent::with('user')
+            'pendingAgents' => Agent::with(['user', 'processor', 'customers'])
                 ->where('status', 'Pending')
                 ->latest()
                 ->get(),
 
-            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent','driver.vehicle',])
+            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy'])
                 ->where('status', '!=', 'Completed')
                 ->latest()
                 ->get(),
@@ -191,17 +201,12 @@ class CounterController extends Controller
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
                 
-            'createdCustomerId' => session()->pull('created_customer_id'),
-            'invoicePath' => session()->pull('invoice_path'),
-
+            'createdCustomerId' => session('created_customer_id'),
+            'invoicePath' => session('invoice_path'),
             'countries' => Country::orderBy('country_name')->get(),
-
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
-
             'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
-
             'vehicleRates' => DB::table('vehicle_rates')->get(),
-
             'dbLanguages' => DriverLanguage::select('language_name')
                 ->distinct()
                 ->whereNotNull('language_name')
@@ -209,7 +214,7 @@ class CounterController extends Controller
                 ->orderBy('language_name')
                 ->pluck('language_name'),
 
-            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance'])
+            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance', 'selectionReasonBy'])
                 ->where('trip_assigned_by', Auth::id())
                 ->latest('trip_assigned_at')
                 ->get(),
@@ -263,10 +268,44 @@ class CounterController extends Controller
             'target_session' => 'required|integer|min:1',
         ]);
 
+        // Include drivers on active trips as well (per user request)
         \App\Models\Driver::whereIn('id', $request->driver_ids)
             ->update(['session_id' => $request->target_session]);
 
         return back()->with('success', 'Session reordered successfully.');
+    }
+
+    public function lockCustomer(Request $request)
+    {
+        $request->validate(['agent_id' => 'required|integer']);
+
+        $agent = Agent::find($request->agent_id);
+        if ($agent) {
+            $agent->update([
+                'processing_by' => auth()->id(),
+                'processing_at' => now(),
+            ]);
+        }
+
+        return back();
+    }
+
+    public function unlockCustomer(Request $request)
+    {
+        $agentId = $request->input('agent_id');
+        if ($agentId) {
+            Agent::where('id', $agentId)->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+        } else {
+            Agent::where('processing_by', auth()->id())->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+        }
+
+        return back();
     }
 
     public function checkoutSummary(UserLoginLog $userLoginLog)
