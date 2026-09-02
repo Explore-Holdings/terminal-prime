@@ -1,5 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock } from 'lucide-react';
 import DataTable from 'react-data-table-component';
@@ -152,6 +151,8 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
 }
 
 export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [] }) {
+    const { auth } = usePage().props;
+    const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [checkoutInput, setCheckoutInput] = useState('');
@@ -197,14 +198,20 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     }, []);
 
     useEffect(() => {
+        let isFetching = false;
         const interval = setInterval(() => {
+            if (isFetching) return;
+            isFetching = true;
             router.reload({
                 only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'],
                 preserveScroll: true,
                 preserveState: true,
+                onFinish: () => {
+                    isFetching = false;
+                },
                 onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
             });
-        }, 10000); // 10 seconds
+        }, 500); // 500ms for near-instant real-time sync without request stacking
 
         return () => clearInterval(interval);
     }, []);
@@ -267,13 +274,27 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
     const [processingAgentId, setProcessingAgentId] = useState(null);
 
+    // Is a specific agent locked by another staff member?
+    const isAgentLockedByOther = (agent) => {
+        return Boolean(agent.processing_by && String(agent.processing_by) !== String(currentUserId));
+    };
+
     const openModal = (agent, tab = 'customer') => {
+        if (isAgentLockedByOther(agent)) {
+            alert(`This customer is already being processed by ${agent.processor?.name || 'another staff member'}.`);
+            return;
+        }
+
         const isNewAgent = selectedAgent?.id !== agent.id;
 
         setSelectedAgent(agent);
-        if (tab === 'customer') {
-            setProcessingAgentId(agent.id);
-        }
+        setProcessingAgentId(agent.id);
+
+        // Lock customer in database immediately for all users
+        router.post('/counter/lock-customer', { agent_id: agent.id }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
 
         if (tab === 'customer' || isNewAgent) {
             resetCustomerForm(agent);
@@ -284,9 +305,16 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     };
 
     const closeModal = () => {
+        const agentToUnlockId = selectedAgent?.id || processingAgentId;
         setShowModal(false);
         setProcessingAgentId(null);
         setSelectedAgent(null);
+
+        // Unlock customer in database immediately for all users
+        router.post('/counter/unlock-customer', { agent_id: agentToUnlockId }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const saveCustomer = (e) => {
@@ -390,16 +418,24 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>
                     {pendingAgents.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
-                            {pendingAgents.map((agent) => (
-                                <CustomerCard 
-                                    key={agent.id} 
-                                    agent={agent} 
-                                    onOpen={openModal} 
-                                    paymentEnabled={paymentEnabledAgentId === agent.id} 
-                                    vehicleEnabled={vehicleEnabledAgentId === agent.id} 
-                                    isCustomerDisabled={processingAgentId === agent.id || (showModal && selectedAgent?.id === agent.id)}
-                                />
-                            ))}
+                            {pendingAgents.map((agent) => {
+                                const lockedByOther = isAgentLockedByOther(agent);
+                                const lockedByName = lockedByOther ? (agent.processor?.name || 'Staff') : null;
+                                const isThisCardDisabled = lockedByOther || (showModal && selectedAgent?.id === agent.id) || (processingAgentId === agent.id);
+
+                                return (
+                                    <CustomerCard 
+                                        key={agent.id} 
+                                        agent={agent} 
+                                        onOpen={openModal} 
+                                        paymentEnabled={paymentEnabledAgentId === agent.id} 
+                                        vehicleEnabled={vehicleEnabledAgentId === agent.id} 
+                                        isCustomerDisabled={isThisCardDisabled}
+                                        isLockedByOther={lockedByOther}
+                                        lockedByName={lockedByName}
+                                    />
+                                );
+                            })}
                         </div>
                     ) : (
                         <Empty text="No pending customers found." />
@@ -990,7 +1026,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     );
 }
 
-function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustomerDisabled }) {
+function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustomerDisabled, isLockedByOther, lockedByName }) {
     return (
         <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
             <h3 className="flex justify-between font-semibold text-sm">
@@ -1010,8 +1046,14 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
             </div>
 
             <div className="flex gap-1 mt-3">
-                <CardButton color="blue" disabled={isCustomerDisabled} onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
-                    Customer
+                <CardButton 
+                    color="blue" 
+                    disabled={isCustomerDisabled} 
+                    onClick={() => onOpen(agent, 'customer')} 
+                    icon={<UserPlus size={13} />}
+                    title={isLockedByOther ? `Being processed by ${lockedByName}` : (isCustomerDisabled ? 'A customer is currently being processed' : 'Process Customer')}
+                >
+                    {isLockedByOther ? `In Process (${lockedByName})` : 'Customer'}
                 </CardButton>
 
                 <CardButton color="green" disabled={!paymentEnabled} onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />} >

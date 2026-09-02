@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Cache;
 
 class CustomerController extends Controller
 {
@@ -273,6 +274,7 @@ class CustomerController extends Controller
             $agent->update([
                 'status' => 'Approved',
             ]);
+            Cache::forget('active_counter_processing_agent');
 
             $totalAmount = (float) ($data['total_amount'] ?? 0);
             $driverRate  = (float) ($data['driver_rate'] ?? 0);
@@ -464,10 +466,12 @@ class CustomerController extends Controller
             'external_vehicle_reg'   => $data['external_vehicle_reg'],
             'external_vehicle_make'  => $data['external_vehicle_make'],
             'external_vehicle_model' => $data['external_vehicle_model'],
-            'external_company_name'  => $data['external_company_name'],
+            'external_company_name'  => $data['external_company_name'] ?? null,
+            'status'                 => 'Approved',
             'rent_start_date'        => $data['start_date'],
             'rent_end_date'          => $data['end_date'],
         ]);
+        Cache::forget('active_counter_processing_agent');
 
         // Sync to FMS rentals table
         try {

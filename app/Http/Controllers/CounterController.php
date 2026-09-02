@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class CounterController extends Controller
 {
@@ -160,8 +161,17 @@ class CounterController extends Controller
 
     public function index()
     {
+        // Auto-release stale locks older than 5 minutes
+        Agent::where('status', 'Pending')
+            ->whereNotNull('processing_by')
+            ->where('processing_at', '<', now()->subMinutes(5))
+            ->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+
         return Inertia::render('Counter/Index', [
-            'pendingAgents' => Agent::with('user')
+            'pendingAgents' => Agent::with(['user', 'processor'])
                 ->where('status', 'Pending')
                 ->latest()
                 ->get(),
@@ -273,6 +283,39 @@ class CounterController extends Controller
             ->update(['session_id' => $request->target_session]);
 
         return back()->with('success', 'Session reordered successfully.');
+    }
+
+    public function lockCustomer(Request $request)
+    {
+        $request->validate(['agent_id' => 'required|integer']);
+
+        $agent = Agent::find($request->agent_id);
+        if ($agent) {
+            $agent->update([
+                'processing_by' => auth()->id(),
+                'processing_at' => now(),
+            ]);
+        }
+
+        return back();
+    }
+
+    public function unlockCustomer(Request $request)
+    {
+        $agentId = $request->input('agent_id');
+        if ($agentId) {
+            Agent::where('id', $agentId)->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+        } else {
+            Agent::where('processing_by', auth()->id())->update([
+                'processing_by' => null,
+                'processing_at' => null,
+            ]);
+        }
+
+        return back();
     }
 
     public function checkoutSummary(UserLoginLog $userLoginLog)
