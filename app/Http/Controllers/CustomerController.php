@@ -235,9 +235,14 @@ class CustomerController extends Controller
                     ->toArray();
 
                 // Get all drivers in the same session with a lower slot number
-                // who are NOT currently on a trip
+                // who are NOT currently on a trip AND are OFF DUTY.
+                // On-duty drivers remain in the current queue.
                 $skippedDrivers = Driver::where('session_id', $currentSession)
                     ->where('id', '!=', $driver->id)
+                    ->where(function ($q) {
+                        $q->where('duty_status', '!=', 'on_duty')
+                          ->orWhereNull('duty_status');
+                    })
                     ->whereNotIn('id', $onTripDriverIds)
                     ->get()
                     ->filter(function ($d) use ($assignedSlot) {

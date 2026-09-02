@@ -41,12 +41,27 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
-    const available = (vehiclesList ?? []).filter((v) => {
+    let available = (vehiclesList ?? []).filter((v) => {
         const isOnDuty = v.driver?.duty_status === 'on_duty';
         const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
         const isCurrentSession = (v.driver?.session_id ?? 0) <= baseSessionId;
         return isOnDuty && !hasOngoingTrip && isCurrentSession;
     });
+
+    // If current queue has no available on-duty drivers, check waiting queue (earliest available session)
+    if (available.length === 0) {
+        const waitingSessions = (vehiclesList ?? [])
+            .map(v => v.driver?.session_id)
+            .filter(s => s !== null && s !== undefined && s > baseSessionId);
+        if (waitingSessions.length > 0) {
+            const nextMinSession = Math.min(...waitingSessions);
+            available = (vehiclesList ?? []).filter((v) => {
+                const isOnDuty = v.driver?.duty_status === 'on_duty';
+                const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
+                return isOnDuty && !hasOngoingTrip && (v.driver?.session_id ?? 0) === nextMinSession;
+            });
+        }
+    }
 
     if (available.length === 0) return null;
 
@@ -250,10 +265,15 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         setInvoicePath(null);
     };
 
+    const [processingAgentId, setProcessingAgentId] = useState(null);
+
     const openModal = (agent, tab = 'customer') => {
         const isNewAgent = selectedAgent?.id !== agent.id;
 
         setSelectedAgent(agent);
+        if (tab === 'customer') {
+            setProcessingAgentId(agent.id);
+        }
 
         if (tab === 'customer' || isNewAgent) {
             resetCustomerForm(agent);
@@ -261,6 +281,12 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
         setActiveTab(tab);
         setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setProcessingAgentId(null);
+        setSelectedAgent(null);
     };
 
     const saveCustomer = (e) => {
@@ -281,17 +307,40 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
-    const maxSessionId = Math.max(0, ...vehicles.map(v => v.driver?.session_id || 0));
-    const previousSessionId = maxSessionId > 1 ? maxSessionId - 1 : null;
-    const previousSessionVehicles = previousSessionId 
-        ? vehicles
-            .filter(v => (v.driver?.session_id || 0) === previousSessionId && !(v.driver?.trips && v.driver.trips.length > 0) && v.driver?.duty_status !== 'on_duty')
-            .sort((a, b) => (getVehicleSlotNumber(a) || 0) - (getVehicleSlotNumber(b) || 0))
-        : [];
+    const isVehicleOnTrip = (v) => {
+        if (!v?.driver) return false;
+        const driverId = v.driver.id;
+        if (v.driver.duty_status === 'on_trip') return true;
+        if (v.driver.trips && v.driver.trips.length > 0) return true;
+        if (ongoingTrips && ongoingTrips.some(t => t.driver_id === driverId || t.driver?.id === driverId)) return true;
+        return false;
+    };
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
-    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) === baseSessionId && v.driver?.duty_status === 'on_duty' && !(v.driver?.trips && v.driver.trips.length > 0));
+
+    const waitingQueueVehicles = useMemo(() => {
+        const list = [];
+        vehicles.forEach((v) => {
+            const reg = v.driver?.registration_number ?? '';
+            const match = reg.match(/\d+/);
+            const num = match ? parseInt(match[0], 10) : NaN;
+
+            const sid = v.driver?.session_id ?? null;
+            if (sid !== null && sid > baseSessionId && !isVehicleOnTrip(v)) {
+                list.push({ vehicle: v, originalSlot: num, sessionId: sid });
+            }
+        });
+
+        return list.sort((a, b) => {
+            if (a.sessionId !== b.sessionId) {
+                return a.sessionId - b.sessionId;
+            }
+            return (a.originalSlot || 0) - (b.originalSlot || 0);
+        });
+    }, [vehicles, baseSessionId, ongoingTrips]);
+
+    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) === baseSessionId && v.driver?.duty_status === 'on_duty' && !isVehicleOnTrip(v));
 
     return (
         <>
@@ -342,7 +391,14 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     {pendingAgents.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
                             {pendingAgents.map((agent) => (
-                                <CustomerCard key={agent.id} agent={agent} onOpen={openModal} paymentEnabled={paymentEnabledAgentId === agent.id} vehicleEnabled={vehicleEnabledAgentId === agent.id} />
+                                <CustomerCard 
+                                    key={agent.id} 
+                                    agent={agent} 
+                                    onOpen={openModal} 
+                                    paymentEnabled={paymentEnabledAgentId === agent.id} 
+                                    vehicleEnabled={vehicleEnabledAgentId === agent.id} 
+                                    isCustomerDisabled={processingAgentId === agent.id || (showModal && selectedAgent?.id === agent.id)}
+                                />
                             ))}
                         </div>
                     ) : (
@@ -410,14 +466,14 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                 )}
                             </div>
 
-                            {maxSessionId > 1 && previousSessionVehicles.length > 0 && (
+                            {waitingQueueVehicles.length > 0 && (
                                 <button 
                                     onClick={() => setShowReorderModal(true)}
                                     disabled={hasCheckedInCurrentQueue}
                                     className={`w-full py-1.5 text-white text-xs font-bold rounded-lg shadow-sm transition ${hasCheckedInCurrentQueue ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder previous queue drivers"}
+                                    title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder waiting queue drivers to current queue"}
                                 >
-                                    Reorder Queue {previousSessionId}
+                                    Reorder Queue
                                 </button>
                             )}
                         </div>
@@ -426,7 +482,6 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             <div className="max-h-[420px] overflow-y-auto pb-4 pr-2 space-y-4">
                                 {(() => {
                                     const vehicleMap = {};
-                                    const sessionQueues = {}; 
 
                                     vehicles.forEach((v) => {
                                         const reg = v.driver?.registration_number ?? '';
@@ -435,107 +490,104 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         if (!isNaN(num) && num >= 1 && num <= 95) {
                                             vehicleMap[num] = v;
                                         }
-
-                                        const sid = v.driver?.session_id ?? null;
-                                        if (sid !== null && sid > baseSessionId) {
-                                            if (!sessionQueues[sid]) sessionQueues[sid] = [];
-                                            sessionQueues[sid].push({ vehicle: v, originalSlot: num });
-                                        }
                                     });
-
-                                    const sessionKeys = Object.keys(sessionQueues).map(Number).sort((a, b) => a - b);
 
                                     return (
                                         <>
-                                            
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {Array.from({ length: 95 }, (_, i) => {
-                                                    const slotNum = i + 1;
-                                                    const vehicle = vehicleMap[slotNum] ?? null;
-                                                    if (!vehicle) return null; 
-                                                    const isMoved = vehicle?.driver?.session_id > baseSessionId;
-                                                    
-                                                    return (
-                                                        <VehicleSlot
-                                                            key={`main-slot-${slotNum}`}
-                                                            vehicle={vehicle}
-                                                            number={slotNum}
-                                                            selectedLanguageFilter={null}
-                                                            selectedVehicleTypeFilter={null}
-                                                            allVehicleTypes={[]}
-                                                            isMovedToNextQueue={isMoved}
-                                                            onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                                        />
-                                                    );
-                                                })}
+                                            {/* Current Queue */}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="bg-slate-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                        Current Queue
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {Array.from({ length: 95 }, (_, i) => {
+                                                        const slotNum = i + 1;
+                                                        const vehicle = vehicleMap[slotNum] ?? null;
+                                                        if (!vehicle) return null; 
+                                                        const isMoved = vehicle?.driver?.session_id > baseSessionId;
+                                                        
+                                                        return (
+                                                            <VehicleSlot
+                                                                key={`main-slot-${slotNum}`}
+                                                                vehicle={vehicle}
+                                                                number={slotNum}
+                                                                selectedLanguageFilter={null}
+                                                                selectedVehicleTypeFilter={null}
+                                                                allVehicleTypes={[]}
+                                                                isMovedToNextQueue={isMoved}
+                                                                onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
 
-                                            {/* Next Sessions (Session 2, 3, etc.) Rows */}
-                                            {sessionKeys.length > 0 && (
-                                                <div className="mt-6 border-t border-gray-200 pt-4 space-y-3">
-                                                    {sessionKeys.map((sid) => (
-                                                        <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                                                                    Queue {sid}
-                                                                </span>
-                                                                <span className="text-[10px] text-amber-700 font-medium">
-                                                                    {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
-                                                                </span>
-                                                            </div>
-                                                            {(() => {
-                                                                const vanItems = sessionQueues[sid].filter(item => (item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
-                                                                const carItems = sessionQueues[sid].filter(item => !(item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
-                                                                const hasBoth = carItems.length > 0 && vanItems.length > 0;
-                                                                return (
-                                                                    <div className={`grid gap-2.5 items-start ${hasBoth ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                                                                        {carItems.length > 0 && (
-                                                                            <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
-                                                                                <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
-                                                                                    <span className="text-[11px]">🚗</span>
-                                                                                    <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Car ({carItems.length})</span>
-                                                                                </div>
-                                                                                <div className="flex flex-wrap gap-1.5">
-                                                                                    {carItems.map((item) => (
-                                                                                        <VehicleSlot
-                                                                                            key={`session-${sid}-car-${item.originalSlot}`}
-                                                                                            vehicle={item.vehicle}
-                                                                                            number={item.originalSlot}
-                                                                                            selectedLanguageFilter={null}
-                                                                                            selectedVehicleTypeFilter={null}
-                                                                                            allVehicleTypes={[]}
-                                                                                            onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
-                                                                                        />
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                        {vanItems.length > 0 && (
-                                                                            <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
-                                                                                <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
-                                                                                    <span className="text-[11px]">🚐</span>
-                                                                                    <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Van ({vanItems.length})</span>
-                                                                                </div>
-                                                                                <div className="flex flex-wrap gap-1.5">
-                                                                                    {vanItems.map((item) => (
-                                                                                        <VehicleSlot
-                                                                                            key={`session-${sid}-van-${item.originalSlot}`}
-                                                                                            vehicle={item.vehicle}
-                                                                                            number={item.originalSlot}
-                                                                                            selectedLanguageFilter={null}
-                                                                                            selectedVehicleTypeFilter={null}
-                                                                                            allVehicleTypes={[]}
-                                                                                            onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
-                                                                                        />
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })()}
+                                            {/* Waiting Queue */}
+                                            {waitingQueueVehicles.length > 0 && (
+                                                <div className="mt-5 border-t border-gray-200 pt-4">
+                                                    <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                                Waiting Queue
+                                                            </span>
+                                                            <span className="text-[10px] text-amber-700 font-medium">
+                                                                {waitingQueueVehicles.length} driver{waitingQueueVehicles.length !== 1 ? 's' : ''} waiting
+                                                            </span>
                                                         </div>
-                                                    ))}
+                                                        {(() => {
+                                                            const vanItems = waitingQueueVehicles.filter(item => (item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
+                                                            const carItems = waitingQueueVehicles.filter(item => !(item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
+                                                            const hasBoth = carItems.length > 0 && vanItems.length > 0;
+                                                            return (
+                                                                <div className={`grid gap-2.5 items-start ${hasBoth ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                                                                    {carItems.length > 0 && (
+                                                                        <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                            <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                                <span className="text-[11px]">🚗</span>
+                                                                                <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Car ({carItems.length})</span>
+                                                                            </div>
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                {carItems.map((item) => (
+                                                                                    <VehicleSlot
+                                                                                        key={`waiting-car-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                        vehicle={item.vehicle}
+                                                                                        number={item.originalSlot}
+                                                                                        selectedLanguageFilter={null}
+                                                                                        selectedVehicleTypeFilter={null}
+                                                                                        allVehicleTypes={[]}
+                                                                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                                    />
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {vanItems.length > 0 && (
+                                                                        <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                            <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                                <span className="text-[11px]">🚐</span>
+                                                                                <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Van ({vanItems.length})</span>
+                                                                            </div>
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                {vanItems.map((item) => (
+                                                                                    <VehicleSlot
+                                                                                        key={`waiting-van-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                        vehicle={item.vehicle}
+                                                                                        number={item.originalSlot}
+                                                                                        selectedLanguageFilter={null}
+                                                                                        selectedVehicleTypeFilter={null}
+                                                                                        allVehicleTypes={[]}
+                                                                                        onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                                    />
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             )}
                                         </>
@@ -824,7 +876,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={() => setShowModal(false)} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
             )}
 
             {showCheckoutConfirm && (
@@ -882,23 +934,23 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-900">Reorder Queue {previousSessionId}</h2>
+                            <h2 className="text-xl font-bold text-gray-900">Reorder Queue</h2>
                             <button onClick={() => setShowReorderModal(false)} className="text-gray-400 hover:text-gray-600">
                                 <X size={20} />
                             </button>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            Move these slots from queue {previousSessionId} to the latest queue ({maxSessionId}):
+                            Move waiting queue drivers into the current queue:
                         </p>
                         
                         <div className="flex flex-wrap gap-2 mb-6 max-h-48 overflow-y-auto p-1">
-                            {previousSessionVehicles.map(v => (
-                                <span key={v.id} className="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-md text-sm border border-amber-200">
-                                    Slot {getVehicleSlotNumber(v) ?? '-'}
+                            {waitingQueueVehicles.map(item => (
+                                <span key={item.vehicle.id} className="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-md text-sm border border-amber-200">
+                                    Slot {item.originalSlot ?? '-'}
                                 </span>
                             ))}
-                            {previousSessionVehicles.length === 0 && (
-                                <span className="text-gray-400 text-sm italic">No slots found.</span>
+                            {waitingQueueVehicles.length === 0 && (
+                                <span className="text-gray-400 text-sm italic">No slots found in waiting queue.</span>
                             )}
                         </div>
 
@@ -914,8 +966,8 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                 onClick={() => {
                                     setReorderSaving(true);
                                     router.post('/counter/reorder-session', {
-                                        driver_ids: previousSessionVehicles.map(v => v.driver?.id).filter(Boolean),
-                                        target_session: maxSessionId
+                                        driver_ids: waitingQueueVehicles.map(item => item.vehicle.driver?.id).filter(Boolean),
+                                        target_session: baseSessionId
                                     }, {
                                         preserveState: true,
                                         preserveScroll: true,
@@ -925,7 +977,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         }
                                     });
                                 }}
-                                disabled={reorderSaving || previousSessionVehicles.length === 0}
+                                disabled={reorderSaving || waitingQueueVehicles.length === 0}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
                             >
                                 {reorderSaving ? 'Saving...' : 'Save Reorder'}
@@ -938,7 +990,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     );
 }
 
-function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
+function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustomerDisabled }) {
     return (
         <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
             <h3 className="flex justify-between font-semibold text-sm">
@@ -958,7 +1010,7 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
             </div>
 
             <div className="flex gap-1 mt-3">
-                <CardButton color="blue" onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
+                <CardButton color="blue" disabled={isCustomerDisabled} onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
                     Customer
                 </CardButton>
 
@@ -998,7 +1050,10 @@ function Modal({
     dbLanguages = [],
 }) {
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div 
+            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        >
             <div className="bg-white rounded-xl shadow-xl w-full max-w-7xl max-h-[92vh] overflow-y-auto">
                 <div className="flex justify-between border-b px-6 py-2">
                     <div>
@@ -1011,6 +1066,7 @@ function Modal({
                     <button
                         onClick={onClose}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
+                        title="Cancel"
                     >
                         <X size={16} />
 
@@ -1039,7 +1095,7 @@ function Modal({
 
                 <div className="p-4 min-h-[500px]">
                     {activeTab === 'customer' && (
-                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} />
+                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
                     )}
 
                     {activeTab === 'payment' && (
@@ -1050,7 +1106,7 @@ function Modal({
                         <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
                     )}
 
-                    {activeTab === 'rent_a_car_vehicle' && (
+                                    {activeTab === 'rent_a_car_vehicle' && (
                         <RentACarVehicleTab agent={agent} customerId={customerId} onClose={onClose} />
                     )}
                 </div>
@@ -1059,7 +1115,7 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages = [] }) {
+function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages = [], onClose }) {
     return (
         <form onSubmit={onSubmit} className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
@@ -1086,8 +1142,8 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
-                <Field label="Email" type="email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="+94771234567" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
+                <Field label="Email" type="email" placeholder="Enter Email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
+                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
                 <div>
                     <label className="label">Country</label>
 
@@ -1115,14 +1171,18 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                         </p>
                     )}
                 </div>
+                <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
                 <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                 <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
-                <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
 
                 <div>
-                    <label className="label">Language</label>
+                    <label className="label">Language Preference</label>
 
-                    <input type="text" className="input" list="language-list" value={form.data.language_preference}
+                    <input
+                        type="text"
+                        list="language-list"
+                        className="input"
+                        value={form.data.language_preference || ''}
                         onChange={(e) =>
                             form.setData('language_preference', e.target.value)
                         }
@@ -1142,7 +1202,14 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                 <textarea className="input" rows="2" value={form.data.remarks} onChange={(e) => form.setData('remarks', e.target.value)} />
             </div>
 
-            <div className="flex justify-end border-t pt-4">
+            <div className="flex justify-end gap-3 border-t pt-4">
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-5 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
+                >
+                    Cancel
+                </button>
                 <button 
                     disabled={form.processing || !form.data.name?.trim() || !form.data.email?.trim() || !form.data.whatsapp_number?.trim()} 
                     className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
@@ -1735,7 +1802,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                     <div className="max-h-[420px] overflow-y-auto pb-4 pr-2 space-y-4">
                         {(() => {
                             const vehicleMap = {};
-                            const sessionQueues = {}; // For session >= 2
+                            const waitingQueueVehicles = [];
 
                             vehicles.forEach((v) => {
                                 const reg = v.driver?.registration_number ?? '';
@@ -1746,105 +1813,115 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 }
 
                                 const sid = v.driver?.session_id ?? null;
-                                if (sid !== null && sid > baseSessionId) {
-                                    if (!sessionQueues[sid]) sessionQueues[sid] = [];
-                                    sessionQueues[sid].push({ vehicle: v, originalSlot: num });
+                                const isTrip = (v.driver?.trips && v.driver.trips.length > 0) || (ongoingTrips && ongoingTrips.some(t => t.driver_id === v.driver?.id || t.driver?.id === v.driver?.id)) || v.driver?.duty_status === 'on_trip';
+                                if (sid !== null && sid > baseSessionId && !isTrip) {
+                                    waitingQueueVehicles.push({ vehicle: v, originalSlot: num, sessionId: sid });
                                 }
                             });
 
-                            const sessionKeys = Object.keys(sessionQueues).map(Number).sort((a, b) => a - b);
+                            waitingQueueVehicles.sort((a, b) => {
+                                if (a.sessionId !== b.sessionId) {
+                                    return a.sessionId - b.sessionId;
+                                }
+                                return (a.originalSlot || 0) - (b.originalSlot || 0);
+                            });
 
                             return (
                                 <>
-                                    {/* Main 1-95 Grid (Session 1 & Off Duty) */}
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {Array.from({ length: 95 }, (_, i) => {
-                                            const slotNum = i + 1;
-                                            const vehicle = vehicleMap[slotNum] ?? null;
-                                            if (!vehicle) return null; // Skip unregistered slots
-                                            const isMoved = vehicle?.driver?.session_id > baseSessionId;
-                                            
-                                            return (
-                                                <VehicleSlot
-                                                    key={`main-slot-${slotNum}`}
-                                                    vehicle={vehicle}
-                                                    number={slotNum}
-                                                    selectedLanguageFilter={selectedLanguageFilter}
-                                                    selectedVehicleTypeFilter={selectedVehicleTypeFilter}
-                                                    allVehicleTypes={allVehicleTypes}
-                                                    isMovedToNextQueue={isMoved}
-                                                    onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
-                                                />
-                                            );
-                                        })}
+                                    {/* Current Queue */}
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="bg-slate-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                Current Queue
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {Array.from({ length: 95 }, (_, i) => {
+                                                const slotNum = i + 1;
+                                                const vehicle = vehicleMap[slotNum] ?? null;
+                                                if (!vehicle) return null; // Skip unregistered slots
+                                                const isMoved = vehicle?.driver?.session_id > baseSessionId;
+                                                
+                                                return (
+                                                    <VehicleSlot
+                                                        key={`main-slot-${slotNum}`}
+                                                        vehicle={vehicle}
+                                                        number={slotNum}
+                                                        selectedLanguageFilter={selectedLanguageFilter}
+                                                        selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                        allVehicleTypes={allVehicleTypes}
+                                                        isMovedToNextQueue={isMoved}
+                                                        onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
-                                    {/* Next Sessions (Session 2, 3, etc.) Rows */}
-                                    {sessionKeys.length > 0 && (
-                                        <div className="mt-6 border-t border-gray-200 pt-4 space-y-3">
-                                            {sessionKeys.map((sid) => (
-                                                <div key={`session-row-${sid}`} className="bg-amber-50/50 border border-amber-200 rounded-lg p-2">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                                                            Queue {sid}
-                                                        </span>
-                                                        <span className="text-[10px] text-amber-700 font-medium">
-                                                            {sessionQueues[sid].length} driver{sessionQueues[sid].length !== 1 ? 's' : ''} re-queued
-                                                        </span>
-                                                    </div>
-                                                    {(() => {
-                                                        const vanItems = sessionQueues[sid].filter(item => (item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
-                                                        const carItems = sessionQueues[sid].filter(item => !(item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
-                                                        const hasBoth = carItems.length > 0 && vanItems.length > 0;
-                                                        return (
-                                                            <div className={`grid gap-2.5 items-start ${hasBoth ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                                                                {carItems.length > 0 && (
-                                                                    <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
-                                                                        <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
-                                                                            <span className="text-[11px]">🚗</span>
-                                                                            <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Car ({carItems.length})</span>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-1.5">
-                                                                            {carItems.map((item) => (
-                                                                                <VehicleSlot
-                                                                                    key={`session-${sid}-car-${item.originalSlot}`}
-                                                                                    vehicle={item.vehicle}
-                                                                                    number={item.originalSlot}
-                                                                                    selectedLanguageFilter={selectedLanguageFilter}
-                                                                                    selectedVehicleTypeFilter={selectedVehicleTypeFilter}
-                                                                                    allVehicleTypes={allVehicleTypes}
-                                                                                    onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
-                                                                                />
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                                {vanItems.length > 0 && (
-                                                                    <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
-                                                                        <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
-                                                                            <span className="text-[11px]">🚐</span>
-                                                                            <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Van ({vanItems.length})</span>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-1.5">
-                                                                            {vanItems.map((item) => (
-                                                                                <VehicleSlot
-                                                                                    key={`session-${sid}-van-${item.originalSlot}`}
-                                                                                    vehicle={item.vehicle}
-                                                                                    number={item.originalSlot}
-                                                                                    selectedLanguageFilter={selectedLanguageFilter}
-                                                                                    selectedVehicleTypeFilter={selectedVehicleTypeFilter}
-                                                                                    allVehicleTypes={allVehicleTypes}
-                                                                                    onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
-                                                                                />
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })()}
+                                    {/* Waiting Queue */}
+                                    {waitingQueueVehicles.length > 0 && (
+                                        <div className="mt-5 border-t border-gray-200 pt-4">
+                                            <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                                                        Waiting Queue
+                                                    </span>
+                                                    <span className="text-[10px] text-amber-700 font-medium">
+                                                        {waitingQueueVehicles.length} driver{waitingQueueVehicles.length !== 1 ? 's' : ''} waiting
+                                                    </span>
                                                 </div>
-                                            ))}
+                                                {(() => {
+                                                    const vanItems = waitingQueueVehicles.filter(item => (item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
+                                                    const carItems = waitingQueueVehicles.filter(item => !(item.vehicle?.vehicle_type ?? '').toLowerCase().includes('van'));
+                                                    const hasBoth = carItems.length > 0 && vanItems.length > 0;
+                                                    return (
+                                                        <div className={`grid gap-2.5 items-start ${hasBoth ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                                                            {carItems.length > 0 && (
+                                                                <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                        <span className="text-[11px]">🚗</span>
+                                                                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Car ({carItems.length})</span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {carItems.map((item) => (
+                                                                            <VehicleSlot
+                                                                                key={`waiting-car-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                vehicle={item.vehicle}
+                                                                                number={item.originalSlot}
+                                                                                selectedLanguageFilter={selectedLanguageFilter}
+                                                                                selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                                                allVehicleTypes={allVehicleTypes}
+                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {vanItems.length > 0 && (
+                                                                <div className="bg-white/70 rounded-lg p-2 border border-amber-200/70 shadow-2xs">
+                                                                    <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-amber-100">
+                                                                        <span className="text-[11px]">🚐</span>
+                                                                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Van ({vanItems.length})</span>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {vanItems.map((item) => (
+                                                                            <VehicleSlot
+                                                                                key={`waiting-van-${item.vehicle.id ?? item.originalSlot}-${item.sessionId}`}
+                                                                                vehicle={item.vehicle}
+                                                                                number={item.originalSlot}
+                                                                                selectedLanguageFilter={selectedLanguageFilter}
+                                                                                selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                                                allVehicleTypes={allVehicleTypes}
+                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     )}
                                 </>
