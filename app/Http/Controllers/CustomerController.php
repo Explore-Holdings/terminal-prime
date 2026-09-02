@@ -279,6 +279,11 @@ class CustomerController extends Controller
                 }
             }
 
+            // Move the assigned driver to the waiting queue immediately
+            if ($driver->session_id !== null) {
+                $driver->update(['session_id' => $driver->session_id + 1]);
+            }
+
             $trip = Trip::create([
                 'driver_id'        => $data['driver_id'],
                 'customer_id'      => $customer->id,

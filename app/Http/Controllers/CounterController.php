@@ -268,13 +268,8 @@ class CounterController extends Controller
             'target_session' => 'required|integer|min:1',
         ]);
 
-        // Exclude drivers who currently have an active (non-completed) trip
-        $onTripDriverIds = Trip::whereNotIn('status', ['Completed', 'Cancelled'])
-            ->pluck('driver_id')
-            ->toArray();
-
+        // Include drivers on active trips as well (per user request)
         \App\Models\Driver::whereIn('id', $request->driver_ids)
-            ->whereNotIn('id', $onTripDriverIds)
             ->update(['session_id' => $request->target_session]);
 
         return back()->with('success', 'Session reordered successfully.');

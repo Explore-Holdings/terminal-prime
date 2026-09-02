@@ -17,13 +17,14 @@ class TripObserver
     {
         // Only act when status is changing TO 'Completed'
         if ($trip->isDirty('status') && $trip->status === 'Completed') {
-            $driver = Driver::find($trip->driver_id);
-
-            if ($driver && $driver->session_id !== null) {
-                $driver->update([
-                    'session_id' => $driver->session_id + 1,
-                ]);
-            }
+            // Driver session is now bumped immediately upon trip assignment.
+            // We no longer bump it here upon completion.
+            // $driver = Driver::find($trip->driver_id);
+            // if ($driver && $driver->session_id !== null) {
+            //     $driver->update([
+            //         'session_id' => $driver->session_id + 1,
+            //     ]);
+            // }
         }
     }
 }
