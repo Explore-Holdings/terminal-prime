@@ -33,11 +33,18 @@ class Agent extends Model
         'rent_start_date',
         'rent_end_date',
         'booking_number',
+        'processing_by',
+        'processing_at',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function processor()
+    {
+        return $this->belongsTo(User::class, 'processing_by');
     }
 
     public function customers()
