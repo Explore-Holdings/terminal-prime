@@ -1073,12 +1073,12 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
                     {isLockedByOther ? `In Process (${lockedByName})` : 'Customer'}
                 </CardButton>
 
-                <CardButton color="green" disabled={!isPaymentActive} onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />} >
+                <CardButton color="blue" disabled={true} icon={<CreditCard size={13} />} >
                     Payment
                 </CardButton>
 
                 {agent.booking_type !== 'Rent a Car' && (
-                    <CardButton color="purple" disabled={!isVehicleActive} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
+                    <CardButton color="blue" disabled={true} icon={<Car size={13} />} >
                         Vehicle
                     </CardButton>
                 )}
@@ -2956,10 +2956,32 @@ function TabButton({ active, disabled, children, onClick }) {
 }
 
 function Field({ label, value, onChange, error, type = 'text', ...rest }) {
+    const handleKeyDown = (e) => {
+        if (type === 'number') {
+            if (['e', 'E', '+', '-'].includes(e.key)) {
+                e.preventDefault();
+            }
+            // Prevent leading zeros
+            if (e.key === '0' && e.target.selectionStart === 0) {
+                e.preventDefault();
+            }
+        }
+    };
+
     return (
         <div>
+            <style>{`
+                input[type=number]::-webkit-inner-spin-button, 
+                input[type=number]::-webkit-outer-spin-button { 
+                    -webkit-appearance: none; 
+                    margin: 0; 
+                }
+                input[type=number] {
+                    -moz-appearance: textfield;
+                }
+            `}</style>
             <label className="label">{label}</label>
-            <input type={type} value={value ?? ''} onChange={onChange} className="input" {...rest} />
+            <input type={type} value={value ?? ''} onChange={onChange} onKeyDown={handleKeyDown} className="input" min="0" {...rest} />
             {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>
     );
