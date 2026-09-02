@@ -70,10 +70,11 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     });
 
     // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
+    // Ignore out-of-turn assignments (trips with selection_reason) so they don't advance the pointer
     const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
         const driverId = t.driver_id ?? t.driver?.id;
         const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
-        return sid > 0 && sid <= baseSessionId;
+        return sid > 0 && sid <= baseSessionId && !t.selection_reason;
     });
 
     const lastAssignedDriver = lastCurrentQueueTrip?.driver;
@@ -160,6 +161,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const [showReorderModal, setShowReorderModal] = useState(false);
     const [reorderSaving, setReorderSaving] = useState(false);
+    const [reorderInput, setReorderInput] = useState('');
     const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
     const [searchMyTrips, setSearchMyTrips] = useState('');
@@ -511,7 +513,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
                             {waitingQueueVehicles.length > 0 && (
                                 <button 
-                                    onClick={() => setShowReorderModal(true)}
+                                    onClick={() => { setShowReorderModal(true); setReorderInput(''); }}
                                     disabled={hasCheckedInCurrentQueue}
                                     className={`w-full py-1.5 text-white text-xs font-bold rounded-lg shadow-sm transition ${hasCheckedInCurrentQueue ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                                     title={hasCheckedInCurrentQueue ? "Cannot reorder while there are checked-in drivers in the current queue" : "Reorder waiting queue drivers to current queue"}
@@ -983,18 +985,23 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             </button>
                         </div>
                         <p className="text-sm text-gray-600 mb-4">
-                            Move waiting queue drivers into the current queue:
+                            Move waiting queue drivers into the current queue.
                         </p>
-                        
-                        <div className="flex flex-wrap gap-2 mb-6 max-h-48 overflow-y-auto p-1">
-                            {waitingQueueVehicles.map(item => (
-                                <span key={item.vehicle.id} className="bg-amber-100 text-amber-800 font-bold px-3 py-1.5 rounded-md text-sm border border-amber-200">
-                                    Slot {item.originalSlot ?? '-'}
-                                </span>
-                            ))}
-                            {waitingQueueVehicles.length === 0 && (
-                                <span className="text-gray-400 text-sm italic">No slots found in waiting queue.</span>
-                            )}
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Type <strong>REORDER</strong> to confirm
+                            </label>
+                            <input
+                                type="text"
+                                value={reorderInput}
+                                onChange={e => setReorderInput(e.target.value)}
+                                onPaste={e => e.preventDefault()}
+                                onCopy={e => e.preventDefault()}
+                                placeholder="REORDER"
+                                className="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm select-none"
+                                autoComplete="off"
+                            />
                         </div>
 
                         <div className="flex justify-end gap-3">
@@ -1020,7 +1027,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         }
                                     });
                                 }}
-                                disabled={reorderSaving || waitingQueueVehicles.length === 0}
+                                disabled={reorderSaving || waitingQueueVehicles.length === 0 || reorderInput.trim().toUpperCase() !== 'REORDER'}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
                             >
                                 {reorderSaving ? 'Saving...' : 'Save Reorder'}

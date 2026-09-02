@@ -57,10 +57,11 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     });
 
     // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
+    // Ignore out-of-turn assignments (trips with selection_reason) so they don't advance the pointer
     const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
         const driverId = t.driver_id ?? t.driver?.id;
         const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
-        return sid > 0 && sid <= baseSessionId;
+        return sid > 0 && sid <= baseSessionId && !t.selection_reason;
     });
 
     const lastAssignedDriver = lastCurrentQueueTrip?.driver;
