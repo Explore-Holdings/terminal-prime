@@ -171,12 +171,12 @@ class CounterController extends Controller
             ]);
 
         return Inertia::render('Counter/Index', [
-            'pendingAgents' => Agent::with(['user', 'processor'])
+            'pendingAgents' => Agent::with(['user', 'processor', 'customers'])
                 ->where('status', 'Pending')
                 ->latest()
                 ->get(),
 
-            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent','driver.vehicle',])
+            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy'])
                 ->where('status', '!=', 'Completed')
                 ->latest()
                 ->get(),
@@ -201,17 +201,12 @@ class CounterController extends Controller
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
                 
-            'createdCustomerId' => session()->pull('created_customer_id'),
-            'invoicePath' => session()->pull('invoice_path'),
-
+            'createdCustomerId' => session('created_customer_id'),
+            'invoicePath' => session('invoice_path'),
             'countries' => Country::orderBy('country_name')->get(),
-
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
-
             'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
-
             'vehicleRates' => DB::table('vehicle_rates')->get(),
-
             'dbLanguages' => DriverLanguage::select('language_name')
                 ->distinct()
                 ->whereNotNull('language_name')
@@ -219,7 +214,7 @@ class CounterController extends Controller
                 ->orderBy('language_name')
                 ->pluck('language_name'),
 
-            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance'])
+            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance', 'selectionReasonBy'])
                 ->where('trip_assigned_by', Auth::id())
                 ->latest('trip_assigned_at')
                 ->get(),

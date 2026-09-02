@@ -28,27 +28,13 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
-    let available = (vehiclesList ?? []).filter((v) => {
+    // Only consider vehicles in the current queue (never consider the waiting queue)
+    const available = (vehiclesList ?? []).filter((v) => {
         const isOnDuty = v.driver?.duty_status === 'on_duty';
         const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
         const isCurrentSession = (v.driver?.session_id ?? 0) <= baseSessionId;
         return isOnDuty && !hasOngoingTrip && isCurrentSession;
     });
-
-    // If current queue has no available on-duty drivers, check waiting queue (earliest available session)
-    if (available.length === 0) {
-        const waitingSessions = (vehiclesList ?? [])
-            .map(v => v.driver?.session_id)
-            .filter(s => s !== null && s !== undefined && s > baseSessionId);
-        if (waitingSessions.length > 0) {
-            const nextMinSession = Math.min(...waitingSessions);
-            available = (vehiclesList ?? []).filter((v) => {
-                const isOnDuty = v.driver?.duty_status === 'on_duty';
-                const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
-                return isOnDuty && !hasOngoingTrip && (v.driver?.session_id ?? 0) === nextMinSession;
-            });
-        }
-    }
 
     if (available.length === 0) return null;
 
@@ -62,19 +48,28 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
         return slotA - slotB;
     });
 
-    const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
-    const lastAssignedDriver = lastAssignedTrip?.driver;
+    // Build lookup of driver sessions from active vehicles list
+    const vehicleSessionMap = {};
+    (vehiclesList ?? []).forEach(v => {
+        if (v.driver?.id) {
+            vehicleSessionMap[v.driver.id] = v.driver.session_id ?? baseSessionId;
+        }
+    });
+
+    // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
+    const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
+        const driverId = t.driver_id ?? t.driver?.id;
+        const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
+        return sid > 0 && sid <= baseSessionId;
+    });
+
+    const lastAssignedDriver = lastCurrentQueueTrip?.driver;
     const lastSlotNumber = getVehicleSlotNumber(lastAssignedDriver) ?? 0;
-    const lastSessionId = lastAssignedDriver?.session_id ?? 0;
 
     if (lastSlotNumber > 0) {
+        // Find next vehicle in the current queue with a higher slot number
         const nextVehicles = sorted.filter(
-            (v) => {
-                const sid = v.driver?.session_id ?? 0;
-                if (sid < lastSessionId) return true;
-                if (sid === lastSessionId && (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber) return true;
-                return false;
-            }
+            (v) => (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber
         );
         if (nextVehicles.length > 0) {
             return nextVehicles[0];

@@ -251,7 +251,7 @@ export default function VehicleQueueGrid({ vehicles, ongoingTrips = [], nextInLi
                                 }
 
                                 const sid = v.driver?.session_id ?? null;
-                                if (sid !== null && sid > baseSessionId && !isVehicleOnTrip(v)) {
+                                if (sid !== null && sid > baseSessionId) {
                                     waitingQueueVehicles.push({ vehicle: v, originalSlot: num, sessionId: sid });
                                 }
                             });

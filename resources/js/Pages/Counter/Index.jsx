@@ -40,27 +40,13 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
-    let available = (vehiclesList ?? []).filter((v) => {
+    // Only consider vehicles in the current queue (never consider the waiting queue)
+    const available = (vehiclesList ?? []).filter((v) => {
         const isOnDuty = v.driver?.duty_status === 'on_duty';
         const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
         const isCurrentSession = (v.driver?.session_id ?? 0) <= baseSessionId;
         return isOnDuty && !hasOngoingTrip && isCurrentSession;
     });
-
-    // If current queue has no available on-duty drivers, check waiting queue (earliest available session)
-    if (available.length === 0) {
-        const waitingSessions = (vehiclesList ?? [])
-            .map(v => v.driver?.session_id)
-            .filter(s => s !== null && s !== undefined && s > baseSessionId);
-        if (waitingSessions.length > 0) {
-            const nextMinSession = Math.min(...waitingSessions);
-            available = (vehiclesList ?? []).filter((v) => {
-                const isOnDuty = v.driver?.duty_status === 'on_duty';
-                const hasOngoingTrip = v.driver?.trips && v.driver.trips.length > 0;
-                return isOnDuty && !hasOngoingTrip && (v.driver?.session_id ?? 0) === nextMinSession;
-            });
-        }
-    }
 
     if (available.length === 0) return null;
 
@@ -75,20 +61,28 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
         return slotA - slotB;
     });
 
-    const lastAssignedTrip = ongoingTripsList && ongoingTripsList.length > 0 ? ongoingTripsList[0] : null;
-    const lastAssignedDriver = lastAssignedTrip?.driver;
+    // Build lookup of driver sessions from active vehicles list
+    const vehicleSessionMap = {};
+    (vehiclesList ?? []).forEach(v => {
+        if (v.driver?.id) {
+            vehicleSessionMap[v.driver.id] = v.driver.session_id ?? baseSessionId;
+        }
+    });
+
+    // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
+    const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
+        const driverId = t.driver_id ?? t.driver?.id;
+        const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
+        return sid > 0 && sid <= baseSessionId;
+    });
+
+    const lastAssignedDriver = lastCurrentQueueTrip?.driver;
     const lastSlotNumber = getVehicleSlotNumber(lastAssignedDriver) ?? 0;
-    const lastSessionId = lastAssignedDriver?.session_id ?? 0;
 
     if (lastSlotNumber > 0) {
-        // Find next vehicle in the same or lower session with a higher slot number
+        // Find next vehicle in the current queue with a higher slot number than the last assigned current-queue slot
         const nextVehicles = sorted.filter(
-            (v) => {
-                const sid = v.driver?.session_id ?? 0;
-                if (sid < lastSessionId) return true;
-                if (sid === lastSessionId && (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber) return true;
-                return false;
-            }
+            (v) => (getVehicleSlotNumber(v) ?? 0) > lastSlotNumber
         );
         if (nextVehicles.length > 0) {
             return nextVehicles[0];
@@ -268,8 +262,18 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             }],
         });
 
-        setCreatedCustomerId(null);
-        setInvoicePath(null);
+        const existingCust = agent.customers?.length ? agent.customers[agent.customers.length - 1] : (agent.customer || null);
+        if (existingCust?.id) {
+            setCreatedCustomerId(existingCust.id);
+            setPaymentEnabledAgentId(agent.id);
+            if (existingCust.invoice_path) {
+                setInvoicePath(existingCust.invoice_path);
+                setVehicleEnabledAgentId(agent.id);
+            }
+        } else {
+            setCreatedCustomerId(null);
+            setInvoicePath(null);
+        }
     };
 
     const [processingAgentId, setProcessingAgentId] = useState(null);
@@ -322,10 +326,13 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
         customerForm.post('/customers', {
             preserveScroll: true,
+            preserveState: true,
             onSuccess: (page) => {
-                const id = page.props.createdCustomerId;
+                const id = page.props.createdCustomerId || page.props.flash?.created_customer_id || selectedAgent?.customers?.[selectedAgent.customers.length - 1]?.id;
 
-                setCreatedCustomerId(id);
+                if (id) {
+                    setCreatedCustomerId(id);
+                }
                 setPaymentEnabledAgentId(selectedAgent.id);
                 setActiveTab('payment');
             },
@@ -355,7 +362,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             const num = match ? parseInt(match[0], 10) : NaN;
 
             const sid = v.driver?.session_id ?? null;
-            if (sid !== null && sid > baseSessionId && !isVehicleOnTrip(v)) {
+            if (sid !== null && sid > baseSessionId) {
                 list.push({ vehicle: v, originalSlot: num, sessionId: sid });
             }
         });
@@ -1027,6 +1034,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 }
 
 function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustomerDisabled, isLockedByOther, lockedByName }) {
+    const isPaymentActive = paymentEnabled || Boolean(agent.customers?.length > 0);
+    const isVehicleActive = vehicleEnabled || Boolean(agent.customers?.some(c => c.invoice_path));
+
     return (
         <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
             <h3 className="flex justify-between font-semibold text-sm">
@@ -1056,12 +1066,12 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
                     {isLockedByOther ? `In Process (${lockedByName})` : 'Customer'}
                 </CardButton>
 
-                <CardButton color="green" disabled={!paymentEnabled} onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />} >
+                <CardButton color="green" disabled={!isPaymentActive} onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />} >
                     Payment
                 </CardButton>
 
                 {agent.booking_type !== 'Rent a Car' && (
-                    <CardButton color="purple" disabled={!vehicleEnabled} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
+                    <CardButton color="purple" disabled={!isVehicleActive} onClick={() => onOpen(agent, 'vehicle')} icon={<Car size={13} />} >
                         Vehicle
                     </CardButton>
                 )}
@@ -1091,27 +1101,16 @@ function Modal({
     eurRates,
     dbLanguages = [],
 }) {
+    const effectiveCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id || null;
+    const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
+
     return (
-        <div 
-            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-7xl max-h-[92vh] overflow-y-auto">
-                <div className="flex justify-between border-b px-6 py-2">
-                    <div>
-                        <h2 className="text-xl font-bold">Customer Processing</h2>
-                        <p className="text-sm text-gray-500">
-                            {agent.name} | {agent.passenger_count ?? 0} Pax(s) & {agent.luggage_count ?? 0} Luggage(s) | {agent.dropoff_location ?? '-'}
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold hover:bg-red-100"
-                        title="Cancel"
-                    >
-                        <X size={16} />
-
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center p-4 border-b">
+                    <h3 className="text-lg font-bold">Pending Customer Process</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+                        <X size={20} />
                     </button>
                 </div>
 
@@ -1120,16 +1119,16 @@ function Modal({
                         Customer
                     </TabButton>
 
-                    <TabButton active={activeTab === 'payment'} disabled={!customerId} onClick={() => setActiveTab('payment')} >
+                    <TabButton active={activeTab === 'payment'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('payment')} >
                         Payment
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('vehicle')} >
+                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('vehicle')} >
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!invoicePath} onClick={() => setActiveTab('rent_a_car_vehicle')} >
+                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('rent_a_car_vehicle')} >
                             External Vehicles
                         </TabButton>
                     )}
@@ -1141,15 +1140,15 @@ function Modal({
                     )}
 
                     {activeTab === 'payment' && (
-                        <PaymentTab agent={agent} customerId={customerId} form={paymentForm} invoicePath={invoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
+                        <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={customerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
+                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
                     )}
 
-                                    {activeTab === 'rent_a_car_vehicle' && (
-                        <RentACarVehicleTab agent={agent} customerId={customerId} onClose={onClose} />
+                    {activeTab === 'rent_a_car_vehicle' && (
+                        <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} />
                     )}
                 </div>
             </div>
@@ -1338,9 +1337,11 @@ function PaymentTab({
         setPayments(next);
     };
 
+    const targetCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id;
+
     const savePayment = (e) => {
         e.preventDefault();
-        if (!customerId) return alert('Please save customer first.');
+        if (!targetCustomerId) return alert('Please save customer first.');
         if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must match price (${price}).`);
 
         const payload = payments.map((p) => ({
@@ -1359,12 +1360,13 @@ function PaymentTab({
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
-        form.post(`/customers/${customerId}/payment`, {
+        form.post(`/customers/${targetCustomerId}/payment`, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
                 const path = page.props.invoicePath ?? page.props.flash?.invoice_path ?? null;
                 if (path) setInvoicePath(path);
+                setVehicleEnabledAgentId(agent.id);
 
                 if (isRentACar) {
                     setActiveTab('rent_a_car_vehicle');
@@ -1509,6 +1511,7 @@ function PaymentTab({
 }
 
 function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm }) {
+    const { auth } = usePage().props;
     const [confirmModal, setConfirmModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(() => {
         const nextInLine = getNextInLineVehicle(vehicles, ongoingTrips);
@@ -1518,6 +1521,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         }
         return null;
     });
+    const [selectionReason, setSelectionReason] = useState('');
+    const [reasonModal, setReasonModal] = useState(null); // { vehicle, slotNumber, isWaitingQueue, reason: '' }
     const [rateMode, setRateMode] = useState('standard');
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -1595,7 +1600,48 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             ? 0
             : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
 
+    const isOutOfTurnVehicle = (v) => {
+        if (!v) return false;
+        if (v.driver?.session_id > baseSessionId) return true;
+        if (nextInLineVehicle && v.id !== nextInLineVehicle.id) return true;
+        return false;
+    };
+
+    const handlePickVehicle = (v, slotNum, isWaiting = false) => {
+        if (!v) return;
+
+        // If driver is already on a trip or off duty, just select for viewing in the side panel
+        if ((v.driver?.trips && v.driver.trips.length > 0) || v.driver?.duty_status === 'on_trip' || v.driver?.duty_status !== 'on_duty') {
+            setSelectedVehicle({ ...v, _slotNumber: slotNum });
+            return;
+        }
+
+        // If clicking Next In Line (and not in waiting queue)
+        if (nextInLineVehicle && v.id === nextInLineVehicle.id && !(v.driver?.session_id > baseSessionId)) {
+            setSelectedVehicle({ ...v, _slotNumber: slotNum });
+            setSelectionReason('');
+            return;
+        }
+
+        // Out of turn vehicle picked: open reason modal
+        setReasonModal({
+            vehicle: { ...v, _slotNumber: slotNum },
+            slotNumber: slotNum,
+            isWaitingQueue: isWaiting || (v.driver?.session_id > baseSessionId),
+            reason: selectedVehicle?.id === v.id ? selectionReason : '',
+        });
+    };
+
     const openConfirm = (vehicle) => {
+        if (isOutOfTurnVehicle(vehicle) && !selectionReason.trim()) {
+            setReasonModal({
+                vehicle,
+                slotNumber: vehicle._slotNumber,
+                isWaitingQueue: vehicle.driver?.session_id > baseSessionId,
+                reason: '',
+            });
+            return;
+        }
         setRateMode('standard');
         setCustomDriverShare('');
         setCustomAgentShare('');
@@ -1653,6 +1699,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 driver_id: driverId,
                 agent_id: agent.id,
                 remarks: '',
+                selection_reason: isOutOfTurnVehicle(vehicle) ? (selectionReason.trim() || null) : null,
                 driver_rate: finalDriverRate,
                 agent_rate: finalAgentRate,
                 is_custom_rate: useCustomRate,
@@ -1800,7 +1847,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 {/* Left Side: Next In Line Square Card */}
                 <div 
                     className="w-[180px] h-[180px] shrink-0 border border-emerald-200 rounded-xl bg-emerald-50/50 flex flex-col items-center justify-between p-4 shadow-sm relative overflow-hidden cursor-pointer hover:bg-emerald-100/60 transition"
-                    onClick={() => nextInLineVehicle && setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber })}
+                    onClick={() => {
+                        if (nextInLineVehicle) {
+                            setSelectedVehicle({ ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber });
+                            setSelectionReason('');
+                        }
+                    }}
                     title={nextInLineVehicle ? "Click to view next vehicle details" : ""}
                 >
                     {/* Decorative badge */}
@@ -1855,8 +1907,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 }
 
                                 const sid = v.driver?.session_id ?? null;
-                                const isTrip = (v.driver?.trips && v.driver.trips.length > 0) || (ongoingTrips && ongoingTrips.some(t => t.driver_id === v.driver?.id || t.driver?.id === v.driver?.id)) || v.driver?.duty_status === 'on_trip';
-                                if (sid !== null && sid > baseSessionId && !isTrip) {
+                                if (sid !== null && sid > baseSessionId) {
                                     waitingQueueVehicles.push({ vehicle: v, originalSlot: num, sessionId: sid });
                                 }
                             });
@@ -1893,7 +1944,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                         selectedVehicleTypeFilter={selectedVehicleTypeFilter}
                                                         allVehicleTypes={allVehicleTypes}
                                                         isMovedToNextQueue={isMoved}
-                                                        onClick={(v) => !isMoved && setSelectedVehicle(v ? { ...v, _slotNumber: slotNum } : null)}
+                                                        onClick={(v) => !isMoved && handlePickVehicle(v, slotNum, false)}
                                                     />
                                                 );
                                             })}
@@ -1933,7 +1984,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                                                 selectedLanguageFilter={selectedLanguageFilter}
                                                                                 selectedVehicleTypeFilter={selectedVehicleTypeFilter}
                                                                                 allVehicleTypes={allVehicleTypes}
-                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                                onClick={(v) => handlePickVehicle(v, item.originalSlot, true)}
                                                                             />
                                                                         ))}
                                                                     </div>
@@ -1954,7 +2005,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                                                 selectedLanguageFilter={selectedLanguageFilter}
                                                                                 selectedVehicleTypeFilter={selectedVehicleTypeFilter}
                                                                                 allVehicleTypes={allVehicleTypes}
-                                                                                onClick={(v) => setSelectedVehicle(v ? { ...v, _slotNumber: item.originalSlot } : null)}
+                                                                                onClick={(v) => handlePickVehicle(v, item.originalSlot, true)}
                                                                             />
                                                                         ))}
                                                                     </div>
@@ -2048,6 +2099,31 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
                             {/* Details Body */}
                             <div className="p-3 space-y-3 overflow-y-auto flex-1 bg-white">
+                                {isOutOfTurnVehicle(selectedVehicle) && (
+                                    <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] text-gray-700">
+                                        <div className="flex items-center justify-between font-semibold mb-1">
+                                            <span>Out of Queue Selection</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setReasonModal({
+                                                    vehicle: selectedVehicle,
+                                                    slotNumber: selectedVehicle._slotNumber,
+                                                    isWaitingQueue: selectedVehicle.driver?.session_id > baseSessionId,
+                                                    reason: selectionReason,
+                                                })}
+                                                className="text-blue-600 underline text-[10px] hover:text-blue-800"
+                                            >
+                                                {selectionReason ? 'Edit Reason' : 'Add Reason'}
+                                            </button>
+                                        </div>
+                                        {selectionReason ? (
+                                            <p className="text-gray-600 line-clamp-2">"{selectionReason}"</p>
+                                        ) : (
+                                            <p className="text-gray-500">Reason required before assignment</p>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div>
                                     <span className="text-[10px] text-gray-500 font-semibold uppercase block mb-1">Languages ({selectedVehicle.driver?.languages?.length || 0})</span>
                                     <div className="bg-white border rounded p-2 min-h-[36px]">
@@ -2108,6 +2184,30 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         </div>
 
                         <div className="p-4 space-y-3">
+                            {/* Out-of-turn reason notification */}
+                            {isOutOfTurnVehicle(confirmModal.vehicle) && (
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700">
+                                    <div className="flex items-center justify-between font-semibold mb-1">
+                                        <span>Reason for Out-of-Line Selection</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setReasonModal({
+                                                vehicle: confirmModal.vehicle,
+                                                slotNumber: confirmModal.vehicle._slotNumber,
+                                                isWaitingQueue: confirmModal.vehicle.driver?.session_id > baseSessionId,
+                                                reason: selectionReason,
+                                            })}
+                                            className="text-blue-600 underline text-[11px] hover:text-blue-800"
+                                        >
+                                            Edit Reason
+                                        </button>
+                                    </div>
+                                    <p className="text-gray-600">
+                                        {selectionReason ? `"${selectionReason}"` : <span className="text-red-500">No reason provided</span>}
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Trip amount */}
                             <div className="bg-gray-50 rounded-lg border p-3 flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-600">Trip Amount</span>
@@ -2371,6 +2471,119 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                     </div>
                 </div>
             )}
+
+            {/* ── Out-of-Turn Reason Modal ── */}
+            {reasonModal && (
+                <div className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden border border-gray-200">
+                        {/* Simple Header */}
+                        <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900">Vehicle Selection Reason</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Please provide a reason for picking this vehicle</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setReasonModal(null)}
+                                className="text-gray-400 hover:text-gray-600 p-1 rounded transition"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {/* Simple Vehicle Summary */}
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 space-y-1">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Selected:</span>
+                                    <span className="font-semibold text-gray-900">
+                                        Slot {reasonModal.slotNumber} — {reasonModal.vehicle?.driver?.first_name ?? ''} {reasonModal.vehicle?.driver?.last_name ?? ''} ({reasonModal.vehicle?.registration_number ?? '-'})
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Next In Line:</span>
+                                    <span className="text-gray-600">
+                                        Slot {nextInLineSlotNumber ?? '-'} — {nextInLineVehicle?.driver?.first_name ?? 'None'} {nextInLineVehicle?.driver?.last_name ?? ''}
+                                    </span>
+                                </div>
+                                {reasonModal.isWaitingQueue && (
+                                    <div className="text-[11px] text-gray-500 pt-1 border-t border-gray-200">
+                                        Selected from Waiting Queue
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Quick Selection Chips */}
+                            <div>
+                                <label className="block text-xs text-gray-600 mb-1.5 font-medium">
+                                    Common Reasons
+                                </label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {[
+                                        'Customer preference',
+                                        customerPrefLang ? `Language (${customerPrefLang})` : 'Language requirement',
+                                        'Luggage / Passenger capacity',
+                                        'Next driver delayed/unavailable',
+                                        'VIP booking',
+                                    ].map((chip) => (
+                                        <button
+                                            key={chip}
+                                            type="button"
+                                            onClick={() => setReasonModal(prev => ({ ...prev, reason: chip }))}
+                                            className="text-xs px-2.5 py-1 rounded border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 transition"
+                                        >
+                                            {chip}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Reason Textarea */}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                    Reason <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={reasonModal.reason || ''}
+                                    onChange={(e) => setReasonModal(prev => ({ ...prev, reason: e.target.value }))}
+                                    placeholder="Enter the reason here..."
+                                    className="w-full text-xs p-2.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-slate-700 focus:border-slate-700 outline-none text-gray-800"
+                                />
+                                <div className="flex justify-between items-center mt-1 text-[11px] text-gray-400">
+                                    <span>Recorded for user: {auth?.user?.name || 'Staff'}</span>
+                                    <span>{(reasonModal.reason || '').trim().length} chars</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer Buttons */}
+                        <div className="flex gap-2 px-5 py-3.5 bg-gray-50 border-t border-gray-200">
+                            <button
+                                type="button"
+                                onClick={() => setReasonModal(null)}
+                                className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-white transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={!(reasonModal.reason || '').trim() || (reasonModal.reason || '').trim().length < 3}
+                                onClick={() => {
+                                    const trimmed = (reasonModal.reason || '').trim();
+                                    if (trimmed.length < 3) return;
+                                    setSelectionReason(trimmed);
+                                    setSelectedVehicle(reasonModal.vehicle);
+                                    setReasonModal(null);
+                                }}
+                                className="flex-1 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 disabled:opacity-50 transition"
+                            >
+                                Confirm Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -2476,6 +2689,17 @@ function TripCard({ trip }) {
                             Notes:
                         </span>{' '}
                         {trip.remarks}
+                    </div>
+                )}
+
+                {trip.selection_reason && (
+                    <div className="text-[10px] bg-amber-50 text-amber-900 border border-amber-200 rounded p-1.5 mt-1">
+                        <span className="font-bold">⚠️ Out of Queue:</span> {trip.selection_reason}
+                        {trip.selection_reason_by && (
+                            <span className="text-gray-500 block text-[9px] mt-0.5">
+                                Logged by: {trip.selection_reason_by?.name ?? trip.assigned_by?.name ?? 'Staff'}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>

@@ -52,17 +52,30 @@ class CustomerController extends Controller
 
         $agent = Agent::findOrFail($data['agent_id']);
 
-        $customer = Customer::create([
-            ...$data,
-            'customer_code' => $this->generateCustomerCode(),
-            'passport_image' => $agent->customer_passport,
-            'name' => $data['name'] ?: $agent->name,
-            'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-            'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-            'remarks' => $data['remarks'] ?: $agent->remarks,
-            'status' => $data['status'] ?? 'New',
-            'created_by' => Auth::id(),
-        ]);
+        $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
+        if ($existing) {
+            $existing->update([
+                ...$data,
+                'name' => $data['name'] ?: $agent->name,
+                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
+                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+                'remarks' => $data['remarks'] ?: $agent->remarks,
+                'status' => $data['status'] ?? 'New',
+            ]);
+            $customer = $existing;
+        } else {
+            $customer = Customer::create([
+                ...$data,
+                'customer_code' => $this->generateCustomerCode(),
+                'passport_image' => $agent->customer_passport,
+                'name' => $data['name'] ?: $agent->name,
+                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
+                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+                'remarks' => $data['remarks'] ?: $agent->remarks,
+                'status' => $data['status'] ?? 'New',
+                'created_by' => Auth::id(),
+            ]);
+        }
 
         return redirect()
             ->route('counter.index')
@@ -200,6 +213,7 @@ class CustomerController extends Controller
             'driver_share'   => 'nullable|numeric|min:0',
             'agent_share'    => 'nullable|numeric|min:0',
             'balance'        => 'nullable|numeric',
+            'selection_reason' => 'nullable|string',
         ]);
 
         $trip = null;
@@ -259,12 +273,16 @@ class CustomerController extends Controller
                 }
             }
 
+            $selectionReason = !empty($data['selection_reason']) ? trim($data['selection_reason']) : null;
+
             $trip = Trip::create([
                 'driver_id'        => $data['driver_id'],
                 'customer_id'      => $customer->id,
                 'agent_id'         => $data['agent_id'],
                 'trip_assigned_at' => now(),
                 'trip_assigned_by' => auth()->id(),
+                'selection_reason' => $selectionReason,
+                'selection_reason_by' => $selectionReason ? auth()->id() : null,
                 'remarks'          => $data['remarks'] ?? null,
                 'status'           => 'Assigned',
             ]);
