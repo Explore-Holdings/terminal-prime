@@ -363,7 +363,9 @@ class CustomerController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Trip assigned successfully.');
+        $customer->refresh();
+        return back()->with('success', 'Trip assigned successfully.')
+            ->with('invoice_path', $customer->invoice_path);
     }
 
     private static function sendFcmNotification(

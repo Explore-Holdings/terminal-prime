@@ -1144,11 +1144,11 @@ function Modal({
                     )}
 
                     {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} />
+                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} />
                     )}
 
                     {activeTab === 'rent_a_car_vehicle' && (
-                        <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} />
+                        <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
                     )}
                 </div>
             </div>
@@ -1510,7 +1510,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null }) {
     const { auth } = usePage().props;
     const [confirmModal, setConfirmModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(() => {
@@ -1691,6 +1691,15 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
+        // Open invoice in another page / new tab
+        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
+        let invoiceWindow = null;
+        if (targetInvoice) {
+            invoiceWindow = window.open(`/storage/${targetInvoice}`, '_blank');
+        } else {
+            invoiceWindow = window.open('about:blank', '_blank');
+        }
+
         setSubmitting(true);
 
         router.post(
@@ -1710,11 +1719,28 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             },
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
+                    if (invoiceWindow) {
+                        if (invoiceWindow.location.href.includes('about:blank')) {
+                            if (finalPath) {
+                                invoiceWindow.location.href = `/storage/${finalPath}`;
+                            } else {
+                                invoiceWindow.close();
+                            }
+                        }
+                    } else if (finalPath) {
+                        window.open(`/storage/${finalPath}`, '_blank');
+                    }
                     closeConfirm();
                     setShowFinalConfirm(false);
                     onClose();
                     router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'] });
+                },
+                onError: () => {
+                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
+                        invoiceWindow.close();
+                    }
                 },
                 onFinish: () => setSubmitting(false),
             }
@@ -2969,7 +2995,7 @@ function Empty({ text }) {
     );
 }
 
-function RentACarVehicleTab({ agent, customerId, onClose }) {
+function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -3008,6 +3034,14 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
     }, [startDate, endDate]);
 
     const confirmAssign = () => {
+        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
+        let invoiceWindow = null;
+        if (targetInvoice) {
+            invoiceWindow = window.open(`/storage/${targetInvoice}`, '_blank');
+        } else {
+            invoiceWindow = window.open('about:blank', '_blank');
+        }
+
         setSubmitting(true);
         const v = confirmModal.vehicle;
         
@@ -3025,10 +3059,27 @@ function RentACarVehicleTab({ agent, customerId, onClose }) {
             },
             {
                 preserveScroll: true,
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
+                    if (invoiceWindow) {
+                        if (invoiceWindow.location.href.includes('about:blank')) {
+                            if (finalPath) {
+                                invoiceWindow.location.href = `/storage/${finalPath}`;
+                            } else {
+                                invoiceWindow.close();
+                            }
+                        }
+                    } else if (finalPath) {
+                        window.open(`/storage/${finalPath}`, '_blank');
+                    }
                     setConfirmModal(null);
                     onClose();
                     router.reload({ only: ['pendingAgents'] });
+                },
+                onError: () => {
+                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
+                        invoiceWindow.close();
+                    }
                 },
                 onFinish: () => setSubmitting(false),
             }
