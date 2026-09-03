@@ -187,6 +187,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin', [\App\Http\Controllers\Admin\AdminActivityController::class, 'index'])->name('admin.index');
     Route::get('/admin/activity', [\App\Http\Controllers\Admin\AdminActivityController::class, 'index'])->name('admin.activity');
     Route::get('/admin/export', [\App\Http\Controllers\Admin\AdminActivityController::class, 'export'])->name('admin.export');
+    Route::post('/admin/verify-password', [\App\Http\Controllers\Admin\AdminActivityController::class, 'verifyPassword'])->name('admin.verify-password');
+    Route::post('/admin/lock', [\App\Http\Controllers\Admin\AdminActivityController::class, 'lock'])->name('admin.lock');
     Route::post('/admin/audit/log-client-export', [\App\Http\Controllers\Admin\AdminActivityController::class, 'logClientExport'])->name('admin.audit.log-client-export');
 });
 

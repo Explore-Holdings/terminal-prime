@@ -16,8 +16,13 @@ import {
     ChartBarIcon,
     UsersIcon,
     ShieldCheckIcon,
+    LockClosedIcon,
+    EyeIcon,
+    EyeSlashIcon,
+    XMarkIcon,
     ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import axios from 'axios';
 
 const iconMap = {
     Dashboard: Squares2X2Icon,
@@ -38,6 +43,13 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
     const { url, props } = usePage();
     const user = props.auth?.user;
     const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+
+    // Admin password protection state
+    const [showAdminModal, setShowAdminModal] = useState(false);
+    const [adminPassword, setAdminPassword] = useState('');
+    const [adminError, setAdminError] = useState('');
+    const [adminLoading, setAdminLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const role = String(user?.role ?? '').toLowerCase();
 
@@ -60,7 +72,48 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         role.includes('executive') || item.roles.includes(role)
     );
 
-    const isActive = (path) => url === path;
+    const isActive = (path) => url === path || url.startsWith(path + '/');
+
+    const handleMenuClick = (e, item) => {
+        if (item.label === 'Admin') {
+            e.preventDefault();
+            if (url.startsWith('/admin')) {
+                return;
+            }
+            setAdminPassword('');
+            setAdminError('');
+            setShowAdminModal(true);
+        }
+    };
+
+    const submitAdminPassword = async (e) => {
+        e.preventDefault();
+        if (!adminPassword) {
+            setAdminError('Please enter your password.');
+            return;
+        }
+
+        setAdminLoading(true);
+        setAdminError('');
+
+        try {
+            const res = await axios.post('/admin/verify-password', {
+                password: adminPassword,
+            });
+
+            if (res.data && res.data.success) {
+                setShowAdminModal(false);
+                setAdminPassword('');
+                window.location.href = res.data.redirect || '/admin';
+            } else {
+                setAdminError(res.data?.message || 'Access denied.');
+            }
+        } catch (err) {
+            setAdminError(err.response?.data?.message || 'Incorrect password. Access denied.');
+        } finally {
+            setAdminLoading(false);
+        }
+    };
 
     return (
         <>
@@ -97,6 +150,29 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                         {visibleMenuItems.map((item) => {
                             const Icon = iconMap[item.label] || Squares2X2Icon;
                             const active = isActive(item.path);
+                            const isAdminItem = item.label === 'Admin';
+
+                            if (isAdminItem) {
+                                return (
+                                    <button
+                                        key={item.path}
+                                        type="button"
+                                        onClick={(e) => handleMenuClick(e, item)}
+                                        className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                                            active
+                                                ? 'bg-[#0f1d45] text-white shadow-md shadow-[#0f1d45]/20'
+                                                : 'text-gray-600 hover:bg-gray-50 hover:text-[#0f1d45]'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
+                                            <span>{item.label}</span>
+                                        </div>
+                                        <LockClosedIcon className={`w-3.5 h-3.5 ${active ? 'text-blue-200' : 'text-gray-400'}`} />
+                                    </button>
+                                );
+                            }
+
                             return (
                                 <Link
                                     key={item.path}
@@ -175,6 +251,91 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                     </div>
                 </main>
             </div>
+
+            {/* ── Admin Password Verification Modal ── */}
+            {showAdminModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden transform transition-all">
+                        {/* Header */}
+                        <div className="p-6 pb-4 flex items-start justify-between border-b border-gray-100 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-2xl bg-[#0f1d45] text-white flex items-center justify-center shadow-lg shadow-[#0f1d45]/20 shrink-0">
+                                    <LockClosedIcon className="w-6 h-6 text-blue-300" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-[#0f1d45]">Admin Verification</h3>
+                                    <p className="text-xs text-gray-400 font-medium">Security authentication required</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowAdminModal(false)}
+                                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                <XMarkIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={submitAdminPassword} className="p-6 space-y-4">
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                                Enter the dedicated Admin access key configured for this system to proceed.
+                            </p>
+
+                            {adminError && (
+                                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center gap-2">
+                                    <span>⚠️</span>
+                                    <span>{adminError}</span>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                    Admin Security Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={adminPassword}
+                                        onChange={(e) => setAdminPassword(e.target.value)}
+                                        placeholder="Enter admin access password..."
+                                        autoFocus
+                                        className="w-full pl-3.5 pr-10 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0f1d45] focus:border-transparent font-medium"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showPassword ? (
+                                            <EyeSlashIcon className="w-4 h-4" />
+                                        ) : (
+                                            <EyeIcon className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-end gap-2.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdminModal(false)}
+                                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={adminLoading}
+                                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0f1d45] hover:bg-[#1a2d6b] shadow-md shadow-[#0f1d45]/20 disabled:opacity-50 transition-all"
+                                >
+                                    {adminLoading ? 'Verifying...' : 'Unlock & Access Admin'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

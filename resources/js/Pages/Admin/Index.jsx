@@ -25,6 +25,7 @@ import {
     Server,
     Layers,
     User,
+    Lock,
 } from 'lucide-react';
 
 export default function AdminIndex({
@@ -166,6 +167,15 @@ export default function AdminIndex({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => router.post('/admin/lock')}
+                                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition-all shadow-sm"
+                                title="Lock Admin Session and Exit"
+                            >
+                                <Lock size={14} className="text-blue-300" />
+                                Lock Admin
+                            </button>
                             <a
                                 href={`/admin/export?action=${selectedAction}&table=${selectedTable}&search=${encodeURIComponent(searchQuery)}`}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
