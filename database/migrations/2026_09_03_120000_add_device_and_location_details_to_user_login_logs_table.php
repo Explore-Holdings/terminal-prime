@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user_login_logs', function (Blueprint $table) {
+            $table->string('device_id', 64)->nullable()->after('shift_id');
             $table->string('device_type', 50)->nullable()->after('user_agent');
             $table->string('device_name', 100)->nullable()->after('device_type');
             $table->string('operating_system', 100)->nullable()->after('device_name');
