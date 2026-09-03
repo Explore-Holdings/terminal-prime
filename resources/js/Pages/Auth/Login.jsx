@@ -1,7 +1,7 @@
 import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function getOrCreateDeviceId() {
     try {
@@ -27,19 +27,50 @@ function getOrCreateDeviceId() {
 export default function Login({ status, canResetPassword }) {
     const [showPassword, setShowPassword] = useState(false);
     const [deviceId] = useState(() => (typeof window !== 'undefined' ? getOrCreateDeviceId() : ''));
+    const coordsRef = useRef({ latitude: null, longitude: null });
 
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
         remember: false,
         device_id: typeof window !== 'undefined' ? getOrCreateDeviceId() : '',
+        latitude: null,
+        longitude: null,
     });
+
+    useEffect(() => {
+        if (typeof window !== 'undefined' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    if (pos?.coords) {
+                        const lat = pos.coords.latitude;
+                        const lon = pos.coords.longitude;
+                        coordsRef.current = { latitude: lat, longitude: lon };
+                        setData((prev) => ({
+                            ...prev,
+                            latitude: lat,
+                            longitude: lon,
+                        }));
+                    }
+                },
+                () => {
+                    // Silently ignore if blocked or timeout
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+            );
+        }
+    }, []);
 
     const submit = (e) => {
         e.preventDefault();
 
         const currentDeviceId = getOrCreateDeviceId();
         data.device_id = currentDeviceId;
+
+        if (coordsRef.current.latitude) {
+            data.latitude = coordsRef.current.latitude;
+            data.longitude = coordsRef.current.longitude;
+        }
 
         post(route('login'), {
             onFinish: () => reset('password'),

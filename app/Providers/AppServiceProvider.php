@@ -141,8 +141,11 @@ class AppServiceProvider extends ServiceProvider
                 ?: request()->cookie('terminal_device_id')
                 ?: null;
 
+            $clientLat = request('latitude');
+            $clientLng = request('longitude');
+
             $deviceInfo = DeviceDetector::detect($ua);
-            $geoInfo = GeoLocationService::locate($ip);
+            $geoInfo = GeoLocationService::locateWithGps($ip, $clientLat, $clientLng);
 
             $event->user->loadMissing('role');
             $roleName = strtolower($event->user->role?->name ?? '');

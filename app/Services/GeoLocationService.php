@@ -88,4 +88,62 @@ class GeoLocationService
             'location'     => 'External IP (' . $ip . ')',
         ];
     }
+
+    /**
+     * Resolve location prioritizing accurate client-side browser GPS coordinates.
+     */
+    public static function locateWithGps(?string $ip, $clientLat = null, $clientLng = null): array
+    {
+        $lat = (is_numeric($clientLat) && (float) $clientLat != 0) ? (float) $clientLat : null;
+        $lng = (is_numeric($clientLng) && (float) $clientLng != 0) ? (float) $clientLng : null;
+
+        if ($lat !== null && $lng !== null) {
+            try {
+                // Free, ultra-fast reverse geocode from coordinates
+                $response = Http::timeout(2.0)->get("https://api.bigdatacloud.net/data/reverse-geocode-client", [
+                    'latitude'         => $lat,
+                    'longitude'        => $lng,
+                    'localityLanguage' => 'en',
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $locality = $data['locality'] ?? null;
+                    $city = $data['city'] ?? $locality ?? null;
+                    $region = $data['principalSubdivision'] ?? null;
+                    $country = $data['countryName'] ?? null;
+                    $code = $data['countryCode'] ?? null;
+
+                    $parts = array_filter([$locality ?: $city, $region, $country]);
+                    $formatted = !empty($parts) ? implode(', ', $parts) : ($country ?? 'GPS Coordinates');
+
+                    return [
+                        'city'         => $city,
+                        'region'       => $region,
+                        'country'      => $country,
+                        'country_code' => $code,
+                        'latitude'     => $lat,
+                        'longitude'    => $lng,
+                        'location'     => $formatted,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                Log::debug('Reverse GPS lookup error: ' . $e->getMessage());
+            }
+
+            // If reverse API is unreachable, return GPS coordinates directly
+            return [
+                'city'         => null,
+                'region'       => null,
+                'country'      => 'Sri Lanka',
+                'country_code' => 'LK',
+                'latitude'     => $lat,
+                'longitude'    => $lng,
+                'location'     => "GPS (" . number_format($lat, 4) . ", " . number_format($lng, 4) . ")",
+            ];
+        }
+
+        // Fall back to IP lookup if GPS was not provided or permitted
+        return self::locate($ip);
+    }
 }
