@@ -144,7 +144,7 @@ export default function Dashboard({
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-5">
+                        <div className="p-5 pt-0">
                             {pendingAttendanceRequests.length === 0 ? (
                                 <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                                     <CheckCircle className="mx-auto h-8 w-8 text-emerald-400 mb-2" />
