@@ -103,9 +103,9 @@ export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }
                     )}
 
                     {eurRates && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="grid grid-cols-1 gap-8">
                             
-                            <div className="flex flex-col gap-6 items-start">
+                            <div className="flex flex-col lg:flex-row gap-6 items-start">
                                 {/* Left Side: Interactive Area */}
                                 <div className="w-full lg:w-7/12 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                     {/* Target Section (Header-like) */}
