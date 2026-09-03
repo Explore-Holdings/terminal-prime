@@ -1392,6 +1392,13 @@ function PaymentTab({
 
     return (
         <form onSubmit={savePayment} className="space-y-5">
+            <div className="flex justify-end">
+                <a href="/finance" target="_blank" rel="noreferrer"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+                    View Rates
+                </a>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select label="Main Currency" value={form.data.currency}
                     onChange={(e) => form.setData('currency', e.target.value)} options={CURRENCIES} />
@@ -1502,14 +1509,9 @@ function PaymentTab({
 
             {form.errors.payments && <p className="text-red-600 text-sm">{form.errors.payments}</p>}
 
-            {invoicePath && (
-                <a href={`/storage/${invoicePath}`} target="_blank" rel="noreferrer"
-                    className="inline-block bg-green-700 text-white px-4 py-2 rounded-lg">Open Invoice</a>
-            )}
-
             <div className="flex justify-end">
                 <button disabled={!canSubmit}
-                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50">
+                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50 transition hover:bg-green-800">
                     {agent.booking_type === 'Rent a Car' ? 'Confirm' : 'Continue to Vehicle'}
                 </button>
             </div>
