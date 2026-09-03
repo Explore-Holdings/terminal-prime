@@ -1,18 +1,21 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
+import { useState } from 'react';
 import {
     ArrowTrendingUpIcon,
     UserGroupIcon,
     TruckIcon,
     BanknotesIcon,
 } from '@heroicons/react/24/outline';
-import { Calendar } from 'lucide-react';
+import { Calendar, X, Check, XCircle, CheckCircle } from 'lucide-react';
 
 export default function Dashboard({
     stats = {},
     recentCustomers = [],
     recentDrivers = [],
+    pendingAttendanceRequests = [],
 }) {
+    const [showAttendanceModal, setShowAttendanceModal] = useState(false);
     const { props } = usePage();
     const role = String(props.auth?.user?.role ?? '').toLowerCase();
     const userName = props.auth?.user?.name ?? 'User';
@@ -33,13 +36,20 @@ export default function Dashboard({
                         Here's what's happening with your airport counter today.
                     </p>
                 </div>
-                <Link
-                    href="#"
-                    className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap"
-                >
-                    <Calendar size={18} />
-                    Attendance Requests
-                </Link>
+                {role === 'admin' && (
+                    <button
+                        onClick={() => setShowAttendanceModal(true)}
+                        className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap relative"
+                    >
+                        <Calendar size={18} />
+                        <span>Attendance Requests</span>
+                        {props.pendingAttendanceCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md border-2 border-white">
+                                {props.pendingAttendanceCount}
+                            </span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Stat Cards */}
@@ -117,6 +127,62 @@ export default function Dashboard({
                     />
                 )}
             </div>
+
+            {/* Modal */}
+            {showAttendanceModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white/95 backdrop-blur z-10">
+                            <div>
+                                <h2 className="text-xl font-black text-[#0f1d45]">Pending Attendance Requests</h2>
+                                <p className="text-sm font-medium text-gray-400">Review and approve agent check-ins.</p>
+                            </div>
+                            <button
+                                onClick={() => setShowAttendanceModal(false)}
+                                className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-5 pt-0">
+                            {pendingAttendanceRequests.length === 0 ? (
+                                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                    <CheckCircle className="mx-auto h-8 w-8 text-emerald-400 mb-2" />
+                                    <p className="text-sm font-bold text-gray-500">All caught up!</p>
+                                    <p className="text-xs text-gray-400">No pending attendance requests right now.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {pendingAttendanceRequests.map((req) => (
+                                        <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#f5f6fa]/50 border border-gray-100 rounded-xl hover:bg-white hover:shadow-sm transition">
+                                            <div>
+                                                <p className="text-sm font-black text-[#0f1d45]">{req.user_name || 'Agent'} | Reason : {req.reason}</p>
+                                                <p className="text-xs font-medium text-gray-400">Requested: {new Date(req.requested_at).toLocaleString()}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => router.post(route('attendance-requests.approve', req.id), {}, { preserveScroll: true, preserveState: true })}
+                                                    className="inline-flex flex-1 justify-center items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-xs rounded-lg transition"
+                                                >
+                                                    <Check size={14} />
+                                                    Approve
+                                                </button>
+                                                <button
+                                                    onClick={() => router.post(route('attendance-requests.reject', req.id), {}, { preserveScroll: true, preserveState: true })}
+                                                    className="inline-flex flex-1 justify-center items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded-lg transition"
+                                                >
+                                                    <XCircle size={14} />
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppSidebarLayout>
     );
 }

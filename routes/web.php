@@ -3,6 +3,8 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use App\Http\Controllers\DriverController;
 use App\Models\Customer;
 use App\Models\Driver;
@@ -66,8 +68,33 @@ Route::get('/dashboard', function () {
                 'whatsapp_number',
                 'status',
             ]),
+            
+        'pendingAttendanceRequests' => DB::table('agent_checkin_requests')
+            ->where('status', 'pending')
+            ->leftJoin('users', 'users.id', '=', 'agent_checkin_requests.user_id')
+            ->select('agent_checkin_requests.*', 'users.name as user_name')
+            ->orderBy('requested_at', 'desc')
+            ->get(),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('/dashboard/attendance-requests/{id}/approve', function(Request $request, $id) {
+        DB::table('agent_checkin_requests')->where('id', $id)->update([
+            'status' => 'approved',
+            'reviewed_at' => now(),
+        ]);
+        return redirect()->back()->with('success', 'Request approved.');
+    })->name('attendance-requests.approve');
+
+    Route::post('/dashboard/attendance-requests/{id}/reject', function(Request $request, $id) {
+        DB::table('agent_checkin_requests')->where('id', $id)->update([
+            'status' => 'rejected',
+            'reviewed_at' => now(),
+        ]);
+        return redirect()->back()->with('success', 'Request rejected.');
+    })->name('attendance-requests.reject');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

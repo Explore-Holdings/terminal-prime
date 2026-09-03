@@ -98,14 +98,21 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                                 <Link
                                     key={item.path}
                                     href={item.path}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                                         active
                                             ? 'bg-[#0f1d45] text-white shadow-md shadow-[#0f1d45]/20'
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-[#0f1d45]'
                                     }`}
                                 >
-                                    <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
-                                    {item.label}
+                                    <div className="flex items-center gap-3">
+                                        <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? 'text-white' : 'text-gray-400'}`} />
+                                        {item.label}
+                                    </div>
+                                    {item.label === 'Dashboard' && role === 'admin' && props.pendingAttendanceCount > 0 && (
+                                        <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                                            {props.pendingAttendanceCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
