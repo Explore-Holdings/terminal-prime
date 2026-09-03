@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('user_login_logs', function (Blueprint $table) {
-            $table->string('shift_id')->nullable()->after('id');
-        });
+        if (!Schema::hasColumn('user_login_logs', 'shift_id')) {
+            Schema::table('user_login_logs', function (Blueprint $table) {
+                $table->string('shift_id')->nullable()->after('id');
+            });
+        }
     }
 
     /**

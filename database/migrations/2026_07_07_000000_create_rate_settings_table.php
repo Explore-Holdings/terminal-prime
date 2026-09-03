@@ -12,25 +12,27 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('rate_settings', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->default('Default');
-            $table->decimal('agent_rate', 8, 2)->default(0);
-            $table->decimal('driver_rate', 8, 2)->default(0);
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('rate_settings')) {
+            Schema::create('rate_settings', function (Blueprint $table) {
+                $table->id();
+                $table->string('name')->default('Default');
+                $table->decimal('agent_rate', 8, 2)->default(0);
+                $table->decimal('driver_rate', 8, 2)->default(0);
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
 
-        DB::table('rate_settings')->insert([
-            [
-                'name' => 'Default',
-                'agent_rate' => 0,
-                'driver_rate' => 0,
-                'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+            DB::table('rate_settings')->insert([
+                [
+                    'name' => 'Default',
+                    'agent_rate' => 0,
+                    'driver_rate' => 0,
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ]);
+        }
     }
 
     /**

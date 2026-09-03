@@ -8,12 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('trip_finances', function (Blueprint $table) {
-            $table->unsignedBigInteger('agent_user_id')->nullable()->after('agent_id')->comment("The agent's user account ID");
+        if (!Schema::hasColumn('trip_finances', 'agent_user_id')) {
+            Schema::table('trip_finances', function (Blueprint $table) {
+                $table->unsignedBigInteger('agent_user_id')->nullable()->after('agent_id')->comment("The agent's user account ID");
 
-            $table->foreign('agent_user_id')->references('id')->on('users')->onDelete('set null');
-            $table->index('agent_user_id');
-        });
+                $table->foreign('agent_user_id')->references('id')->on('users')->onDelete('set null');
+                $table->index('agent_user_id');
+            });
+        }
     }
 
     public function down(): void

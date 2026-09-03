@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('agents', function (Blueprint $table) {
-            $table->string('external_vehicle_id')->nullable();
-            $table->string('external_vehicle_reg')->nullable();
-            $table->string('external_vehicle_make')->nullable();
-            $table->string('external_vehicle_model')->nullable();
-            $table->string('external_company_name')->nullable();
-            $table->date('rent_start_date')->nullable();
-            $table->date('rent_end_date')->nullable();
-        });
+        if (!Schema::hasColumn('agents', 'external_vehicle_id')) {
+            Schema::table('agents', function (Blueprint $table) {
+                $table->string('external_vehicle_id')->nullable();
+                $table->string('external_vehicle_reg')->nullable();
+                $table->string('external_vehicle_make')->nullable();
+                $table->string('external_vehicle_model')->nullable();
+                $table->string('external_company_name')->nullable();
+                $table->date('rent_start_date')->nullable();
+                $table->date('rent_end_date')->nullable();
+            });
+        }
     }
 
     /**
