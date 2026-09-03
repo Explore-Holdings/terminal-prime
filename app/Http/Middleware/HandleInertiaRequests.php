@@ -47,6 +47,7 @@ class HandleInertiaRequests extends Middleware
                     'isExecutiveStaff' => str_contains(strtolower($user->role?->name ?? ''), 'executive'),
                 ] : null,
             ],
+            'pendingAttendanceCount' => \Illuminate\Support\Facades\DB::table('agent_checkin_requests')->where('status', 'pending')->count(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
