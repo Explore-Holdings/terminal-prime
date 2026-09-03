@@ -471,4 +471,12 @@ class CounterController extends Controller
             ],
         ];
     }
+
+    public function converter(Request $request)
+    {
+        return Inertia::render('Counter/Converter', [
+            'initialCurrency' => $request->query('currency', 'USD'),
+            'initialAmount' => $request->query('amount', 0),
+        ]);
+    }
 }
