@@ -180,6 +180,11 @@ export default function Dashboard({
                                                                 <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 capitalize">
                                                                     {login.user_role}
                                                                 </span>
+                                                                {login.shift_id && (
+                                                                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                                                        {login.shift_id}
+                                                                    </span>
+                                                                )}
                                                                 {login.user_email && (
                                                                     <span className="text-xs text-gray-400 truncate max-w-[140px]">
                                                                         {login.user_email}
@@ -209,6 +214,14 @@ export default function Dashboard({
                                                             <p className="text-[11px] text-gray-400 font-medium">
                                                                 {login.operating_system || 'Desktop OS'}
                                                             </p>
+                                                            {login.device_id && (
+                                                                <span
+                                                                    className="text-[10px] font-mono font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100/80 rounded px-1.5 py-0.5 mt-1 inline-block max-w-[180px] truncate cursor-pointer hover:bg-indigo-100 transition-colors"
+                                                                    title={`Hardware Device ID: ${login.device_id}`}
+                                                                >
+                                                                    ID: {login.device_id}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>

@@ -108,6 +108,8 @@ Route::get('/dashboard', function () {
                     'user_email'       => $log->user?->email ?? '',
                     'user_role'        => $log->user?->role?->name ?? 'Staff',
                     'ip_address'       => $log->ip_address ?? '127.0.0.1',
+                    'device_id'        => $log->device_id,
+                    'shift_id'         => $log->shift_id,
                     'device_type'      => $deviceType ?: 'Desktop',
                     'device_name'      => $device ?: 'Computer',
                     'operating_system' => $operatingSystem ?: 'Windows',

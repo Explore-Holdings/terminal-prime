@@ -3,17 +3,43 @@ import InputError from '@/Components/InputError';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
+function getOrCreateDeviceId() {
+    try {
+        let id = localStorage.getItem('terminal_device_id');
+        if (!id) {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                id = crypto.randomUUID().toUpperCase();
+            } else {
+                id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    const r = (Math.random() * 16) | 0;
+                    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                    return v.toString(16).toUpperCase();
+                });
+            }
+            localStorage.setItem('terminal_device_id', id);
+        }
+        return id;
+    } catch (e) {
+        return null;
+    }
+}
+
 export default function Login({ status, canResetPassword }) {
     const [showPassword, setShowPassword] = useState(false);
+    const [deviceId] = useState(() => (typeof window !== 'undefined' ? getOrCreateDeviceId() : ''));
 
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
         remember: false,
+        device_id: typeof window !== 'undefined' ? getOrCreateDeviceId() : '',
     });
 
     const submit = (e) => {
         e.preventDefault();
+
+        const currentDeviceId = getOrCreateDeviceId();
+        data.device_id = currentDeviceId;
 
         post(route('login'), {
             onFinish: () => reset('password'),
@@ -138,6 +164,15 @@ export default function Login({ status, canResetPassword }) {
                             >
                                 {processing ? 'Signing in...' : 'Log in'}
                             </button>
+
+                            {deviceId && (
+                                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                                    <span className="font-semibold uppercase tracking-wider">Terminal ID</span>
+                                    <span className="font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]" title={deviceId}>
+                                        {deviceId}
+                                    </span>
+                                </div>
+                            )}
                         </form>
                     </div>
 

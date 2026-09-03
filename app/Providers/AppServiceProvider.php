@@ -35,70 +35,113 @@ class AppServiceProvider extends ServiceProvider
         // Register the Trip observer for session tracking
         Trip::observe(TripObserver::class);
 
-        // Ensure user_login_logs table has rich device & location columns
+        // Ensure user_login_logs table has rich device & location columns in MySQL
         try {
-            if (Schema::hasTable('user_login_logs') && !Schema::hasColumn('user_login_logs', 'device_type')) {
-                Schema::table('user_login_logs', function (Blueprint $table) {
-                    if (!Schema::hasColumn('user_login_logs', 'device_type')) {
-                        $table->string('device_type', 50)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'device_name')) {
-                        $table->string('device_name', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'operating_system')) {
-                        $table->string('operating_system', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'browser')) {
-                        $table->string('browser', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'city')) {
-                        $table->string('city', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'region')) {
-                        $table->string('region', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'country')) {
-                        $table->string('country', 100)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'country_code')) {
-                        $table->string('country_code', 10)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'location')) {
-                        $table->string('location', 255)->nullable();
-                    }
-                    if (!Schema::hasColumn('user_login_logs', 'status')) {
-                        $table->string('status', 30)->default('active');
-                    }
-                });
+            if (\Illuminate\Support\Facades\Schema::hasTable('user_login_logs')) {
+                $existingCols = \Illuminate\Support\Facades\DB::select("SHOW COLUMNS FROM `user_login_logs`");
+                $colNames = array_map(function ($col) {
+                    $arr = (array) $col;
+                    return $arr['Field'] ?? $arr['field'] ?? '';
+                }, $existingCols);
+
+                $missing = [];
+                if (!in_array('device_id', $colNames)) {
+                    $missing[] = "ADD COLUMN `device_id` VARCHAR(64) NULL AFTER `shift_id`";
+                }
+                if (!in_array('device_type', $colNames)) {
+                    $missing[] = "ADD COLUMN `device_type` VARCHAR(50) NULL AFTER `user_agent`";
+                }
+                if (!in_array('device_name', $colNames)) {
+                    $missing[] = "ADD COLUMN `device_name` VARCHAR(100) NULL AFTER `device_type`";
+                }
+                if (!in_array('operating_system', $colNames)) {
+                    $missing[] = "ADD COLUMN `operating_system` VARCHAR(100) NULL AFTER `device_name`";
+                }
+                if (!in_array('browser', $colNames)) {
+                    $missing[] = "ADD COLUMN `browser` VARCHAR(100) NULL AFTER `operating_system`";
+                }
+                if (!in_array('city', $colNames)) {
+                    $missing[] = "ADD COLUMN `city` VARCHAR(100) NULL AFTER `browser`";
+                }
+                if (!in_array('region', $colNames)) {
+                    $missing[] = "ADD COLUMN `region` VARCHAR(100) NULL AFTER `city`";
+                }
+                if (!in_array('country', $colNames)) {
+                    $missing[] = "ADD COLUMN `country` VARCHAR(100) NULL AFTER `region`";
+                }
+                if (!in_array('country_code', $colNames)) {
+                    $missing[] = "ADD COLUMN `country_code` VARCHAR(10) NULL AFTER `country`";
+                }
+                if (!in_array('location', $colNames)) {
+                    $missing[] = "ADD COLUMN `location` VARCHAR(255) NULL AFTER `country_code`";
+                }
+                if (!in_array('status', $colNames)) {
+                    $missing[] = "ADD COLUMN `status` VARCHAR(30) NOT NULL DEFAULT 'active' AFTER `location`";
+                }
+
+                if (!empty($missing)) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE `user_login_logs` " . implode(', ', $missing));
+                }
             }
         } catch (\Throwable $e) {
-            // Silently ignore if already migrated or during CLI setup
+            \Illuminate\Support\Facades\Log::error('Auto-migration for user_login_logs failed: ' . $e->getMessage());
         }
 
         Event::listen(Login::class, function (Login $event) {
             $ip = request()->ip();
             $ua = request()->userAgent();
 
+            $deviceId = request('device_id')
+                ?: request()->header('X-Device-Id')
+                ?: request()->cookie('terminal_device_id')
+                ?: null;
+
             $deviceInfo = DeviceDetector::detect($ua);
             $geoInfo = GeoLocationService::locate($ip);
 
-            $log = UserLoginLog::create([
-                'user_id'          => $event->user->id,
-                'ip_address'       => $ip,
-                'user_agent'       => $ua,
-                'device_type'      => $deviceInfo['device_type'] ?? 'Desktop',
-                'device_name'      => $deviceInfo['device_name'] ?? 'Unknown Device',
-                'operating_system' => $deviceInfo['operating_system'] ?? 'Unknown OS',
-                'browser'          => $deviceInfo['browser'] ?? 'Browser',
-                'city'             => $geoInfo['city'] ?? null,
-                'region'           => $geoInfo['region'] ?? null,
-                'country'          => $geoInfo['country'] ?? null,
-                'country_code'     => $geoInfo['country_code'] ?? null,
-                'location'         => $geoInfo['location'] ?? 'Unknown Location',
-                'status'           => 'active',
-                'login_at'         => now(),
-            ]);
-            $log->update(['shift_id' => 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT)]);
+            $event->user->loadMissing('role');
+            $roleName = strtolower($event->user->role?->name ?? '');
+            $isCounterStaff = $roleName === 'counter staff';
+
+            try {
+                $log = UserLoginLog::create([
+                    'user_id'          => $event->user->id,
+                    'device_id'        => $deviceId,
+                    'ip_address'       => $ip,
+                    'user_agent'       => $ua,
+                    'device_type'      => $deviceInfo['device_type'] ?? 'Desktop',
+                    'device_name'      => $deviceInfo['device_name'] ?? 'Unknown Device',
+                    'operating_system' => $deviceInfo['operating_system'] ?? 'Unknown OS',
+                    'browser'          => $deviceInfo['browser'] ?? 'Browser',
+                    'city'             => $geoInfo['city'] ?? null,
+                    'region'           => $geoInfo['region'] ?? null,
+                    'country'          => $geoInfo['country'] ?? null,
+                    'country_code'     => $geoInfo['country_code'] ?? null,
+                    'location'         => $geoInfo['location'] ?? 'Unknown Location',
+                    'status'           => 'active',
+                    'login_at'         => now(),
+                ]);
+
+                if ($isCounterStaff) {
+                    $log->update(['shift_id' => 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT)]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('UserLoginLog creation failed on login: ' . $e->getMessage());
+                // Fallback creation with basic attributes if new columns are not yet in the DB
+                try {
+                    $fallbackLog = UserLoginLog::create([
+                        'user_id'    => $event->user->id,
+                        'ip_address' => $ip,
+                        'user_agent' => $ua,
+                        'login_at'   => now(),
+                    ]);
+                    if ($isCounterStaff) {
+                        $fallbackLog->update(['shift_id' => 'SHIFT-' . str_pad($fallbackLog->id, 2, '0', STR_PAD_LEFT)]);
+                    }
+                } catch (\Throwable $ex) {
+                    \Illuminate\Support\Facades\Log::error('Fallback UserLoginLog creation failed: ' . $ex->getMessage());
+                }
+            }
         });
 
         Event::listen(Logout::class, function (Logout $event) {
