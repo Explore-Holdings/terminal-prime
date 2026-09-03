@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\DriverController;
 use App\Models\Customer;
 use App\Models\Driver;
+use App\Models\UserLoginLog;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
@@ -75,6 +76,48 @@ Route::get('/dashboard', function () {
             ->select('agent_checkin_requests.*', 'users.name as user_name')
             ->orderBy('requested_at', 'desc')
             ->get(),
+
+        'recentLogins' => UserLoginLog::with(['user.role'])
+            ->latest('login_at')
+            ->take(8)
+            ->get()
+            ->map(function ($log) {
+                $deviceType = $log->device_type;
+                $operatingSystem = $log->operating_system;
+                $browser = $log->browser;
+                $device = $log->device_name;
+                $location = $log->location;
+
+                if (empty($deviceType) && !empty($log->user_agent)) {
+                    $detected = \App\Services\DeviceDetector::detect($log->user_agent);
+                    $deviceType = $detected['device_type'];
+                    $operatingSystem = $detected['operating_system'];
+                    $browser = $detected['browser'];
+                    $device = $detected['device_name'];
+                }
+
+                if (empty($location) && !empty($log->ip_address)) {
+                    $geo = \App\Services\GeoLocationService::locate($log->ip_address);
+                    $location = $geo['location'];
+                }
+
+                return [
+                    'id'               => $log->id,
+                    'user_id'          => $log->user_id,
+                    'user_name'        => $log->user?->name ?? 'Unknown User',
+                    'user_email'       => $log->user?->email ?? '',
+                    'user_role'        => $log->user?->role?->name ?? 'Staff',
+                    'ip_address'       => $log->ip_address ?? '127.0.0.1',
+                    'device_type'      => $deviceType ?: 'Desktop',
+                    'device_name'      => $device ?: 'Computer',
+                    'operating_system' => $operatingSystem ?: 'Windows',
+                    'browser'          => $browser ?: 'Web Browser',
+                    'location'         => $location ?: 'Local Station',
+                    'status'           => $log->status ?: ($log->logout_at ? 'logged_out' : 'active'),
+                    'login_at'         => $log->login_at?->toIso8601String() ?? $log->login_at,
+                    'logout_at'        => $log->logout_at?->toIso8601String() ?? $log->logout_at,
+                ];
+            }),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
