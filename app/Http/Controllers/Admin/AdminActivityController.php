@@ -24,6 +24,11 @@ class AdminActivityController extends Controller
             abort(403, 'Unauthorized. Admin access only.');
         }
 
+        // Enforce password unlock protection
+        if (!session('admin_unlocked')) {
+            return redirect()->route('dashboard')->with('error', 'Please verify your password to access the Admin module.');
+        }
+
         $activeTab = $request->query('tab', 'audit'); // 'audit' or 'logins'
 
         // ── 1. AUDIT LOGS QUERY ──
@@ -79,7 +84,9 @@ class AdminActivityController extends Controller
             }
         }
 
-        $auditLogsPaginated = $auditQuery->paginate(15, ['*'], 'audit_page')->withQueryString();
+        $auditPerPage = (int) $request->query('audit_per_page', 15);
+        $auditLogsPaginated = $auditQuery->paginate($auditPerPage, ['*'], 'audit_page')
+            ->appends(array_merge($request->query(), ['tab' => 'audit']));
 
         // ── 2. RECENT LOGIN LOGS QUERY ──
         $loginQuery = UserLoginLog::with('user.role')->latest('login_at');
@@ -99,7 +106,9 @@ class AdminActivityController extends Controller
             });
         }
 
-        $loginsPaginated = $loginQuery->paginate(12, ['*'], 'login_page')->withQueryString();
+        $loginPerPage = (int) $request->query('login_per_page', 10);
+        $loginsPaginated = $loginQuery->paginate($loginPerPage, ['*'], 'login_page')
+            ->appends(array_merge($request->query(), ['tab' => 'logins']));
 
         $mappedLogins = $loginsPaginated->getCollection()->map(function ($log) {
             $deviceType = $log->device_type;
@@ -314,5 +323,64 @@ class AdminActivityController extends Controller
         );
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Verify password to unlock Admin module access.
+     */
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+        $user?->loadMissing('role');
+        $role = strtolower($user?->role?->name ?? '');
+
+        if (!in_array($role, ['admin', 'executive'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admin role required.',
+            ], 403);
+        }
+
+        $password = (string) $request->input('password');
+
+        // Verify exclusively against the dedicated ADMIN_MODULE_PASSWORD in .env
+        $expectedPassword = config('app.admin_module_password')
+            ?: env('ADMIN_MODULE_PASSWORD', 'Admin@TP2026!');
+
+        $isValid = hash_equals((string) $expectedPassword, $password);
+
+        if ($isValid) {
+            session(['admin_unlocked' => true]);
+
+            AuditLogger::log(
+                'SECURITY',
+                "Admin module unlocked with password by {$user->name}",
+                'users',
+                (string) $user->id
+            );
+
+            return response()->json([
+                'success'  => true,
+                'redirect' => route('admin.index'),
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Incorrect password. Access denied.',
+        ], 422);
+    }
+
+    /**
+     * Re-lock the Admin module.
+     */
+    public function lock(Request $request)
+    {
+        session()->forget('admin_unlocked');
+        return redirect()->route('dashboard')->with('success', 'Admin module locked.');
     }
 }

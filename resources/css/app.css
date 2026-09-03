@@ -4,6 +4,18 @@
 
 body {
     font-family: Cambria, 'Times New Roman', serif;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Allow text focus and typing in interactive form controls */
+input, textarea, select {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 
 .label {

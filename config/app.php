@@ -15,6 +15,8 @@ return [
 
     'name' => env('APP_NAME', 'AirportCounterSystem'),
 
+    'admin_module_password' => env('ADMIN_MODULE_PASSWORD', 'Admin@TP2026!'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

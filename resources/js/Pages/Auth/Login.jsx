@@ -38,7 +38,17 @@ export default function Login({ status, canResetPassword }) {
         longitude: null,
     });
 
+    const [inactivityNotice, setInactivityNotice] = useState(false);
+
     useEffect(() => {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('reason') === 'inactivity' || sessionStorage.getItem('logout_reason') === 'inactivity') {
+                setInactivityNotice(true);
+                sessionStorage.removeItem('logout_reason');
+            }
+        } catch (e) {}
+
         if (typeof window !== 'undefined' && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
@@ -111,6 +121,13 @@ export default function Login({ status, canResetPassword }) {
                         {status && (
                             <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
                                 {status}
+                            </div>
+                        )}
+
+                        {inactivityNotice && (
+                            <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs font-semibold text-amber-800 flex items-center gap-2 shadow-sm">
+                                <span className="text-base">⏱️</span>
+                                <span>You have been logged out due to 10 minutes of inactivity.</span>
                             </div>
                         )}
 
@@ -196,14 +213,14 @@ export default function Login({ status, canResetPassword }) {
                                 {processing ? 'Signing in...' : 'Log in'}
                             </button>
 
-                            {deviceId && (
+                            {/* {deviceId && (
                                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                                     <span className="font-semibold uppercase tracking-wider">Terminal ID</span>
                                     <span className="font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]" title={deviceId}>
                                         {deviceId}
                                     </span>
                                 </div>
-                            )}
+                            )} */}
                         </form>
                     </div>
 
