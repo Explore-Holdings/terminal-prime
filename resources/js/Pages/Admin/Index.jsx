@@ -77,6 +77,22 @@ export default function AdminIndex({
         );
     };
 
+    const handleLoginPerPageChange = (newPerPage) => {
+        router.get(
+            '/admin',
+            {
+                tab: 'logins',
+                login_search: loginSearch,
+                login_per_page: newPerPage,
+            },
+            { preserveScroll: true, preserveState: true }
+        );
+    };
+
+    const handleAuditPerPageChange = (newPerPage) => {
+        applyAuditFilters({ audit_per_page: newPerPage });
+    };
+
     // Action badge renderer
     const renderActionBadge = (action) => {
         const act = (action || '').toUpperCase();
@@ -513,22 +529,38 @@ export default function AdminIndex({
                         </div>
 
                         {/* Audit Pagination */}
-                        {auditLogs.total > auditLogs.per_page && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
-                                <div className="text-xs text-gray-500 font-medium">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-xs text-gray-500 font-medium">
                                     Showing <span className="font-bold text-slate-800">{auditLogs.from || 0}</span> to{' '}
                                     <span className="font-bold text-slate-800">{auditLogs.to || 0}</span> of{' '}
-                                    <span className="font-bold text-slate-800">{auditLogs.total}</span> audit records
-                                </div>
+                                    <span className="font-bold text-slate-800">{auditLogs.total || 0}</span> audit records
+                                </span>
 
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <span>Per page:</span>
+                                    <select
+                                        value={auditLogs.per_page || 15}
+                                        onChange={(e) => handleAuditPerPageChange(e.target.value)}
+                                        className="text-xs font-bold py-1 px-2.5 rounded-lg border border-gray-200 bg-white focus:ring-1 focus:ring-[#0f1d45] focus:outline-none"
+                                    >
+                                        <option value="10">10</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {auditLogs.links && auditLogs.links.length > 3 && (
                                 <div className="flex items-center gap-1">
-                                    {auditLogs.links?.map((link, idx) => {
+                                    {auditLogs.links.map((link, idx) => {
                                         if (!link.url) {
                                             return (
                                                 <span
                                                     key={idx}
                                                     dangerouslySetInnerHTML={{ __html: link.label }}
-                                                    className="px-2.5 py-1 text-xs text-gray-300 font-semibold rounded-lg select-none"
+                                                    className="px-2.5 py-1 text-xs text-gray-300 font-semibold rounded-lg select-none cursor-not-allowed"
                                                 />
                                             );
                                         }
@@ -549,8 +581,8 @@ export default function AdminIndex({
                                         );
                                     })}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -753,22 +785,38 @@ export default function AdminIndex({
                         </div>
 
                         {/* Logins Pagination */}
-                        {recentLogins.total > recentLogins.per_page && (
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
-                                <div className="text-xs text-gray-500 font-medium">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-xs text-gray-500 font-medium">
                                     Showing <span className="font-bold text-slate-800">{recentLogins.from || 0}</span> to{' '}
                                     <span className="font-bold text-slate-800">{recentLogins.to || 0}</span> of{' '}
-                                    <span className="font-bold text-slate-800">{recentLogins.total}</span> terminal records
-                                </div>
+                                    <span className="font-bold text-slate-800">{recentLogins.total || 0}</span> terminal records
+                                </span>
 
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <span>Per page:</span>
+                                    <select
+                                        value={recentLogins.per_page || 10}
+                                        onChange={(e) => handleLoginPerPageChange(e.target.value)}
+                                        className="text-xs font-bold py-1 px-2.5 rounded-lg border border-gray-200 bg-white focus:ring-1 focus:ring-[#0f1d45] focus:outline-none"
+                                    >
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {recentLogins.links && recentLogins.links.length > 3 && (
                                 <div className="flex items-center gap-1">
-                                    {recentLogins.links?.map((link, idx) => {
+                                    {recentLogins.links.map((link, idx) => {
                                         if (!link.url) {
                                             return (
                                                 <span
                                                     key={idx}
                                                     dangerouslySetInnerHTML={{ __html: link.label }}
-                                                    className="px-2.5 py-1 text-xs text-gray-300 font-semibold rounded-lg select-none"
+                                                    className="px-2.5 py-1 text-xs text-gray-300 font-semibold rounded-lg select-none cursor-not-allowed"
                                                 />
                                             );
                                         }
@@ -789,8 +837,8 @@ export default function AdminIndex({
                                         );
                                     })}
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
 

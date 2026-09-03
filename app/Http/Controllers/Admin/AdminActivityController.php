@@ -79,7 +79,9 @@ class AdminActivityController extends Controller
             }
         }
 
-        $auditLogsPaginated = $auditQuery->paginate(15, ['*'], 'audit_page')->withQueryString();
+        $auditPerPage = (int) $request->query('audit_per_page', 15);
+        $auditLogsPaginated = $auditQuery->paginate($auditPerPage, ['*'], 'audit_page')
+            ->appends(array_merge($request->query(), ['tab' => 'audit']));
 
         // ── 2. RECENT LOGIN LOGS QUERY ──
         $loginQuery = UserLoginLog::with('user.role')->latest('login_at');
@@ -99,7 +101,9 @@ class AdminActivityController extends Controller
             });
         }
 
-        $loginsPaginated = $loginQuery->paginate(12, ['*'], 'login_page')->withQueryString();
+        $loginPerPage = (int) $request->query('login_per_page', 10);
+        $loginsPaginated = $loginQuery->paginate($loginPerPage, ['*'], 'login_page')
+            ->appends(array_merge($request->query(), ['tab' => 'logins']));
 
         $mappedLogins = $loginsPaginated->getCollection()->map(function ($log) {
             $deviceType = $log->device_type;
