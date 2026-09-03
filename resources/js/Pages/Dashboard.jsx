@@ -7,14 +7,13 @@ import {
     TruckIcon,
     BanknotesIcon,
 } from '@heroicons/react/24/outline';
-import { Calendar, X, Check, XCircle, CheckCircle, Monitor, Smartphone, Tablet, Globe, MapPin, Clock, Laptop } from 'lucide-react';
+import { Calendar, X, Check, XCircle, CheckCircle } from 'lucide-react';
 
 export default function Dashboard({
     stats = {},
     recentCustomers = [],
     recentDrivers = [],
     pendingAttendanceRequests = [],
-    recentLogins = [],
 }) {
     const [showAttendanceModal, setShowAttendanceModal] = useState(false);
     const { props } = usePage();
@@ -24,7 +23,6 @@ export default function Dashboard({
     const canViewCustomers = role.includes('executive') || ['admin', 'counter staff'].includes(role);
     const canViewDrivers = role.includes('executive') || ['admin'].includes(role);
     const canViewFinance = role.includes('executive') || ['admin', 'finance'].includes(role);
-    const canViewLogins = ['admin', 'executive', 'manager'].includes(role);
 
     return (
         <AppSidebarLayout title="Dashboard">
@@ -129,198 +127,6 @@ export default function Dashboard({
                     />
                 )}
             </div>
-
-            {/* Recent Login & Device Activity */}
-            {canViewLogins && (
-                <div className="mt-6 bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md hover:shadow-[#0f1d45]/5 transition-all duration-300">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-black text-[#0f1d45]">Recent Login Activity</h2>
-                                <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full border border-indigo-100">
-                                    Live Session Tracker
-                                </span>
-                            </div>
-                            <p className="text-sm font-medium text-gray-400 mt-0.5">
-                                User sessions, browsers, locations & live login status.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                                    <th className="pb-3 px-3">User</th>
-                                    <th className="pb-3 px-3">Role</th>
-                                    <th className="pb-3 px-3">Browser</th>
-                                    <th className="pb-3 px-3">Location & Coordinates</th>
-                                    <th className="pb-3 px-3">Logged In At</th>
-                                    <th className="pb-3 px-3">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {(() => {
-                                    const loginList = Array.isArray(recentLogins) ? recentLogins : (recentLogins?.data || []);
-                                    if (loginList.length === 0) {
-                                        return (
-                                            <tr>
-                                                <td colSpan={6} className="py-8 text-center text-gray-400 font-medium">
-                                                    No recent login activity recorded yet.
-                                                </td>
-                                            </tr>
-                                        );
-                                    }
-
-                                    return loginList.map((login) => {
-                                        const isActive = login.status === 'active' && !login.logout_at;
-
-                                        return (
-                                            <tr key={login.id} className="hover:bg-[#f5f6fa]/60 transition-colors">
-                                                {/* User Info */}
-                                                <td className="py-3.5 px-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-[#0f1d45] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-                                                            {(login.user_name || 'U').charAt(0).toUpperCase()}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-[#0f1d45] text-sm leading-snug">{login.user_name}</p>
-                                                            {login.user_email && (
-                                                                <span className="text-xs text-gray-400 truncate max-w-[150px] block">
-                                                                    {login.user_email}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* Role */}
-                                                <td className="py-3.5 px-3">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 capitalize border border-slate-200/60">
-                                                            {login.user_role}
-                                                        </span>
-                                                        {login.shift_id && (
-                                                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                                                                {login.shift_id}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </td>
-
-                                                {/* Browser */}
-                                                <td className="py-3.5 px-3">
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200">
-                                                        <Globe size={13} className="text-slate-400" />
-                                                        {login.browser || 'Web Browser'}
-                                                    </span>
-                                                </td>
-
-                                                {/* Location, IP & GPS */}
-                                                <td className="py-3.5 px-3">
-                                                    <div className="flex items-start gap-1.5">
-                                                        <MapPin size={14} className="text-rose-500 shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <p className="font-bold text-slate-800 text-xs">
-                                                                {login.location || 'Airport LAN'}
-                                                            </p>
-                                                            <p className="text-[11px] font-mono text-gray-400">
-                                                                {login.ip_address}
-                                                            </p>
-                                                            {login.latitude && login.longitude && (
-                                                                <a
-                                                                    href={`https://maps.google.com/?q=${login.latitude},${login.longitude}`}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-[10px] text-blue-600 hover:text-blue-800 font-mono mt-0.5 inline-flex items-center gap-1 font-semibold hover:underline"
-                                                                    title="Open location in Google Maps"
-                                                                >
-                                                                    <span>GPS: {Number(login.latitude).toFixed(4)}, {Number(login.longitude).toFixed(4)}</span>
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-
-                                                {/* Date & Time */}
-                                                <td className="py-3.5 px-3">
-                                                    <div className="flex items-center gap-1.5 text-slate-600 text-xs font-semibold">
-                                                        <Clock size={13} className="text-gray-400 shrink-0" />
-                                                        <span>
-                                                            {login.login_at
-                                                                ? new Date(login.login_at).toLocaleString([], {
-                                                                      month: 'short',
-                                                                      day: 'numeric',
-                                                                      hour: '2-digit',
-                                                                      minute: '2-digit',
-                                                                  })
-                                                                : '-'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-
-                                                {/* Status */}
-                                                <td className="py-3.5 px-3">
-                                                    {isActive ? (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                            Active Now
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                                                            Logged Out
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    });
-                                })()}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {recentLogins && !Array.isArray(recentLogins) && (recentLogins.total > recentLogins.per_page) && (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-gray-100 mt-2">
-                            <div className="text-xs text-gray-500 font-medium">
-                                Showing <span className="font-bold text-slate-800">{recentLogins.from || 0}</span> to{' '}
-                                <span className="font-bold text-slate-800">{recentLogins.to || 0}</span> of{' '}
-                                <span className="font-bold text-slate-800">{recentLogins.total}</span> records
-                            </div>
-
-                            <div className="flex items-center gap-1">
-                                {recentLogins.links?.map((link, idx) => {
-                                    if (!link.url) {
-                                        return (
-                                            <span
-                                                key={idx}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                                className="px-2.5 py-1 text-xs text-gray-300 font-semibold rounded-lg select-none"
-                                            />
-                                        );
-                                    }
-
-                                    return (
-                                        <Link
-                                            key={idx}
-                                            href={link.url}
-                                            preserveScroll
-                                            preserveState
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                                link.active
-                                                    ? 'bg-[#0f1d45] text-white shadow-sm'
-                                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                                            }`}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Modal */}
             {showAttendanceModal && (
