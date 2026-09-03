@@ -103,7 +103,7 @@ export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }
                     )}
 
                     {eurRates && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="grid grid-cols-1 gap-8">
                             
                             <div className="flex flex-col lg:flex-row gap-6 items-start">
                                 {/* Left Side: Interactive Area */}
