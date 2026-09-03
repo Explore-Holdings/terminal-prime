@@ -35,6 +35,45 @@ class AppServiceProvider extends ServiceProvider
         // Register the Trip observer for session tracking
         Trip::observe(TripObserver::class);
 
+        // Auto-provision audit_logs table if not exists (for zero-downtime migrations on live)
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('audit_logs')) {
+                \Illuminate\Support\Facades\Schema::create('audit_logs', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('user_id')->nullable()->index();
+                    $table->string('user_name', 100)->nullable();
+                    $table->string('user_role', 50)->nullable();
+                    $table->string('action', 50)->index();
+                    $table->string('table_name', 100)->nullable()->index();
+                    $table->string('record_id', 100)->nullable()->index();
+                    $table->text('task_done');
+                    $table->longText('old_values')->nullable();
+                    $table->longText('new_values')->nullable();
+                    $table->string('ip_address', 45)->nullable();
+                    $table->string('device_id', 64)->nullable()->index();
+                    $table->text('url')->nullable();
+                    $table->text('user_agent')->nullable();
+                    $table->timestamp('created_at')->nullable()->index();
+                    $table->timestamp('updated_at')->nullable();
+                });
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Auto-migration for audit_logs failed: ' . $e->getMessage());
+        }
+
+        // Global Eloquent Model Audit Listeners (Logs all creates, updates, deletes)
+        Event::listen('eloquent.created: *', function ($event, $data) {
+            \App\Services\AuditLogger::logModelEvent('CREATE', $event, $data);
+        });
+
+        Event::listen('eloquent.updated: *', function ($event, $data) {
+            \App\Services\AuditLogger::logModelEvent('UPDATE', $event, $data);
+        });
+
+        Event::listen('eloquent.deleted: *', function ($event, $data) {
+            \App\Services\AuditLogger::logModelEvent('DELETE', $event, $data);
+        });
+
         // Ensure user_login_logs table has rich device & location columns in MySQL
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('user_login_logs')) {
@@ -102,8 +141,11 @@ class AppServiceProvider extends ServiceProvider
                 ?: request()->cookie('terminal_device_id')
                 ?: null;
 
+            $clientLat = request('latitude');
+            $clientLng = request('longitude');
+
             $deviceInfo = DeviceDetector::detect($ua);
-            $geoInfo = GeoLocationService::locate($ip);
+            $geoInfo = GeoLocationService::locateWithGps($ip, $clientLat, $clientLng);
 
             $event->user->loadMissing('role');
             $roleName = strtolower($event->user->role?->name ?? '');

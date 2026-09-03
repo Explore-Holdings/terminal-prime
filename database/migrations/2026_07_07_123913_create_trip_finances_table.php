@@ -8,8 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('trip_finances', function (Blueprint $table) {
-            $table->id();
+        if (!Schema::hasTable('trip_finances')) {
+            Schema::create('trip_finances', function (Blueprint $table) {
+                $table->id();
 
             $table->foreignId('trip_id')->constrained('trips')->onDelete('cascade');
             $table->foreignId('driver_id')->constrained('drivers')->onDelete('cascade');
@@ -32,6 +33,7 @@ return new class extends Migration
             $table->index('agent_id');
             $table->index('received');
         });
+        }
     }
 
     public function down(): void

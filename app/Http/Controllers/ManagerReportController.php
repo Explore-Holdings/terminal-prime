@@ -68,6 +68,14 @@ class ManagerReportController extends Controller
         $pdf->getDomPDF()->set_option('isPhpEnabled', true);
 
         $filename = str_replace(' ', '-', strtolower($data['title'])) . '-' . now()->format('Y-m-d') . '.pdf';
+
+        \App\Services\AuditLogger::logExport(
+            'PDF_EXPORT',
+            "Exported Trips Report to PDF ({$data['title']}, {$data['date']}, " . count($data['trips']) . " trips)",
+            'trips',
+            ['range' => $range, 'trips_count' => count($data['trips'])]
+        );
+
         return $pdf->download($filename);
     }
 
@@ -76,6 +84,13 @@ class ManagerReportController extends Controller
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
         $paymentSummary = $this->buildPaymentSummary($data['trips']);
+
+        \App\Services\AuditLogger::logExport(
+            'PRINT_EXPORT',
+            "Printed/Exported Trips Report ({$data['title']}, {$data['date']}, " . count($data['trips']) . " trips)",
+            'trips',
+            ['range' => $range, 'trips_count' => count($data['trips'])]
+        );
 
         return view('pdf.today-trips', [
             'trips' => $data['trips'],

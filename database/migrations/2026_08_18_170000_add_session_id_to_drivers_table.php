@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('drivers', function (Blueprint $table) {
-            $table->unsignedInteger('session_id')->nullable()->default(null)->after('payment_attachment');
-        });
-        
+        if (!Schema::hasColumn('drivers', 'session_id')) {
+            Schema::table('drivers', function (Blueprint $table) {
+                $table->unsignedInteger('session_id')->nullable()->default(null)->after('payment_attachment');
+            });
+        }
     }
 
     /**

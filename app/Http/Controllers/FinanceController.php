@@ -412,6 +412,19 @@ class FinanceController extends Controller
             'netProfit', 'isProfit'
         ))->render();
 
+        \App\Services\AuditLogger::logExport(
+            'EXCEL_EXPORT',
+            "Exported Profit & Loss Excel Report (Range: {$range}, Period: {$dateLabel}, Gross: LKR " . number_format($grossRevenue, 2) . ")",
+            'finance',
+            [
+                'range'         => $range,
+                'date_label'    => $dateLabel,
+                'trips_count'   => count($trips),
+                'gross_revenue' => $grossRevenue,
+                'net_profit'    => $netProfit,
+            ]
+        );
+
         return response($html)
             ->header('Content-Type', 'application/vnd.ms-excel')
             ->header('Content-Disposition', 'attachment; filename="Terminal_Prime_PnL_'.now()->format('Y-m-d').'.xls"');
