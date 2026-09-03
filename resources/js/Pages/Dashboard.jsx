@@ -6,6 +6,7 @@ import {
     TruckIcon,
     BanknotesIcon,
 } from '@heroicons/react/24/outline';
+import { Calendar } from 'lucide-react';
 
 export default function Dashboard({
     stats = {},
@@ -23,13 +24,22 @@ export default function Dashboard({
     return (
         <AppSidebarLayout title="Dashboard">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-black text-[#0f1d45]">
-                    Welcome back, {userName} 👋
-                </h1>
-                <p className="text-gray-400 mt-1 text-sm font-medium">
-                    Here's what's happening with your airport counter today.
-                </p>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-[#0f1d45]">
+                        Welcome back, {userName} 👋
+                    </h1>
+                    <p className="text-gray-400 mt-1 text-sm font-medium">
+                        Here's what's happening with your airport counter today.
+                    </p>
+                </div>
+                <Link
+                    href="#"
+                    className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap"
+                >
+                    <Calendar size={18} />
+                    Attendance Requests
+                </Link>
             </div>
 
             {/* Stat Cards */}
