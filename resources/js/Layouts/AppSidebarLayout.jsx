@@ -15,6 +15,7 @@ import {
     ChatBubbleLeftRightIcon,
     ChartBarIcon,
     UsersIcon,
+    ShieldCheckIcon,
     ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 
@@ -30,6 +31,7 @@ const iconMap = {
     'Customer Surveys': ChatBubbleLeftRightIcon,
     Reports: ChartBarIcon,
     Users: UsersIcon,
+    Admin: ShieldCheckIcon,
 };
 
 export default function AppSidebarLayout({ children, title = 'Airport Counter', defaultSidebarOpen = true }) {
@@ -51,6 +53,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive'] },
         { label: 'Reports', path: '/reports', roles: ['admin', 'executive'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
+        { label: 'Admin', path: '/admin', roles: ['admin'] },
     ];
 
     const visibleMenuItems = menuItems.filter((item) =>

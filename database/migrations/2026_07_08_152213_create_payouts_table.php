@@ -11,18 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('payouts', function (Blueprint $table) {
-            $table->id();
-            $table->enum('person_type', ['Driver', 'Agent']);
-            $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
-            $table->foreignId('agent_id')->nullable()->constrained('agents')->nullOnDelete();
-            $table->decimal('amount', 10, 2);
-            $table->string('currency', 10)->default('LKR');
-            $table->text('remarks')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        if (!Schema::hasTable('payouts')) {
+            Schema::create('payouts', function (Blueprint $table) {
+                $table->id();
+                $table->enum('person_type', ['Driver', 'Agent']);
+                $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
+                $table->foreignId('agent_id')->nullable()->constrained('agents')->nullOnDelete();
+                $table->decimal('amount', 10, 2);
+                $table->string('currency', 10)->default('LKR');
+                $table->text('remarks')->nullable();
+                $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
     }
 
     /**
