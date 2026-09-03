@@ -77,16 +77,20 @@ Route::get('/dashboard', function () {
             ->orderBy('requested_at', 'desc')
             ->get(),
 
-        'recentLogins' => UserLoginLog::with(['user.role'])
-            ->latest('login_at')
-            ->take(8)
-            ->get()
-            ->map(function ($log) {
+        'recentLogins' => (function () {
+            $paginated = UserLoginLog::with(['user.role'])
+                ->latest('login_at')
+                ->paginate(8, ['*'], 'login_page')
+                ->withQueryString();
+
+            $mapped = $paginated->getCollection()->map(function ($log) {
                 $deviceType = $log->device_type;
                 $operatingSystem = $log->operating_system;
                 $browser = $log->browser;
                 $device = $log->device_name;
                 $location = $log->location;
+                $latitude = $log->latitude;
+                $longitude = $log->longitude;
 
                 if (empty($deviceType) && !empty($log->user_agent)) {
                     $detected = \App\Services\DeviceDetector::detect($log->user_agent);
@@ -99,6 +103,8 @@ Route::get('/dashboard', function () {
                 if (empty($location) && !empty($log->ip_address)) {
                     $geo = \App\Services\GeoLocationService::locate($log->ip_address);
                     $location = $geo['location'];
+                    $latitude = $latitude ?? $geo['latitude'];
+                    $longitude = $longitude ?? $geo['longitude'];
                 }
 
                 return [
@@ -114,12 +120,26 @@ Route::get('/dashboard', function () {
                     'device_name'      => $device ?: 'Computer',
                     'operating_system' => $operatingSystem ?: 'Windows',
                     'browser'          => $browser ?: 'Web Browser',
+                    'latitude'         => $latitude,
+                    'longitude'        => $longitude,
                     'location'         => $location ?: 'Local Station',
                     'status'           => $log->status ?: ($log->logout_at ? 'logged_out' : 'active'),
                     'login_at'         => $log->login_at?->toIso8601String() ?? $log->login_at,
                     'logout_at'        => $log->logout_at?->toIso8601String() ?? $log->logout_at,
                 ];
-            }),
+            });
+
+            return [
+                'data'         => $mapped->values()->all(),
+                'current_page' => $paginated->currentPage(),
+                'last_page'    => $paginated->lastPage(),
+                'per_page'     => $paginated->perPage(),
+                'total'        => $paginated->total(),
+                'from'         => $paginated->firstItem(),
+                'to'           => $paginated->lastItem(),
+                'links'        => $paginated->linkCollection()->toArray(),
+            ];
+        })(),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 

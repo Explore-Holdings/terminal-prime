@@ -21,7 +21,9 @@ return new class extends Migration
             $table->string('region', 100)->nullable()->after('city');
             $table->string('country', 100)->nullable()->after('region');
             $table->string('country_code', 10)->nullable()->after('country');
-            $table->string('location', 255)->nullable()->after('country_code');
+            $table->decimal('latitude', 10, 7)->nullable()->after('country_code');
+            $table->decimal('longitude', 10, 7)->nullable()->after('latitude');
+            $table->string('location', 255)->nullable()->after('longitude');
             $table->string('status', 30)->default('active')->after('location');
         });
     }
