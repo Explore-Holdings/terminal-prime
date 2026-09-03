@@ -72,8 +72,14 @@ class AppServiceProvider extends ServiceProvider
                 if (!in_array('country_code', $colNames)) {
                     $missing[] = "ADD COLUMN `country_code` VARCHAR(10) NULL AFTER `country`";
                 }
+                if (!in_array('latitude', $colNames)) {
+                    $missing[] = "ADD COLUMN `latitude` DECIMAL(10, 7) NULL AFTER `country_code`";
+                }
+                if (!in_array('longitude', $colNames)) {
+                    $missing[] = "ADD COLUMN `longitude` DECIMAL(10, 7) NULL AFTER `latitude`";
+                }
                 if (!in_array('location', $colNames)) {
-                    $missing[] = "ADD COLUMN `location` VARCHAR(255) NULL AFTER `country_code`";
+                    $missing[] = "ADD COLUMN `location` VARCHAR(255) NULL AFTER `longitude`";
                 }
                 if (!in_array('status', $colNames)) {
                     $missing[] = "ADD COLUMN `status` VARCHAR(30) NOT NULL DEFAULT 'active' AFTER `location`";
@@ -117,6 +123,8 @@ class AppServiceProvider extends ServiceProvider
                     'region'           => $geoInfo['region'] ?? null,
                     'country'          => $geoInfo['country'] ?? null,
                     'country_code'     => $geoInfo['country_code'] ?? null,
+                    'latitude'         => $geoInfo['latitude'] ?? null,
+                    'longitude'        => $geoInfo['longitude'] ?? null,
                     'location'         => $geoInfo['location'] ?? 'Unknown Location',
                     'status'           => 'active',
                     'login_at'         => now(),

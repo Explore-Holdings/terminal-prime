@@ -22,6 +22,8 @@ class UserLoginLog extends Model
         'region',
         'country',
         'country_code',
+        'latitude',
+        'longitude',
         'location',
         'status',
         'login_at',

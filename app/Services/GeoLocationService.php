@@ -20,6 +20,8 @@ class GeoLocationService
             'region'       => null,
             'country'      => null,
             'country_code' => null,
+            'latitude'     => null,
+            'longitude'    => null,
             'location'     => 'Unknown Location',
         ];
 
@@ -37,6 +39,8 @@ class GeoLocationService
                 'region'       => 'Airport Counter',
                 'country'      => 'Local Network',
                 'country_code' => 'LAN',
+                'latitude'     => null,
+                'longitude'    => null,
                 'location'     => 'Airport Counter LAN',
             ];
         }
@@ -52,6 +56,8 @@ class GeoLocationService
                     $region = $data['regionName'] ?? null;
                     $country = $data['country'] ?? null;
                     $code = $data['countryCode'] ?? null;
+                    $lat = $data['lat'] ?? null;
+                    $lon = $data['lon'] ?? null;
 
                     $locParts = array_filter([$city, $country]);
                     $formatted = !empty($locParts) ? implode(', ', $locParts) : ($country ?? 'Unknown Location');
@@ -61,6 +67,8 @@ class GeoLocationService
                         'region'       => $region,
                         'country'      => $country,
                         'country_code' => $code,
+                        'latitude'     => $lat,
+                        'longitude'    => $lon,
                         'location'     => $formatted,
                     ];
                 }
@@ -75,6 +83,8 @@ class GeoLocationService
             'region'       => null,
             'country'      => null,
             'country_code' => null,
+            'latitude'     => null,
+            'longitude'    => null,
             'location'     => 'External IP (' . $ip . ')',
         ];
     }
