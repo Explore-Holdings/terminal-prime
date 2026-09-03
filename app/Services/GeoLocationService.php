@@ -99,7 +99,6 @@ class GeoLocationService
 
         if ($lat !== null && $lng !== null) {
             try {
-                // Free, ultra-fast reverse geocode from coordinates
                 $response = Http::timeout(2.0)->get("https://api.bigdatacloud.net/data/reverse-geocode-client", [
                     'latitude'         => $lat,
                     'longitude'        => $lng,
