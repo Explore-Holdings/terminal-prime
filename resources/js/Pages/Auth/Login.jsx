@@ -196,14 +196,14 @@ export default function Login({ status, canResetPassword }) {
                                 {processing ? 'Signing in...' : 'Log in'}
                             </button>
 
-                            {deviceId && (
+                            {/* {deviceId && (
                                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                                     <span className="font-semibold uppercase tracking-wider">Terminal ID</span>
                                     <span className="font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[220px]" title={deviceId}>
                                         {deviceId}
                                     </span>
                                 </div>
-                            )}
+                            )} */}
                         </form>
                     </div>
 
