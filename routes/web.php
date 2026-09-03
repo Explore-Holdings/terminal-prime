@@ -98,6 +98,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/counter/reorder-session', [CounterController::class, 'reorderSession'])->name('counter.reorder-session');
     Route::post('/counter/lock-customer', [CounterController::class, 'lockCustomer'])->name('counter.lock-customer');
     Route::post('/counter/unlock-customer', [CounterController::class, 'unlockCustomer'])->name('counter.unlock-customer');
+    Route::get('/counter/converter', [CounterController::class, 'converter'])->name('counter.converter');
     Route::get('/manager-reports', [\App\Http\Controllers\ManagerReportController::class, 'index'])->name('manager-reports.index');
     Route::get('/manager-reports/trips/print', [\App\Http\Controllers\ManagerReportController::class, 'printTrips'])->name('manager-reports.trips-print');
     Route::get('/manager-reports/trips/pdf', [\App\Http\Controllers\ManagerReportController::class, 'pdfTrips'])->name('manager-reports.trips-pdf');

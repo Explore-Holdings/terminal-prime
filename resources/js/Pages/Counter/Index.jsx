@@ -1393,9 +1393,12 @@ function PaymentTab({
     return (
         <form onSubmit={savePayment} className="space-y-5">
             <div className="flex justify-end">
-                <a href="/finance" target="_blank" rel="noreferrer"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
-                    View Rates
+                <a href={`/counter/converter?currency=${form.data.currency}&amount=${price}`} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+                    <span>View Rates & Converter</span>
+                    <span className="bg-indigo-800 px-2 py-0.5 rounded-full text-[11px] border border-indigo-500 shadow-inner">
+                        {form.data.currency} {price.toLocaleString()}
+                    </span>
                 </a>
             </div>
 
