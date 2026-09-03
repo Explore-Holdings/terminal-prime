@@ -20,9 +20,12 @@ import {
     EyeIcon,
     EyeSlashIcon,
     XMarkIcon,
+    ClockIcon,
+    ExclamationTriangleIcon,
     ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 
 const iconMap = {
     Dashboard: Squares2X2Icon,
@@ -50,6 +53,12 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
     const [adminError, setAdminError] = useState('');
     const [adminLoading, setAdminLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    // 10-minute inactivity auto-logout (with 60s warning at 9 mins)
+    const { isWarningVisible, secondsRemaining, stayLoggedIn } = useIdleTimeout(
+        10 * 60 * 1000,
+        9 * 60 * 1000
+    );
 
     const role = String(user?.role ?? '').toLowerCase();
 
@@ -333,6 +342,49 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 10-Minute Inactivity Warning Modal ── */}
+            {isWarningVisible && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+                    <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-amber-200 overflow-hidden transform transition-all text-center p-6 sm:p-7 space-y-4">
+                        <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto ring-8 ring-amber-50/50">
+                            <ClockIcon className="w-8 h-8 animate-pulse" />
+                        </div>
+
+                        <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                                Session Inactivity
+                            </span>
+                            <h3 className="text-xl font-black text-[#0f1d45] mt-2">
+                                Are You Still There?
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                                You have been inactive for 9 minutes. For counter terminal security, you will be automatically logged out in:
+                            </p>
+                        </div>
+
+                        {/* Countdown Pill */}
+                        <div className="py-2.5 px-4 rounded-2xl bg-slate-900 text-white font-mono text-2xl font-black tracking-widest inline-flex items-center gap-2 shadow-inner">
+                            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                            <span>00:{String(secondsRemaining).padStart(2, '0')}</span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-400">
+                            Move your mouse, type a key, or click the button below to stay signed in.
+                        </p>
+
+                        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+                            <button
+                                type="button"
+                                onClick={stayLoggedIn}
+                                className="w-full py-3 px-5 rounded-xl bg-[#0f1d45] hover:bg-[#1a2d6b] text-white font-bold text-xs shadow-lg shadow-[#0f1d45]/20 transition-all hover:scale-[1.02]"
+                            >
+                                I'm Still Here (Stay Logged In)
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
