@@ -70,13 +70,6 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                         Generate global reports and review individual shift checkouts.
                     </p>
                 </div>
-                <Link
-                    href="#"
-                    className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap"
-                >
-                    <Calendar size={18} />
-                    Attendance Requests
-                </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
