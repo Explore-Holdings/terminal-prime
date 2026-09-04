@@ -1707,7 +1707,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
         let invoiceWindow = null;
         if (targetInvoice) {
-            invoiceWindow = window.open(`/storage/${targetInvoice}`, '_blank');
+            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
+            invoiceWindow = window.open(resolvedTarget, '_blank');
         } else {
             invoiceWindow = window.open('about:blank', '_blank');
         }
@@ -1734,16 +1735,17 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 preserveScroll: true,
                 onSuccess: (page) => {
                     const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
+                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
                     if (invoiceWindow) {
                         if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (finalPath) {
-                                invoiceWindow.location.href = `/storage/${finalPath}`;
+                            if (resolvedPath) {
+                                invoiceWindow.location.href = resolvedPath;
                             } else {
                                 invoiceWindow.close();
                             }
                         }
-                    } else if (finalPath) {
-                        window.open(`/storage/${finalPath}`, '_blank');
+                    } else if (resolvedPath) {
+                        window.open(resolvedPath, '_blank');
                     }
                     closeConfirm();
                     setShowFinalConfirm(false);
@@ -3071,7 +3073,8 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
         const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
         let invoiceWindow = null;
         if (targetInvoice) {
-            invoiceWindow = window.open(`/storage/${targetInvoice}`, '_blank');
+            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
+            invoiceWindow = window.open(resolvedTarget, '_blank');
         } else {
             invoiceWindow = window.open('about:blank', '_blank');
         }
@@ -3096,16 +3099,17 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                 preserveScroll: true,
                 onSuccess: (page) => {
                     const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
+                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
                     if (invoiceWindow) {
                         if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (finalPath) {
-                                invoiceWindow.location.href = `/storage/${finalPath}`;
+                            if (resolvedPath) {
+                                invoiceWindow.location.href = resolvedPath;
                             } else {
                                 invoiceWindow.close();
                             }
                         }
-                    } else if (finalPath) {
-                        window.open(`/storage/${finalPath}`, '_blank');
+                    } else if (resolvedPath) {
+                        window.open(resolvedPath, '_blank');
                     }
                     setConfirmModal(null);
                     onClose();
