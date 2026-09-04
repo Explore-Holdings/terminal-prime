@@ -17,14 +17,22 @@ class TripObserver
     {
         // Only act when status is changing TO 'Completed'
         if ($trip->isDirty('status') && $trip->status === 'Completed') {
-            // Driver session is now bumped immediately upon trip assignment.
-            // We no longer bump it here upon completion.
-            // $driver = Driver::find($trip->driver_id);
-            // if ($driver && $driver->session_id !== null) {
-            //     $driver->update([
-            //         'session_id' => $driver->session_id + 1,
-            //     ]);
-            // }
+            if (empty($trip->survey_sent_at)) {
+                try {
+                    $trip->loadMissing(['customer', 'driver.vehicle']);
+                    if ($trip->customer && !empty($trip->customer->email)) {
+                        $email = trim($trip->customer->email);
+                        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                            \Illuminate\Support\Facades\Mail::to($email)
+                                ->send(new \App\Mail\CustomerSurveyMail($trip));
+
+                            $trip->survey_sent_at = now();
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to send customer survey in TripObserver for trip {$trip->id}: " . $e->getMessage());
+                }
+            }
         }
     }
 }
