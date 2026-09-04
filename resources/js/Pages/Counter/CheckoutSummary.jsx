@@ -58,7 +58,7 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                             <div className="flex items-center gap-2 text-blue-700 font-bold text-sm tracking-wider uppercase">
                                 <span>Shift Ended</span>
                                 <span>·</span>
-                                <span>Officer: {user.name}</span>
+                                <span>Officer: {user?.name || 'Officer'}</span>
                                 {log.shift_id && (
                                     <>
                                         <span>·</span>
@@ -140,21 +140,30 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                 Download PDF
                             </a>
 
+                            {/* <Link
+                                href="/dashboard"
+                                className="inline-flex items-center justify-center gap-2 bg-slate-100 text-slate-800 border border-slate-200 font-bold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm"
+                            >
+                                Dashboard
+                            </Link> */}
+
                             {!log.handed_over_at ? (
                                 <button
                                     disabled
                                     className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm opacity-50 cursor-not-allowed"
                                 >
                                     <LogIn size={16} />
-                                    Login Page
+                                    Exit to Login
                                 </button>
                             ) : (
                                 <Link
-                                    href="/login"
+                                    href="/logout"
+                                    method="post"
+                                    as="button"
                                     className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-slate-800 transition text-sm"
                                 >
                                     <LogIn size={16} />
-                                    Login Page
+                                    Exit to Login
                                 </Link>
                             )}
                         </div>
@@ -166,7 +175,7 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                             <tbody>
                                 <tr>
                                     <td className="font-bold py-1">Officer Name:</td>
-                                    <td>{user.name}</td>
+                                    <td>{user?.name || '-'}</td>
                                 </tr>
                                 <tr>
                                     <td className="font-bold py-1">Checked In:</td>

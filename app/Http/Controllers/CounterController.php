@@ -233,10 +233,6 @@ class CounterController extends Controller
             ->latest('login_at')
             ->first();
 
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
         if ($log) {
             $shiftId = 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT);
             $log->update([

@@ -122,19 +122,19 @@ export default function Index({ trips = [] }) {
     };
 
     return (
-        <AppSidebarLayout title="Trips">
-            <Head title="Trips" />
+        <AppSidebarLayout title="Tours">
+            <Head title="Tours" />
 
             <div className="p-6">
                 <div className="bg-white rounded-xl shadow overflow-hidden">
                     <div className="flex justify-between items-center p-6 border-b">
                         <div>
                             <h1 className="text-2xl font-bold">
-                                Trip Management
+                                Tour Management
                             </h1>
 
                             <p className="text-gray-500 text-sm mt-1">
-                                View all assigned and completed trips
+                                View all assigned and completed tours
                             </p>
                         </div>
 
@@ -158,7 +158,7 @@ export default function Index({ trips = [] }) {
                         />
 
                         <div className="text-sm text-gray-600">
-                            Total Trips: <strong>{filteredTrips.length}</strong>
+                            Total Tours: <strong>{filteredTrips.length}</strong>
                         </div>
                     </div>
 
