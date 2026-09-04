@@ -2986,7 +2986,7 @@ function Field({ label, value, onChange, error, type = 'text', ...rest }) {
                 }
             `}</style>
             <label className="label">{label}</label>
-            <input type={type} value={value ?? ''} onChange={onChange} onKeyDown={handleKeyDown} className="input" min="0" {...rest} />
+            <input type={type} value={value ?? ''} onChange={onChange} onKeyDown={handleKeyDown} className="input" min="0" step={type === 'number' ? 'any' : undefined} {...rest} />
             {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>
     );
