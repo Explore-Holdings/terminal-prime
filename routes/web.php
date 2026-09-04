@@ -139,6 +139,9 @@ Route::get('/checkout-summary/{userLoginLog}/pdf', [CounterController::class, 'd
 Route::post('/customers/{customer}/payment', [CustomerController::class, 'savePayment'])
     ->name('customers.payment');
 
+Route::get('/customers/{customer}/invoice/pdf', [CustomerController::class, 'downloadInvoice'])
+    ->name('customers.invoice.pdf');
+
 Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'assignTrip'])
     ->name('customers.assign-trip');
 
