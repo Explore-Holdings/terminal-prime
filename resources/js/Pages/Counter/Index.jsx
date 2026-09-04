@@ -929,7 +929,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">Confirm Checkout</h2>
                         <p className="text-sm text-gray-600 mb-4">
-                            Are you sure you want to checkout and end your current shift? This will log you out and summarize your shift tours.
+                            Are you sure you want to checkout and end your current shift? This will summarize your shift tours and take you to the handover page.
                         </p>
 
                         <div className="mb-5">
