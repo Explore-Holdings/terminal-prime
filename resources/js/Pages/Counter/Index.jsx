@@ -1730,6 +1730,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 balance: finalBalance,
             },
             {
+                preserveState: true,
                 preserveScroll: true,
                 onSuccess: (page) => {
                     const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
@@ -1747,7 +1748,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                     closeConfirm();
                     setShowFinalConfirm(false);
                     onClose();
-                    router.reload({ only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'] });
                 },
                 onError: () => {
                     if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
@@ -3092,6 +3092,7 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                 end_date: endDate
             },
             {
+                preserveState: true,
                 preserveScroll: true,
                 onSuccess: (page) => {
                     const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
@@ -3108,7 +3109,6 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                     }
                     setConfirmModal(null);
                     onClose();
-                    router.reload({ only: ['pendingAgents'] });
                 },
                 onError: () => {
                     if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
