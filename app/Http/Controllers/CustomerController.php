@@ -178,15 +178,7 @@ class CustomerController extends Controller
         $customer->update(['invoice_number' => $invoiceNumber]);
         $customer->refresh()->load('agent.user');
 
-        $pdf = Pdf::loadView('invoices.customer-invoice', [
-            'customer'   => $customer,
-            'currency'   => $data['currency'],
-            'price'      => $data['price'],
-            'paidAmount' => $paidAmount,
-            'payments'   => $payments,  
-        ]);
-
-        Storage::disk('public')->put($invoicePath, $pdf->output());
+        $invoicePath = "/customers/{$customer->id}/invoice/pdf";
 
         $customer->update(['invoice_path' => $invoicePath]);
 
@@ -198,6 +190,26 @@ class CustomerController extends Controller
         return redirect()
             ->route('counter.index')
             ->with('invoice_path', $invoicePath);
+    }
+
+    public function downloadInvoice(Customer $customer)
+    {
+        $payments = is_string($customer->payment_notes) 
+            ? json_decode($customer->payment_notes, true) 
+            : $customer->payment_notes;
+
+        $currency = $customer->agent->new_currency ?? 'LKR';
+        $price = $customer->agent->new_price ?? 0;
+
+        $pdf = Pdf::loadView('invoices.customer-invoice', [
+            'customer'   => $customer,
+            'currency'   => $currency,
+            'price'      => $price,
+            'paidAmount' => $customer->paid_amount,
+            'payments'   => collect($payments),
+        ]);
+
+        return $pdf->stream("{$customer->invoice_number}.pdf");
     }
 
     public function assignTrip(Request $request, Customer $customer)
