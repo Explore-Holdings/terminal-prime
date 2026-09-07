@@ -52,16 +52,16 @@ class AuthenticatedSessionController extends Controller
         }
 
         // Retrieve user to extract employee_id for 2FA push notification
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->with('role')->first();
         $employeeId = $user->employee_id ?? $user->id;
 
-        \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name);
+        \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name . ', Role: ' . ($user->role->name ?? 'none'));
 
         return response()->json([
             'success'     => true,
             'employee_id' => $employeeId,
             'name'        => $user->name,
-            'role'        => $user->role ?? null,
+            'role'        => $user->role->name ?? null,
         ]);
     }
 
