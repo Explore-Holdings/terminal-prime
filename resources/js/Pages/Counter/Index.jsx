@@ -1048,7 +1048,9 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
         <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
             <h3 className="flex justify-between font-semibold text-sm">
                 <span className="truncate">{agent.name ?? 'Customer'}</span>
-                <span className="text-red-600 font-bold">{agent.distance_km ?? '-'} KM</span>
+                {agent.distance_km != null && agent.distance_km !== '' && (
+                    <span className="text-red-600 font-bold">{agent.distance_km} KM</span>
+                )}
             </h3>
 
             <div className="flex items-center justify-between gap-2 mt-1">
