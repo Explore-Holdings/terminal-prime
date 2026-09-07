@@ -32,6 +32,11 @@ class AuthenticatedSessionController extends Controller
      */
     public function checkCredentials(Request $request): JsonResponse
     {
+        \Illuminate\Support\Facades\Log::info('[2FA] >>> Pre-check credentials requested', [
+            'email' => $request->email,
+            'ip'    => $request->ip(),
+        ]);
+
         $request->validate([
             'email'    => 'required|string|email',
             'password' => 'required|string',
@@ -39,6 +44,7 @@ class AuthenticatedSessionController extends Controller
 
         // Validate password against database without logging in yet
         if (!Auth::validate($request->only('email', 'password'))) {
+            \Illuminate\Support\Facades\Log::warning('[2FA] Invalid credentials entered for: ' . $request->email);
             return response()->json([
                 'success' => false,
                 'message' => 'These credentials do not match our records.',
@@ -47,10 +53,13 @@ class AuthenticatedSessionController extends Controller
 
         // Retrieve user to extract employee_id for 2FA push notification
         $user = User::where('email', $request->email)->first();
+        $employeeId = $user->employee_id ?? $user->id;
+
+        \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name);
 
         return response()->json([
             'success'     => true,
-            'employee_id' => $user->employee_id ?? $user->id,
+            'employee_id' => $employeeId,
             'name'        => $user->name,
         ]);
     }
@@ -61,9 +70,13 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        \Illuminate\Support\Facades\Log::info('[2FA] >>> Final login session creation for: ' . $request->email);
+
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        \Illuminate\Support\Facades\Log::info('[2FA] Session created successfully! Redirecting to dashboard.');
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
