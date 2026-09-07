@@ -178,6 +178,7 @@ export default function Login({ status, canResetPassword }) {
                                     </button>
                                 </div>
 
+
                                 <InputError message={errors.password} className="mt-2" />
                             </div>
 
