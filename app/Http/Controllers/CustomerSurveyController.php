@@ -33,7 +33,7 @@ class CustomerSurveyController extends Controller
             'journey_rating' => 'required|integer|min:1|max:5',
             'driver_rating' => 'nullable|integer|min:1|max:5',
             'driver_charged_extra' => 'required|boolean',
-            'extra_amount' => 'nullable|required_if:driver_charged_extra,1|numeric|min:0',
+            'extra_amount' => 'nullable|required_if:driver_charged_extra,1|string|max:255',
             'driver_was_polite' => 'required|boolean',
             'vehicle_was_clean' => 'required|boolean',
             'felt_safe' => 'required|boolean',

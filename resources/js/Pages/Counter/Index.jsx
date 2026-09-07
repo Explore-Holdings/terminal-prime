@@ -1144,20 +1144,24 @@ function Modal({
                 </div>
 
                 <div className="p-4 min-h-[500px]">
-                    {activeTab === 'customer' && (
+                    <div className={activeTab === 'customer' ? '' : 'hidden'}>
                         <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
-                    )}
+                    </div>
 
-                    {activeTab === 'payment' && (
-                        <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
-                    )}
+                    <div className={activeTab === 'payment' ? '' : 'hidden'}>
+                        {effectiveCustomerId && (
+                            <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
+                        )}
+                    </div>
 
-                    {activeTab === 'vehicle' && (
-                        <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} />
-                    )}
-
-                    {activeTab === 'rent_a_car_vehicle' && (
-                        <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
+                    {agent.booking_type !== 'Rent a Car' ? (
+                        <div className={activeTab === 'vehicle' ? '' : 'hidden'}>
+                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} />
+                        </div>
+                    ) : (
+                        <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
+                            <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
+                        </div>
                     )}
                 </div>
             </div>
@@ -1716,6 +1720,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         }
 
         setSubmitting(true);
+        closeConfirm();
+        setShowFinalConfirm(false);
+        onClose();
 
         router.post(
             `/customers/${customerId}/assign-trip`,
@@ -1749,9 +1756,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                     } else if (resolvedPath) {
                         window.open(resolvedPath, '_blank');
                     }
-                    closeConfirm();
-                    setShowFinalConfirm(false);
-                    onClose();
                 },
                 onError: () => {
                     if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
