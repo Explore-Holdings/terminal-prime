@@ -266,7 +266,31 @@ class CustomerController extends Controller
                         ->pluck('driver_id')
                         ->toArray();
 
+                    // Find the next on-duty driver's slot
+                    $nextOnDutyDriver = Driver::where('session_id', $currentSession)
+                        ->where('id', '!=', $driver->id)
+                        ->where('duty_status', 'on_duty')
+                        ->whereNotIn('id', $onTripDriverIds)
+                        ->get()
+                        ->filter(function ($d) use ($assignedSlot) {
+                            if (preg_match('/\d+/', $d->registration_number ?? '', $m)) {
+                                return (int) $m[0] > $assignedSlot;
+                            }
+                            return false;
+                        })
+                        ->sortBy(function ($d) {
+                            preg_match('/\d+/', $d->registration_number ?? '', $m);
+                            return (int) $m[0];
+                        })
+                        ->first();
+                        
+                    $nextOnDutySlot = null;
+                    if ($nextOnDutyDriver && preg_match('/\d+/', $nextOnDutyDriver->registration_number ?? '', $m)) {
+                        $nextOnDutySlot = (int) $m[0];
+                    }
+
                     // Get all drivers in the same session with a lower slot number
+                    // OR a slot number between assignedSlot and nextOnDutySlot
                     // who are NOT currently on a trip AND are OFF DUTY.
                     // On-duty drivers remain in the current queue.
                     $skippedDrivers = Driver::where('session_id', $currentSession)
@@ -277,9 +301,15 @@ class CustomerController extends Controller
                         })
                         ->whereNotIn('id', $onTripDriverIds)
                         ->get()
-                        ->filter(function ($d) use ($assignedSlot) {
+                        ->filter(function ($d) use ($assignedSlot, $nextOnDutySlot) {
                             if (preg_match('/\d+/', $d->registration_number ?? '', $m)) {
-                                return (int) $m[0] < $assignedSlot;
+                                $slot = (int) $m[0];
+                                if ($slot < $assignedSlot) {
+                                    return true;
+                                }
+                                if ($nextOnDutySlot !== null && $slot > $assignedSlot && $slot < $nextOnDutySlot) {
+                                    return true;
+                                }
                             }
                             return false;
                         });
