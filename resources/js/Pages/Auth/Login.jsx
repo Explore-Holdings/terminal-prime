@@ -91,15 +91,28 @@ export default function Login({ status }) {
         }
 
         try {
-            // A. Check password with Laravel first
-            const checkRes = await fetch(route('login.check'), {
+            // A. Check password with Laravel first (uses /api/check-credentials to avoid CSRF mismatch)
+            let checkRes = await fetch('/api/check-credentials', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({ email: data.email, password: data.password }),
             });
+
+            // Fallback to /check-credentials if /api/check-credentials is 404
+            if (checkRes.status === 404) {
+                checkRes = await fetch('/check-credentials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({ email: data.email, password: data.password }),
+                });
+            }
 
             const checkData = await checkRes.json();
 
@@ -113,7 +126,10 @@ export default function Login({ status }) {
             const employeeId = checkData.employee_id;
             const twoFaRes = await fetch('https://exploresuite.lk/mobile-api/api/create_2fa_challenge.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
                 body: JSON.stringify({
                     employee_id: String(employeeId),
                     website_name: 'Terminal Prime Airport Counter',
@@ -138,8 +154,9 @@ export default function Login({ status }) {
             startCountdownAndPolling(twoFaData.challenge_id);
 
         } catch (err) {
+            console.error('2FA Login Error Details:', err);
             setIsVerifying(false);
-            setAuthError('Connection error during authentication. Please retry.');
+            setAuthError(err.message || 'Connection error during authentication. Please retry.');
         }
     };
 
