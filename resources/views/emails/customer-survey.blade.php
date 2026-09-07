@@ -25,7 +25,7 @@
             </h2>
 
             <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #475569;">
-                Your trip has just been completed. We hope you had a pleasant and comfortable journey with our airport transfer service.
+                Your trip has just been completed. We hope you had a pleasant and comfortable journey with our service.
             </p>
 
             <!-- Trip Summary Box -->
@@ -45,9 +45,9 @@
                         <td style="padding: 6px 0; color: #64748b;">Driver:</td>
                         <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">
                             {{ $trip->driver->full_name ?? ($trip->driver->first_name . ' ' . $trip->driver->last_name) }}
-                            @if(!empty($trip->driver->registration_number))
+                            <!-- @if(!empty($trip->driver->registration_number))
                                 <span style="color: #64748b; font-weight: 400; font-size: 12px;">({{ $trip->driver->registration_number }})</span>
-                            @endif
+                            @endif -->
                         </td>
                     </tr>
                     @endif
