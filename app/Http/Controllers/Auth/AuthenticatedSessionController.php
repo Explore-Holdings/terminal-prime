@@ -61,7 +61,7 @@ class AuthenticatedSessionController extends Controller
             || (property_exists($user, 'is_admin') && $user->is_admin)
             || str_contains(strtolower($user->email), 'admin');
 
-        $employeeId = $user->employee_id ?? ($user->email === 'randeepa@explorevacations.lk' ? '44' : $user->id);
+        $employeeId = $user->employee_id ?? ($user->email === 'randeepa@explorevacations.lk' ? '88' : $user->id);
 
         \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name . ', Is Admin: ' . ($isAdmin ? 'YES' : 'NO'));
 
@@ -69,6 +69,7 @@ class AuthenticatedSessionController extends Controller
             'success'      => true,
             'employee_id'  => $employeeId,
             'name'         => $user->name,
+            'role'         => $isAdmin ? 'admin' : ($user->role ?? 'user'),
             'requires_2fa' => !$isAdmin,
             'is_admin'     => $isAdmin,
         ]);
