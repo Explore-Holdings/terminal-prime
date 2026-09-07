@@ -195,14 +195,7 @@ export default function Login({ status, canResetPassword }) {
                                     </span>
                                 </label>
 
-                                {/* {canResetPassword && (
-                                    <Link
-                                        href={route('password.request')}
-                                        className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-                                    >
-                                        Forgot?
-                                    </Link>
-                                )} */}
+                        
                             </div>
 
                             <button
