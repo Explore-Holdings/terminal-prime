@@ -90,6 +90,7 @@ export default function Login({ status }) {
     // ── STEP 1: VERIFY CREDENTIALS & TRIGGER 2FA ──────────────────────────────
     const submit = async (e) => {
         e.preventDefault();
+        if (isVerifying || processing || show2FAModal) return;
         setAuthError('');
         setIsVerifying(true);
 
@@ -211,7 +212,7 @@ export default function Login({ status }) {
             });
         }, 1000);
 
-        // Polling interval
+        // Fast 750ms polling for instant response upon mobile approval
         pollTimerRef.current = setInterval(async () => {
             try {
                 const res = await fetch(`https://exploresuite.lk/mobile-api/api/check_2fa_status.php?challenge_id=${challengeId}`);
@@ -219,7 +220,9 @@ export default function Login({ status }) {
                 console.log(`%c[2FA Polling #${challengeId}] Status:`, resData.status === 'APPROVED' ? 'color: #16a34a; font-weight: bold;' : 'color: #64748b;', resData.status);
 
                 if (resData.status === 'APPROVED') {
-                    console.log('%c[2FA Approved! 🎉] Phone verified with biometrics! Completing session login...', 'color: #16a34a; font-weight: bold;');
+                    console.log('%c[2FA Approved! 🎉] Phone verified! Instant login session starting...', 'color: #16a34a; font-weight: bold;');
+                    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+                    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
                     close2FAModal();
                     post(route('login'), {
                         onFinish: () => reset('password'),
@@ -236,7 +239,7 @@ export default function Login({ status }) {
             } catch (e) {
                 console.error('[2FA Polling Error]', e);
             }
-        }, 1500);
+        }, 750);
     };
 
     const close2FAModal = () => {
