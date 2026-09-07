@@ -87,8 +87,7 @@ export default function Show({ trip, alreadySubmitted = false }) {
 
                         {form.data.driver_charged_extra && (
                             <input
-                                type="number"
-                                step="0.01"
+                                type="text"
                                 placeholder="Enter extra amount"
                                 value={form.data.extra_amount}
                                 onChange={(e) => form.setData('extra_amount', e.target.value)}
