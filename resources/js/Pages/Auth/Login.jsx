@@ -140,7 +140,7 @@ export default function Login({ status }) {
             }
 
             // B. Admin users skip 2FA entirely — login directly
-            if (checkData.role === 'admin') {
+            if (checkData.role === 'admin' || checkData.requires_2fa === false || checkData.is_admin === true) {
                 console.log('%c[2FA] Admin user detected — skipping 2FA, logging in directly.', 'color: #16a34a; font-weight: bold;');
                 setIsVerifying(false);
                 post(route('login'), {
@@ -149,9 +149,9 @@ export default function Login({ status }) {
                 return;
             }
 
-            // B. Password OK! Trigger 2FA Push on the phone
+            // C. Password OK! Trigger 2FA Push on the phone
             const employeeId = checkData.employee_id;
-            console.log('%c[2FA Step 2] Credentials verified! Dispatching phone notification...', 'color: #9333ea; font-weight: bold;', { employeeId, name: checkData.name });
+            console.log('%c[2FA Step 2] Credentials verified! Dispatching phone notification...', 'color: #9333ea; font-weight: bold;', { employeeId, email: data.email, name: checkData.name });
 
             const twoFaRes = await fetch('https://exploresuite.lk/mobile-api/api/create_2fa_challenge.php', {
                 method: 'POST',
@@ -161,6 +161,7 @@ export default function Login({ status }) {
                 },
                 body: JSON.stringify({
                     employee_id: String(employeeId),
+                    email: data.email,
                     website_name: 'Terminal Prime Airport Counter',
                     device_info: navigator.userAgent,
                 }),
@@ -176,7 +177,7 @@ export default function Login({ status }) {
                 return;
             }
 
-            // C. Open 2FA Popup Modal & Start Polling
+            // D. Open 2FA Popup Modal & Start Polling
             console.log(`%c[2FA Step 3] 2FA Challenge #${twoFaData.challenge_id} created! Security Code: ${twoFaData.security_code}`, 'color: #16a34a; font-weight: bold;');
             setIsVerifying(false);
             setSecurityCode(twoFaData.security_code);
@@ -340,7 +341,6 @@ export default function Login({ status }) {
                                         {showPassword ? 'Hide' : 'Show'}
                                     </button>
                                 </div>
-
 
                                 <InputError message={errors.password} className="mt-2" />
                             </div>
