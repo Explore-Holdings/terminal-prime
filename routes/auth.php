@@ -20,6 +20,11 @@ Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
+    // ── 2FA PRE-LOGIN CREDENTIAL CHECK ───────────────────────────────────────
+    Route::post('check-credentials', [AuthenticatedSessionController::class, 'checkCredentials'])
+        ->name('login.check');
+
+    // ── FINAL LOGIN (Called after phone 2FA approval) ────────────────────────
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
@@ -52,7 +57,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
 
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+    Route::put('password', [PasswordController::class, 'update'])
+        ->name('password.update');
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
