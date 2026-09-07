@@ -61,6 +61,7 @@ class AuthenticatedSessionController extends Controller
             'success'     => true,
             'employee_id' => $employeeId,
             'name'        => $user->name,
+            'role'        => $user->role ?? null,
         ]);
     }
 

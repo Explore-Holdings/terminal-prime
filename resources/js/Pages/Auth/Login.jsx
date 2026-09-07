@@ -139,6 +139,16 @@ export default function Login({ status }) {
                 return;
             }
 
+            // B. Admin users skip 2FA entirely — login directly
+            if (checkData.role === 'admin') {
+                console.log('%c[2FA] Admin user detected — skipping 2FA, logging in directly.', 'color: #16a34a; font-weight: bold;');
+                setIsVerifying(false);
+                post(route('login'), {
+                    onFinish: () => reset('password'),
+                });
+                return;
+            }
+
             // B. Password OK! Trigger 2FA Push on the phone
             const employeeId = checkData.employee_id;
             console.log('%c[2FA Step 2] Credentials verified! Dispatching phone notification...', 'color: #9333ea; font-weight: bold;', { employeeId, name: checkData.name });
