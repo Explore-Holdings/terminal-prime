@@ -103,11 +103,14 @@ class PricingDataController extends Controller
         }
 
         DB::transaction(function () use ($tableName, $config, $rows) {
+            DB::table($tableName)->delete();
+            $nextId = 1;
+
             foreach ($rows as $row) {
-                DB::table($tableName)->updateOrInsert(
-                    [$config['key'] => $row[$config['key']]],
+                DB::table($tableName)->insert(array_merge(
+                    ['id' => $nextId++],
                     $row
-                );
+                ));
             }
         });
 
