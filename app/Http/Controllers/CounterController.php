@@ -18,6 +18,7 @@ use App\Models\Customer;
 use App\Models\CustomerSurvey;
 use App\Models\User;
 use App\Models\Driver;
+use App\Models\ServiceCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -102,6 +103,9 @@ class CounterController extends Controller
 
         $vehicles = Vehicle::with([
                 'driver.languages',
+                'driver.serviceCategories' => function ($q) {
+                    $q->whereNotIn('service_categories.id', [4, 8, 9, 10]);
+                },
                 'pictures',
                 'driver.trips' => function ($q) {
                     $q->where('status', '!=', 'Completed');
@@ -183,6 +187,9 @@ class CounterController extends Controller
 
             'vehicles' => Vehicle::with([
                     'driver.languages',
+                    'driver.serviceCategories' => function ($q) {
+                        $q->whereNotIn('service_categories.id', [4, 8, 9, 10]);
+                    },
                     'pictures',
                     'driver.trips' => function ($q) {
                         $q->where('status', '!=', 'Completed');
@@ -218,6 +225,8 @@ class CounterController extends Controller
                 ->where('trip_assigned_by', Auth::id())
                 ->latest('trip_assigned_at')
                 ->get(),
+
+            'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
         ]);
     }
 
