@@ -273,7 +273,7 @@ class ReportsHubController extends Controller
                 ->select([
                     'e.id',
                     DB::raw('"Expense" as type'),
-                    'e.description as reference',
+                    'e.title as reference',
                     DB::raw('NULL as customer_code'),
                     DB::raw('NULL as driver_name'),
                     'e.amount',
@@ -312,11 +312,6 @@ class ReportsHubController extends Controller
                     'l.logout_at',
                     'l.handed_over_at',
                     DB::raw('TIMESTAMPDIFF(MINUTE, l.login_at, COALESCE(l.logout_at, NOW())) as duration_minutes'),
-                    'l.cash_total',
-                    'l.pos_total',
-                    'l.total_amount',
-                    'l.total_trips',
-                    'l.session_type',
                 ])
                 ->orderByDesc('l.login_at')
                 ->get();
@@ -346,10 +341,10 @@ class ReportsHubController extends Controller
                     'c.customer_code',
                     DB::raw("CONCAT(d.first_name, ' ', d.last_name) as driver_name"),
                     't.status as trip_status',
-                    's.overall_rating',
+                    's.journey_rating as overall_rating',
                     's.driver_rating',
-                    's.vehicle_rating',
-                    's.service_rating',
+                    DB::raw('CASE WHEN s.vehicle_was_clean = 1 THEN 5 ELSE 1 END as vehicle_rating'),
+                    DB::raw('CASE WHEN s.driver_was_polite = 1 THEN 5 ELSE 1 END as service_rating'),
                     's.comments',
                     's.created_at as submitted_at',
                 ])

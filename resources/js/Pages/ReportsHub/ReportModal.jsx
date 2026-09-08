@@ -37,7 +37,7 @@ export default function ReportModal({ isOpen, onClose, config }) {
             setData(response.data.data || []);
             setSummary(response.data);
         } catch (err) {
-            setError('Failed to fetch report data.');
+            setError(err.response?.data?.error || 'Failed to fetch report data.');
             console.error(err);
         } finally {
             setLoading(false);
