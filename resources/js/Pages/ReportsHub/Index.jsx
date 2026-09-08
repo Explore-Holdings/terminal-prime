@@ -172,33 +172,32 @@ export default function ReportsHubIndex() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {REPORTS.map((report) => (
                         <div 
                             key={report.id}
-                            className="bg-white rounded-3xl p-1 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer"
+                            className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors duration-200 group cursor-pointer"
                             onClick={() => setActiveReport(report)}
                         >
-                            <div className="p-6">
-                                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${report.color} flex items-center justify-center text-white shadow-lg mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                                    <report.icon className="w-7 h-7" />
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <report.icon className="w-4 h-4 shrink-0 text-gray-500" />
+                                    <h3 className="text-sm font-bold text-[#0f1d45] truncate">
+                                        {report.title}
+                                    </h3>
                                 </div>
-                                
-                                <h3 className="text-lg font-black text-[#0f1d45] mb-2">
-                                    {report.title}
-                                </h3>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed h-10 line-clamp-2">
+                                <p className="mt-2 text-xs text-gray-500 font-medium leading-relaxed min-h-8 line-clamp-2">
                                     {report.description}
                                 </p>
                             </div>
                             
-                            <div className="px-6 py-4 border-t border-gray-50 bg-gray-50/50 rounded-b-[22px] flex items-center justify-between">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-[#0f1d45] transition-colors">
+                            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-[#0f1d45] transition-colors">
                                     View Report
                                 </span>
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm text-gray-400 group-hover:bg-[#0f1d45] group-hover:text-white transition-all">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                <div className="text-gray-400 group-hover:text-[#0f1d45] transition-colors">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
                             </div>
