@@ -243,7 +243,7 @@ export default function VehicleQueueGrid({ vehicles, ongoingTrips = [], nextInLi
                             const waitingQueueVehicles = [];
 
                             vehicles.forEach((v) => {
-                                const reg = v.driver?.registration_number ?? '';
+                                const reg = v.driver?.registration_number ?? v.registration_number ?? '';
                                 const match = reg.match(/\d+/);
                                 const num = match ? parseInt(match[0], 10) : NaN;
                                 if (!isNaN(num) && num >= 1 && num <= 95) {
@@ -257,10 +257,12 @@ export default function VehicleQueueGrid({ vehicles, ongoingTrips = [], nextInLi
                             });
 
                             waitingQueueVehicles.sort((a, b) => {
-                                if (a.sessionId !== b.sessionId) {
-                                    return a.sessionId - b.sessionId;
+                                const slotA = !isNaN(a.originalSlot) ? a.originalSlot : 999;
+                                const slotB = !isNaN(b.originalSlot) ? b.originalSlot : 999;
+                                if (slotA !== slotB) {
+                                    return slotA - slotB;
                                 }
-                                return (a.originalSlot || 0) - (b.originalSlot || 0);
+                                return (a.sessionId || 0) - (b.sessionId || 0);
                             });
 
                             return (
