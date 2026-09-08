@@ -1133,11 +1133,11 @@ function Modal({
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('vehicle')} >
+                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('vehicle')} >
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('rent_a_car_vehicle')} >
+                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('rent_a_car_vehicle')} >
                             External Vehicles
                         </TabButton>
                     )}
@@ -1368,8 +1368,13 @@ function PaymentTab({
         }));
 
         const isRentACar = agent.booking_type === 'Rent a Car';
-        if (!isRentACar) {
-            setVehicleEnabledAgentId(agent.id);
+        setVehicleEnabledAgentId(agent.id);
+
+        // Shift immediately to vehicle tab when clicked without waiting
+        if (isRentACar) {
+            setActiveTab('rent_a_car_vehicle');
+        } else {
+            setActiveTab('vehicle');
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
@@ -1380,18 +1385,10 @@ function PaymentTab({
                 const path = page.props.invoicePath ?? page.props.flash?.invoice_path ?? null;
                 if (path) setInvoicePath(path);
                 setVehicleEnabledAgentId(agent.id);
-
-                if (isRentACar) {
-                    setActiveTab('rent_a_car_vehicle');
-                } else {
-                    setActiveTab('vehicle');
-                }
             },
             onError: () => {
                 alert('Payment save failed.');
-                if (!isRentACar) {
-                    setActiveTab('payment');
-                }
+                setActiveTab('payment');
             },
         });
     };
@@ -1708,6 +1705,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
+
+        // Open invoice on trip assignment
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
 
         setSubmitting(true);
         closeConfirm();
@@ -3064,6 +3065,10 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
         setSubmitting(true);
         const v = confirmModal.vehicle;
         
+        // Open invoice on vehicle assignment
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
+
         router.post(
             `/customers/${customerId}/assign-external-vehicle`,
             {
