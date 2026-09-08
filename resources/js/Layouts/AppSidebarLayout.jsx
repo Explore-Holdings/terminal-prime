@@ -72,7 +72,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff', 'executive'] },
         { label: 'Tours', path: '/trips', roles: ['admin', 'counter staff', 'executive', 'manager'] },
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive'] },
-        { label: 'Reports', path: '/reports', roles: ['admin', 'executive'] },
+        { label: 'Overview', path: '/reports', roles: ['admin', 'executive'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
         { label: 'Admin', path: '/admin', roles: ['admin'] },
     ];
