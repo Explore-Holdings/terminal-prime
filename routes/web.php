@@ -18,6 +18,7 @@ use App\Http\Controllers\TripController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\CustomerSurveyController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\ReportsHubController;
 use App\Http\Controllers\CustomerSurveyAdminController;
 
 Route::get('/', function () {
@@ -193,6 +194,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/verify-password', [\App\Http\Controllers\Admin\AdminActivityController::class, 'verifyPassword'])->name('admin.verify-password');
     Route::post('/admin/lock', [\App\Http\Controllers\Admin\AdminActivityController::class, 'lock'])->name('admin.lock');
     Route::post('/admin/audit/log-client-export', [\App\Http\Controllers\Admin\AdminActivityController::class, 'logClientExport'])->name('admin.audit.log-client-export');
+});
+
+// ── Reports Hub ────────────────────────────────────────────────────────────
+Route::middleware(['auth', 'verified'])->prefix('reports-hub')->group(function () {
+    Route::get('/', [ReportsHubController::class, 'index'])->name('reports-hub.index');
+    Route::get('/data/trips',    [ReportsHubController::class, 'trips'])->name('reports-hub.trips');
+    Route::get('/data/revenue',  [ReportsHubController::class, 'revenue'])->name('reports-hub.revenue');
+    Route::get('/data/drivers',  [ReportsHubController::class, 'drivers'])->name('reports-hub.drivers');
+    Route::get('/data/customers',[ReportsHubController::class, 'customers'])->name('reports-hub.customers');
+    Route::get('/data/finance',  [ReportsHubController::class, 'finance'])->name('reports-hub.finance');
+    Route::get('/data/sessions', [ReportsHubController::class, 'sessions'])->name('reports-hub.sessions');
+    Route::get('/data/surveys',  [ReportsHubController::class, 'surveys'])->name('reports-hub.surveys');
+    Route::get('/data/manager',  [ReportsHubController::class, 'manager'])->name('reports-hub.manager');
 });
 
 require __DIR__.'/auth.php';
