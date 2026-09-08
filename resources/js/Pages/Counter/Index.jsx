@@ -145,7 +145,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [] }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -359,7 +359,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const waitingQueueVehicles = useMemo(() => {
         const list = [];
         vehicles.forEach((v) => {
-            const reg = v.driver?.registration_number ?? '';
+            const reg = v.driver?.registration_number ?? v.registration_number ?? '';
             const match = reg.match(/\d+/);
             const num = match ? parseInt(match[0], 10) : NaN;
 
@@ -370,10 +370,12 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         });
 
         return list.sort((a, b) => {
-            if (a.sessionId !== b.sessionId) {
-                return a.sessionId - b.sessionId;
+            const slotA = !isNaN(a.originalSlot) ? a.originalSlot : 999;
+            const slotB = !isNaN(b.originalSlot) ? b.originalSlot : 999;
+            if (slotA !== slotB) {
+                return slotA - slotB;
             }
-            return (a.originalSlot || 0) - (b.originalSlot || 0);
+            return (a.sessionId || 0) - (b.sessionId || 0);
         });
     }, [vehicles, baseSessionId, ongoingTrips]);
 
@@ -529,7 +531,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                     const vehicleMap = {};
 
                                     vehicles.forEach((v) => {
-                                        const reg = v.driver?.registration_number ?? '';
+                                        const reg = v.driver?.registration_number ?? v.registration_number ?? '';
                                         const match = reg.match(/\d+/);
                                         const num = match ? parseInt(match[0], 10) : NaN;
                                         if (!isNaN(num) && num >= 1 && num <= 95) {
@@ -1133,11 +1135,11 @@ function Modal({
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('vehicle')} >
+                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('vehicle')} >
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveInvoicePath} onClick={() => setActiveTab('rent_a_car_vehicle')} >
+                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('rent_a_car_vehicle')} >
                             External Vehicles
                         </TabButton>
                     )}
@@ -1368,8 +1370,13 @@ function PaymentTab({
         }));
 
         const isRentACar = agent.booking_type === 'Rent a Car';
-        if (!isRentACar) {
-            setVehicleEnabledAgentId(agent.id);
+        setVehicleEnabledAgentId(agent.id);
+
+        // Shift immediately to vehicle tab when clicked without waiting
+        if (isRentACar) {
+            setActiveTab('rent_a_car_vehicle');
+        } else {
+            setActiveTab('vehicle');
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
@@ -1380,18 +1387,10 @@ function PaymentTab({
                 const path = page.props.invoicePath ?? page.props.flash?.invoice_path ?? null;
                 if (path) setInvoicePath(path);
                 setVehicleEnabledAgentId(agent.id);
-
-                if (isRentACar) {
-                    setActiveTab('rent_a_car_vehicle');
-                } else {
-                    setActiveTab('vehicle');
-                }
             },
             onError: () => {
                 alert('Payment save failed.');
-                if (!isRentACar) {
-                    setActiveTab('payment');
-                }
+                setActiveTab('payment');
             },
         });
     };
@@ -1542,6 +1541,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectionReason, setSelectionReason] = useState('');
     const [reasonModal, setReasonModal] = useState(null); // { vehicle, slotNumber, isWaitingQueue, reason: '' }
     const [rateMode, setRateMode] = useState('standard');
+    const [selectedServiceCategoryFilter, setSelectedServiceCategoryFilter] = useState(null);
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
     const [selectedCityId, setSelectedCityId] = useState('');
@@ -1565,6 +1565,16 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
     const allVehicleTypes = Array.from(
         new Set(vehicles.map(v => v.vehicle_type).filter(Boolean))
+    );
+
+    const excludedServiceCategoryIds = [4, 8, 9, 10];
+    const allServiceCategories = Array.from(
+        new Map(
+            vehicles
+                .flatMap(v => v.driver?.service_categories ?? v.driver?.serviceCategories ?? [])
+                .filter(category => category?.id && !excludedServiceCategoryIds.includes(category.id))
+                .map(category => [category.id, category])
+        ).values()
     );
 
     const customerPrefLang = customerForm?.data?.language_preference || agent?.language_preference || '';
@@ -1709,15 +1719,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
-        // Open invoice in another page / new tab
-        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
-        let invoiceWindow = null;
-        if (targetInvoice) {
-            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
-            invoiceWindow = window.open(resolvedTarget, '_blank');
-        } else {
-            invoiceWindow = window.open('about:blank', '_blank');
-        }
+        // Open invoice on trip assignment
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
 
         setSubmitting(true);
         closeConfirm();
@@ -1742,26 +1746,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
-                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
-                    if (invoiceWindow) {
-                        if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (resolvedPath) {
-                                invoiceWindow.location.href = resolvedPath;
-                            } else {
-                                invoiceWindow.close();
-                            }
-                        }
-                    } else if (resolvedPath) {
-                        window.open(resolvedPath, '_blank');
-                    }
-                },
-                onError: () => {
-                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
-                        invoiceWindow.close();
-                    }
-                },
                 onFinish: () => setSubmitting(false),
             }
         );
@@ -1773,7 +1757,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     return (
         <div>
             {/* Filters Bar */}
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Languages Filter */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1880,6 +1864,43 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         })}
                     </div>
                 </div>
+
+            {/* Service Categories Filter */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 md:col-span-1">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    <span>●</span>
+                    <span>Service Categories</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    {[
+                        { key: null, label: 'All Services', count: vehicles.length },
+                        ...allServiceCategories.map(category => ({
+                            key: category.id,
+                            label: category.name,
+                            count: vehicles.filter(vehicle =>
+                                (vehicle.driver?.service_categories ?? vehicle.driver?.serviceCategories ?? [])
+                                    .some(item => item.id === category.id)
+                            ).length,
+                        })),
+                    ].map((option) => (
+                        <button
+                            key={option.key ?? 'all'}
+                            type="button"
+                            onClick={() => setSelectedServiceCategoryFilter(option.key)}
+                            className={`px-1.5 py-1 text-[9px] rounded border transition flex items-center justify-between gap-1 ${
+                                selectedServiceCategoryFilter === option.key
+                                    ? 'bg-slate-800 text-white border-slate-800 font-bold'
+                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                        >
+                            <span className="truncate">{option.label}</span>
+                            <span className={`text-[8px] px-1 rounded-full font-bold ${selectedServiceCategoryFilter === option.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+                                {option.count}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
             </div>
 
             <div className="flex justify-between mb-3">
@@ -1945,7 +1966,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             const waitingQueueVehicles = [];
 
                             vehicles.forEach((v) => {
-                                const reg = v.driver?.registration_number ?? '';
+                                const reg = v.driver?.registration_number ?? v.registration_number ?? '';
                                 const match = reg.match(/\d+/);
                                 const num = match ? parseInt(match[0], 10) : NaN;
                                 if (!isNaN(num) && num >= 1 && num <= 95) {
@@ -1959,10 +1980,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             });
 
                             waitingQueueVehicles.sort((a, b) => {
-                                if (a.sessionId !== b.sessionId) {
-                                    return a.sessionId - b.sessionId;
+                                const slotA = !isNaN(a.originalSlot) ? a.originalSlot : 999;
+                                const slotB = !isNaN(b.originalSlot) ? b.originalSlot : 999;
+                                if (slotA !== slotB) {
+                                    return slotA - slotB;
                                 }
-                                return (a.originalSlot || 0) - (b.originalSlot || 0);
+                                return (a.sessionId || 0) - (b.sessionId || 0);
                             });
 
                             return (
@@ -1988,6 +2011,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                         number={slotNum}
                                                         selectedLanguageFilter={selectedLanguageFilter}
                                                         selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                        selectedServiceCategoryFilter={selectedServiceCategoryFilter}
+                                                        allServiceCategories={allServiceCategories}
+                                                        baseSessionId={baseSessionId}
                                                         allVehicleTypes={allVehicleTypes}
                                                         isMovedToNextQueue={isMoved}
                                                         onClick={(v) => !isMoved && handlePickVehicle(v, slotNum, false)}
@@ -2029,6 +2055,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                                                 number={item.originalSlot}
                                                                                 selectedLanguageFilter={selectedLanguageFilter}
                                                                                 selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                                                        selectedServiceCategoryFilter={selectedServiceCategoryFilter}
+                                                                                        allServiceCategories={allServiceCategories}
+                                                                                        baseSessionId={baseSessionId}
                                                                                 allVehicleTypes={allVehicleTypes}
                                                                                 onClick={(v) => handlePickVehicle(v, item.originalSlot, true)}
                                                                             />
@@ -2050,6 +2079,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                                                 number={item.originalSlot}
                                                                                 selectedLanguageFilter={selectedLanguageFilter}
                                                                                 selectedVehicleTypeFilter={selectedVehicleTypeFilter}
+                                                                                        selectedServiceCategoryFilter={selectedServiceCategoryFilter}
+                                                                                        allServiceCategories={allServiceCategories}
+                                                                                        baseSessionId={baseSessionId}
                                                                                 allVehicleTypes={allVehicleTypes}
                                                                                 onClick={(v) => handlePickVehicle(v, item.originalSlot, true)}
                                                                             />
@@ -2748,12 +2780,13 @@ function TripCard({ trip }) {
                         )}
                     </div>
                 )}
+
             </div>
         </div>
     );
 }
 
-function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, allVehicleTypes = [], isMovedToNextQueue = false }) {
+function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selectedVehicleTypeFilter, selectedServiceCategoryFilter, allServiceCategories = [], baseSessionId = 1, allVehicleTypes = [], isMovedToNextQueue = false }) {
     // No vehicle registered in this slot — skip rendering
     if (!vehicle) return null;
 
@@ -2764,10 +2797,14 @@ function VehicleSlot({ vehicle, number, onClick, selectedLanguageFilter, selecte
 
     const matchesLang = selectedLanguageFilter ? (languageNames.includes(selectedLanguageFilter) && isOnDuty) : true;
     const matchesType = selectedVehicleTypeFilter ? (vehicle?.vehicle_type === selectedVehicleTypeFilter && isOnDuty) : true;
+    const serviceCategories = vehicle.driver?.service_categories ?? vehicle.driver?.serviceCategories ?? [];
+    const matchesServiceCategory = selectedServiceCategoryFilter
+        ? serviceCategories.some(category => category.id === selectedServiceCategoryFilter)
+        : true;
     
     // if any filter is active and this vehicle doesn't match, we dim it
-    const isFilterActive = selectedLanguageFilter || selectedVehicleTypeFilter;
-    const matchesFilter = matchesLang && matchesType;
+    const isFilterActive = selectedLanguageFilter || selectedVehicleTypeFilter || selectedServiceCategoryFilter;
+    const matchesFilter = matchesLang && matchesType && matchesServiceCategory;
     
     const dimClass = isFilterActive && !matchesFilter ? 'opacity-30 grayscale-[50%]' : '';
     
@@ -3076,18 +3113,13 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     }, [startDate, endDate]);
 
     const confirmAssign = () => {
-        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
-        let invoiceWindow = null;
-        if (targetInvoice) {
-            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
-            invoiceWindow = window.open(resolvedTarget, '_blank');
-        } else {
-            invoiceWindow = window.open('about:blank', '_blank');
-        }
-
         setSubmitting(true);
         const v = confirmModal.vehicle;
         
+        // Open invoice on vehicle assignment
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
+
         router.post(
             `/customers/${customerId}/assign-external-vehicle`,
             {
@@ -3103,27 +3135,9 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
-                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
-                    if (invoiceWindow) {
-                        if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (resolvedPath) {
-                                invoiceWindow.location.href = resolvedPath;
-                            } else {
-                                invoiceWindow.close();
-                            }
-                        }
-                    } else if (resolvedPath) {
-                        window.open(resolvedPath, '_blank');
-                    }
+                onSuccess: () => {
                     setConfirmModal(null);
                     onClose();
-                },
-                onError: () => {
-                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
-                        invoiceWindow.close();
-                    }
                 },
                 onFinish: () => setSubmitting(false),
             }
