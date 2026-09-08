@@ -40,6 +40,7 @@ const iconMap = {
     'Customer Surveys': ChatBubbleLeftRightIcon,
     Overview: ChartBarIcon,
     'Reports Hub': DocumentChartBarIcon,
+    'Pricing Data': BanknotesIcon,
     Users: UsersIcon,
     Admin: ShieldCheckIcon,
 };
@@ -76,6 +77,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin', 'executive'] },
         { label: 'Overview', path: '/reports', roles: ['admin', 'executive'] },
         { label: 'Reports Hub', path: '/reports-hub', roles: ['admin', 'executive'] },
+        { label: 'Pricing Data', path: '/pricing-data', roles: ['admin', 'executive'] },
         { label: 'Users', path: '/users', roles: ['admin'] },
         { label: 'Admin', path: '/admin', roles: ['admin'] },
     ];

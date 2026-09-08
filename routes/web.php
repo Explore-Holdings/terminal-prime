@@ -20,6 +20,7 @@ use App\Http\Controllers\CustomerSurveyController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReportsHubController;
 use App\Http\Controllers\CustomerSurveyAdminController;
+use App\Http\Controllers\PricingDataController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -187,6 +188,8 @@ Route::prefix('reports')->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/pricing-data', [PricingDataController::class, 'index'])->name('pricing-data.index');
+    Route::post('/pricing-data/import', [PricingDataController::class, 'import'])->name('pricing-data.import');
     Route::get('/dss', [CounterController::class, 'dssIndex'])->name('dcss.index');
     Route::get('/admin', [\App\Http\Controllers\Admin\AdminActivityController::class, 'index'])->name('admin.index');
     Route::get('/admin/activity', [\App\Http\Controllers\Admin\AdminActivityController::class, 'index'])->name('admin.activity');
