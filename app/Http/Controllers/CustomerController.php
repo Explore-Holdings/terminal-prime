@@ -173,23 +173,10 @@ class CustomerController extends Controller
         $agent->update($agentUpdate);
 
         $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
-        $invoicePath   = "invoices/{$invoiceNumber}.pdf";
-
         $customer->update(['invoice_number' => $invoiceNumber]);
-        $customer->refresh()->load('agent.user');
-
-        $invoicePath = "/customers/{$customer->id}/invoice/pdf";
-
-        $customer->update(['invoice_path' => $invoicePath]);
-
-        if ($customer->email) {
-            Mail::to($customer->email)
-                ->queue(new CustomerInvoiceMail($customer, $invoiceNumber));
-        }
 
         return redirect()
-            ->route('counter.index')
-            ->with('invoice_path', $invoicePath);
+            ->route('counter.index');
     }
 
     public function downloadInvoice(Customer $customer)
@@ -201,6 +188,8 @@ class CustomerController extends Controller
         $currency = $customer->agent->new_currency ?? 'LKR';
         $price = $customer->agent->new_price ?? 0;
 
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+
         $pdf = Pdf::loadView('invoices.customer-invoice', [
             'customer'   => $customer,
             'currency'   => $currency,
@@ -209,7 +198,7 @@ class CustomerController extends Controller
             'payments'   => collect($payments),
         ]);
 
-        return $pdf->stream("{$customer->invoice_number}.pdf");
+        return $pdf->stream("{$invoiceNumber}.pdf");
     }
 
     public function assignTrip(Request $request, Customer $customer)
@@ -415,8 +404,22 @@ class CustomerController extends Controller
         }
 
         $customer->refresh();
+
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
+
+        $customer->update([
+            'invoice_number' => $invoiceNumber,
+            'invoice_path'   => $invoicePath,
+        ]);
+
+        if ($customer->email) {
+            Mail::to($customer->email)
+                ->queue(new CustomerInvoiceMail($customer->load('agent.user'), $invoiceNumber));
+        }
+
         return back()->with('success', 'Trip assigned successfully.')
-            ->with('invoice_path', $customer->invoice_path);
+            ->with('invoice_path', $invoicePath);
     }
 
     private static function sendFcmNotification(
@@ -566,6 +569,22 @@ class CustomerController extends Controller
             \Illuminate\Support\Facades\Log::error('FMS rental sync failed: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'External vehicle assigned successfully.');
+        $customer->refresh();
+
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
+
+        $customer->update([
+            'invoice_number' => $invoiceNumber,
+            'invoice_path'   => $invoicePath,
+        ]);
+
+        if ($customer->email) {
+            Mail::to($customer->email)
+                ->queue(new CustomerInvoiceMail($customer->load('agent.user'), $invoiceNumber));
+        }
+
+        return back()->with('success', 'External vehicle assigned successfully.')
+            ->with('invoice_path', $invoicePath);
     }
 }
