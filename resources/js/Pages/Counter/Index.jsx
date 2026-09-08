@@ -1709,16 +1709,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
 
-        // Open invoice in another page / new tab
-        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
-        let invoiceWindow = null;
-        if (targetInvoice) {
-            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
-            invoiceWindow = window.open(resolvedTarget, '_blank');
-        } else {
-            invoiceWindow = window.open('about:blank', '_blank');
-        }
-
         setSubmitting(true);
         closeConfirm();
         setShowFinalConfirm(false);
@@ -1742,26 +1732,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
-                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
-                    if (invoiceWindow) {
-                        if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (resolvedPath) {
-                                invoiceWindow.location.href = resolvedPath;
-                            } else {
-                                invoiceWindow.close();
-                            }
-                        }
-                    } else if (resolvedPath) {
-                        window.open(resolvedPath, '_blank');
-                    }
-                },
-                onError: () => {
-                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
-                        invoiceWindow.close();
-                    }
-                },
                 onFinish: () => setSubmitting(false),
             }
         );
@@ -2636,6 +2606,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
 function TripCard({ trip }) {
     const status = trip.status ?? 'Unknown';
+    const invoicePath = trip.customer?.invoice_path;
+    const invoiceUrl = invoicePath
+        ? (invoicePath.startsWith('/') ? invoicePath : `/storage/${invoicePath}`)
+        : null;
 
     const cardColor = {
         Assigned: 'bg-red-50 border-red-500',
@@ -2747,6 +2721,17 @@ function TripCard({ trip }) {
                             </span>
                         )}
                     </div>
+                )}
+
+                {invoiceUrl && (
+                    <a
+                        href={invoiceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex w-full items-center justify-center rounded bg-slate-800 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-slate-700"
+                    >
+                        View Invoice
+                    </a>
                 )}
             </div>
         </div>
@@ -3076,15 +3061,6 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     }, [startDate, endDate]);
 
     const confirmAssign = () => {
-        const targetInvoice = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
-        let invoiceWindow = null;
-        if (targetInvoice) {
-            const resolvedTarget = targetInvoice.startsWith('/') ? targetInvoice : `/storage/${targetInvoice}`;
-            invoiceWindow = window.open(resolvedTarget, '_blank');
-        } else {
-            invoiceWindow = window.open('about:blank', '_blank');
-        }
-
         setSubmitting(true);
         const v = confirmModal.vehicle;
         
@@ -3103,27 +3079,9 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    const finalPath = page?.props?.flash?.invoice_path || targetInvoice;
-                    const resolvedPath = finalPath ? (finalPath.startsWith('/') ? finalPath : `/storage/${finalPath}`) : null;
-                    if (invoiceWindow) {
-                        if (invoiceWindow.location.href.includes('about:blank')) {
-                            if (resolvedPath) {
-                                invoiceWindow.location.href = resolvedPath;
-                            } else {
-                                invoiceWindow.close();
-                            }
-                        }
-                    } else if (resolvedPath) {
-                        window.open(resolvedPath, '_blank');
-                    }
+                onSuccess: () => {
                     setConfirmModal(null);
                     onClose();
-                },
-                onError: () => {
-                    if (invoiceWindow && invoiceWindow.location.href.includes('about:blank')) {
-                        invoiceWindow.close();
-                    }
                 },
                 onFinish: () => setSubmitting(false),
             }

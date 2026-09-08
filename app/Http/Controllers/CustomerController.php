@@ -182,11 +182,6 @@ class CustomerController extends Controller
 
         $customer->update(['invoice_path' => $invoicePath]);
 
-        if ($customer->email) {
-            Mail::to($customer->email)
-                ->queue(new CustomerInvoiceMail($customer, $invoiceNumber));
-        }
-
         return redirect()
             ->route('counter.index')
             ->with('invoice_path', $invoicePath);
@@ -415,6 +410,12 @@ class CustomerController extends Controller
         }
 
         $customer->refresh();
+
+        if ($customer->email) {
+            Mail::to($customer->email)
+                ->queue(new CustomerInvoiceMail($customer->load('agent.user'), $customer->invoice_number));
+        }
+
         return back()->with('success', 'Trip assigned successfully.')
             ->with('invoice_path', $customer->invoice_path);
     }
