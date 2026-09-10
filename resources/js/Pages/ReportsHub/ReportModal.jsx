@@ -7,6 +7,13 @@ import {
 } from '@heroicons/react/24/outline';
 import axios from 'axios';
 
+const resolveReportEndpoint = (endpoint) => {
+    const reportsHubMatch = window.location.pathname.match(/^(.*)\/reports-hub(?:\/.*)?$/);
+    const applicationPrefix = reportsHubMatch?.[1] || '';
+
+    return `${applicationPrefix}${endpoint}`;
+};
+
 export default function ReportModal({ isOpen, onClose, config }) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -14,6 +21,7 @@ export default function ReportModal({ isOpen, onClose, config }) {
     const [range, setRange] = useState('today');
     const [customFrom, setCustomFrom] = useState('');
     const [customTo, setCustomTo] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
     const [summary, setSummary] = useState(null);
 
     const printRef = useRef();
@@ -22,18 +30,27 @@ export default function ReportModal({ isOpen, onClose, config }) {
         if (isOpen && config) {
             fetchData();
         }
-    }, [isOpen, config, range]);
+    }, [isOpen, config, range, selectedCategory]);
+
+    useEffect(() => {
+        if (isOpen && config) {
+            setSelectedCategory(config.selectedCategory || '');
+        }
+    }, [isOpen, config]);
 
     const fetchData = async () => {
         setLoading(true);
         setError('');
         try {
             const params = { range };
+            if (selectedCategory) {
+                params.category = selectedCategory;
+            }
             if (range === 'custom') {
                 params.from = customFrom;
                 params.to = customTo;
             }
-            const response = await axios.get(config.endpoint, { params });
+            const response = await axios.get(resolveReportEndpoint(config.endpoint), { params });
             setData(response.data.data || []);
             setSummary(response.data);
         } catch (err) {
@@ -94,7 +111,9 @@ export default function ReportModal({ isOpen, onClose, config }) {
                         <config.icon className="w-6 h-6" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-[#0f1d45] tracking-tight">{config.title}</h2>
+                        <h2 className="text-xl font-black text-[#0f1d45] tracking-tight">
+                            {selectedCategory ? `${config.title} - ${selectedCategory}` : config.title}
+                        </h2>
                         <p className="text-sm text-gray-500 font-medium">{config.description}</p>
                     </div>
                 </div>
@@ -127,6 +146,38 @@ export default function ReportModal({ isOpen, onClose, config }) {
 
             {/* Filters */}
             <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-6 shrink-0 print:hidden z-10 shadow-sm relative">
+                {config.categories && (
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Category</span>
+                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedCategory('')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    !selectedCategory
+                                        ? 'bg-white text-[#0f1d45] shadow-sm ring-1 ring-gray-200/50'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                }`}
+                            >
+                                All
+                            </button>
+                            {config.categories.map((category) => (
+                                <button
+                                    type="button"
+                                    key={category}
+                                    onClick={() => setSelectedCategory(category)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        selectedCategory === category
+                                            ? 'bg-white text-[#0f1d45] shadow-sm ring-1 ring-gray-200/50'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    {category}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl border border-gray-200">
                     {['today', 'week', 'month', 'custom'].map((r) => (
                         <button
