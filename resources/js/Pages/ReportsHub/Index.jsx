@@ -95,6 +95,7 @@ const REPORTS = [
         id: 'finance',
         title: 'Finance Report',
         description: 'Detailed ledger of trip payouts, expenses, and balances.',
+        categories: ['Balance Sheet', 'Income', 'Expenses', 'Payouts'],
         icon: BanknotesIcon,
         color: 'from-cyan-500 to-blue-600',
         endpoint: '/reports-hub/data/finance',
@@ -174,7 +175,7 @@ export default function ReportsHubIndex() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {REPORTS.map((report) => (
-                        <div 
+                        <div
                             key={report.id}
                             className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors duration-200 group cursor-pointer"
                             onClick={() => setActiveReport(report)}
@@ -190,7 +191,7 @@ export default function ReportsHubIndex() {
                                     {report.description}
                                 </p>
                             </div>
-                            
+
                             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-[#0f1d45] transition-colors">
                                     View Report

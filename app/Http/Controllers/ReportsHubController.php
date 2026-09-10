@@ -288,6 +288,18 @@ class ReportsHubController extends Controller
             $allRows = $tripFinances->concat($payouts)->concat($expenses)
                 ->sortByDesc('date')->values();
 
+            $categoryTypes = [
+                'Balance Sheet' => ['Trip Finance', 'Payout', 'Expense'],
+                'Income'       => ['Trip Finance'],
+                'Expenses'     => ['Expense'],
+                'Payouts'      => ['Payout'],
+            ];
+            $category = $request->get('category');
+
+            if (isset($categoryTypes[$category])) {
+                $allRows = $allRows->whereIn('type', $categoryTypes[$category])->values();
+            }
+
             return response()->json(['data' => $allRows, 'total' => $allRows->count()]);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'Failed to load finance report.'], 500);
