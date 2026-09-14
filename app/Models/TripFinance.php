@@ -24,21 +24,27 @@ class TripFinance extends Model
         'balance',
         'received',
         'received_amount',
+        'original_currency',
+        'original_amount',
         'received_by',
         'received_at',
+        'accountant_approved',
+        'approved_by',
     ];
 
     protected $casts = [
-        'driver_rate'     => 'decimal:2',
-        'agent_rate'      => 'decimal:2',
-        'is_custom_rate'  => 'boolean',
-        'total_amount'    => 'decimal:2',
-        'driver_share'    => 'decimal:2',
-        'agent_share'     => 'decimal:2',
-        'balance'         => 'decimal:2',
-        'received'        => 'boolean',
-        'received_amount' => 'decimal:2',
-        'received_at'     => 'datetime',
+        'driver_rate'         => 'decimal:2',
+        'agent_rate'          => 'decimal:2',
+        'is_custom_rate'      => 'boolean',
+        'total_amount'        => 'decimal:2',
+        'driver_share'        => 'decimal:2',
+        'agent_share'         => 'decimal:2',
+        'balance'             => 'decimal:2',
+        'received'            => 'boolean',
+        'received_amount'     => 'decimal:2',
+        'original_amount'     => 'decimal:2',
+        'received_at'         => 'datetime',
+        'accountant_approved' => 'boolean',
     ];
 
     public function trip(): BelongsTo
@@ -64,6 +70,16 @@ class TripFinance extends Model
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function paymentSlips()
+    {
+        return $this->hasMany(PaymentSlip::class, 'trip_finance_id');
     }
 
     // Helper: mark as received

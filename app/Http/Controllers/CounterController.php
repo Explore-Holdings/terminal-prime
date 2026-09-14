@@ -160,6 +160,7 @@ class CounterController extends Controller
             'vehicles' => $vehicles,
             'ongoingTrips' => $ongoingTrips,
             'filter' => $filter,
+            'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
         ]);
     }
 
@@ -227,6 +228,7 @@ class CounterController extends Controller
                 ->get(),
 
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
+            'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
         ]);
     }
 
@@ -262,6 +264,8 @@ class CounterController extends Controller
             $logId = $newLog->id;
         }
 
+        Cache::forget('counter_last_reordered_at');
+
         return redirect()->route('counter.checkout-summary', $logId);
     }
 
@@ -276,6 +280,8 @@ class CounterController extends Controller
         // Include drivers on active trips as well (per user request)
         \App\Models\Driver::whereIn('id', $request->driver_ids)
             ->update(['session_id' => $request->target_session]);
+
+        Cache::forever('counter_last_reordered_at', now()->toIso8601String());
 
         return back()->with('success', 'Session reordered successfully.');
     }

@@ -24,7 +24,7 @@ const getVehicleSlotNumber = (v) => {
     return match ? parseInt(match[0], 10) : null;
 };
 
-const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
+const getNextInLineVehicle = (vehiclesList, ongoingTripsList, lastReorderedAt = null) => {
     const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
@@ -58,7 +58,16 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
 
     // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
     // Ignore out-of-turn assignments (trips with selection_reason) so they don't advance the pointer
+    // If reordered, ignore trips assigned before the reorder so the queue restarts from the first in-duty driver
     const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
+        const tripTimeStr = t.trip_assigned_at || t.created_at;
+        if (lastReorderedAt && tripTimeStr) {
+            const tripTime = new Date(tripTimeStr).getTime();
+            const reorderTime = new Date(lastReorderedAt).getTime();
+            if (tripTime < reorderTime) {
+                return false;
+            }
+        }
         const driverId = t.driver_id ?? t.driver?.id;
         const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
         return sid > 0 && sid <= baseSessionId && !t.selection_reason;
@@ -80,7 +89,7 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
     return sorted[0];
 };
 
-export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {}, filter = 'today' }) {
+export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {}, filter = 'today', lastReorderedAt = null }) {
     const { auth } = usePage().props;
     const user = auth?.user;
 
@@ -90,7 +99,7 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
     const [lastUpdated, setLastUpdated] = React.useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     const [dateFilter, setDateFilter] = React.useState(filter);
 
-    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
     // const queueVehicles = vehicles.filter((v) => {
