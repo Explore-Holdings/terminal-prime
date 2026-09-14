@@ -388,10 +388,10 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             const isReceived = Boolean(trip.cash_received) || Boolean(tf?.received);
 
                                             const handleMarkReceived = () => {
-                                                if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received?`)) {
+                                                if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received from counter manager?`)) {
                                                     return;
                                                 }
-                                                const toastId = toast.loading(`Marking Trip #${trip.id} as received…`);
+                                                const toastId = toast.loading(`Marking Trip #${trip.id} as received from counter manager…`);
                                                 router.post(
                                                     `/finance/trip-finances/${trip.id}/mark-received`,
                                                     {
@@ -406,13 +406,13 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         preserveState: true,
                                                         onSuccess: () => {
                                                             toast.success(
-                                                                `Trip #${trip.id} marked as received — LKR ${amountInLkr.toLocaleString()}`,
+                                                                `Trip #${trip.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`,
                                                                 { id: toastId }
                                                             );
                                                         },
                                                         onError: () => {
                                                             toast.error(
-                                                                `Failed to mark Trip #${trip.id} as received`,
+                                                                `Failed to mark Trip #${trip.id} as received from counter manager`,
                                                                 { id: toastId }
                                                             );
                                                         },
@@ -471,7 +471,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                     <td className="px-3 py-2">
                                                         {isReceived ? (
                                                             <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
-                                                                ✓ Received
+                                                                ✓ Received from Counter Manager
                                                             </span>
                                                         ) : (
                                                             <button
@@ -479,7 +479,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                                 onClick={handleMarkReceived}
                                                                 className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform"
                                                             >
-                                                                Mark Received
+                                                                Received from Counter Manager
                                                             </button>
                                                         )}
                                                     </td>
