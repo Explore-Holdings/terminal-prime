@@ -190,6 +190,7 @@ Route::prefix('reports')->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accountant', [AccountantController::class, 'index'])->name('accountant.index');
+    Route::post('/accountant/approve/{tripFinance}', [AccountantController::class, 'approve'])->name('accountant.approve');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

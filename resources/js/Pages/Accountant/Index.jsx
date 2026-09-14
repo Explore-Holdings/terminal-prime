@@ -1,6 +1,7 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { useMemo } from 'react';
+import { toast } from 'react-hot-toast';
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d) => d ? new Date(d).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
@@ -9,6 +10,21 @@ export default function AccountantIndex({ receivedFinances = [] }) {
     const totalReceived = useMemo(() => {
         return receivedFinances.reduce((acc, tf) => acc + Number(tf.received_amount || 0), 0);
     }, [receivedFinances]);
+
+    const handleApprove = (tripFinance) => {
+        if (window.confirm(`Are you sure you want to approve the finance record for Trip #${tripFinance.trip_id}?`)) {
+            const toastId = toast.loading('Approving...');
+            router.post(
+                route('accountant.approve', tripFinance.id),
+                {},
+                {
+                    preserveScroll: true,
+                    onSuccess: () => toast.success(`Trip #${tripFinance.trip_id} approved successfully.`, { id: toastId }),
+                    onError: () => toast.error('Failed to approve record.', { id: toastId }),
+                }
+            );
+        }
+    };
 
     return (
         <AppSidebarLayout title="Accountant">
@@ -94,12 +110,19 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                                                 LKR {fmt(tf.received_amount)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <button
-                                                    type="button"
-                                                    className="rounded bg-[#0f1d45] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a2d5c] active:scale-95 transition-transform shadow-sm"
-                                                >
-                                                    Approve
-                                                </button>
+                                                {tf.accountant_approved ? (
+                                                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+                                                        Approved {tf.approver?.name ? `by ${tf.approver.name}` : ''}
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleApprove(tf)}
+                                                        className="rounded bg-[#0f1d45] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a2d5c] active:scale-95 transition-transform shadow-sm"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     );

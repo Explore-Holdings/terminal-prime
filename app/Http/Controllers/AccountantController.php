@@ -18,7 +18,8 @@ class AccountantController extends Controller
             'trip.customer',
             'trip.driver.vehicle',
             'trip.agent.user',
-            'receiver' // User who marked it as received
+            'receiver', // User who marked it as received
+            'approver'
         ])
         ->where('received', true)
         ->orderByDesc('received_at')
@@ -27,6 +28,16 @@ class AccountantController extends Controller
         return Inertia::render('Accountant/Index', [
             'receivedFinances' => $receivedFinances,
         ]);
+    }
+
+    public function approve(Request $request, TripFinance $tripFinance)
+    {
+        $tripFinance->update([
+            'accountant_approved' => true,
+            'approved_by' => auth()->id(),
+        ]);
+
+        return back();
     }
 }
 
