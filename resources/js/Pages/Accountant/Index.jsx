@@ -200,20 +200,22 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                                         <a href={`/storage/${slip.slip_path}`} target="_blank" rel="noreferrer" className="text-center rounded bg-gray-200 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-300 transition">
                                             View Slip
                                         </a>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => updateSlipStatus(slip.id, 'completed')}
-                                                className="flex-1 rounded bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition"
-                                            >
-                                                Complete
-                                            </button>
-                                            <button 
-                                                onClick={() => updateSlipStatus(slip.id, 'incomplete')}
-                                                className="flex-1 rounded bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition"
-                                            >
-                                                Incomplete
-                                            </button>
-                                        </div>
+                                        {slip.status !== 'completed' && (
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => updateSlipStatus(slip.id, 'completed')}
+                                                    className="flex-1 rounded bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition"
+                                                >
+                                                    Complete
+                                                </button>
+                                                <button 
+                                                    onClick={() => updateSlipStatus(slip.id, 'incomplete')}
+                                                    className="flex-1 rounded bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition"
+                                                >
+                                                    Incomplete
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
