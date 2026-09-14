@@ -469,19 +469,35 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        {isReceived ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
-                                                                ✓ Received from Counter Manager
-                                                            </span>
-                                                        ) : (
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleMarkReceived}
-                                                                className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform"
-                                                            >
-                                                                Received from Counter Manager
-                                                            </button>
-                                                        )}
+                                                        <div className="flex flex-col gap-2 items-start">
+                                                            {isReceived ? (
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
+                                                                    ✓ Received from Counter Manager
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleMarkReceived}
+                                                                    className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform whitespace-nowrap"
+                                                                >
+                                                                    Received from Counter Manager
+                                                                </button>
+                                                            )}
+
+                                                            {tf?.accountant_approved && (
+                                                                <>
+                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                                                        ✓ Approved by Accountant
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
+                                                                    >
+                                                                        Upload Slips
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
