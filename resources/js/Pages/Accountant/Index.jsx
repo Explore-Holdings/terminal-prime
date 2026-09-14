@@ -6,10 +6,17 @@ import { toast } from 'react-hot-toast';
 const fmt = (n) => Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d) => d ? new Date(d).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
 
-export default function AccountantIndex({ receivedFinances = [] }) {
-    const totalReceived = useMemo(() => {
-        return receivedFinances.reduce((acc, tf) => acc + Number(tf.received_amount || 0), 0);
-    }, [receivedFinances]);
+export default function AccountantIndex({ receivedFinances, totalRecords = 0, totalReceived = 0, filters = {} }) {
+    const [search, setSearch] = useState(filters.search || '');
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        router.get(
+            route('accountant.index'),
+            { search },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
+    };
 
     const [viewSlipsModal, setViewSlipsModal] = useState(null);
 
@@ -56,7 +63,7 @@ export default function AccountantIndex({ receivedFinances = [] }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-7">
                 <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Received Records</p>
-                    <p className="text-2xl font-black leading-tight text-[#0f1d45] mt-1.5">{receivedFinances.length}</p>
+                    <p className="text-2xl font-black leading-tight text-[#0f1d45] mt-1.5">{totalRecords}</p>
                 </div>
                 <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Amount Received</p>
@@ -65,8 +72,20 @@ export default function AccountantIndex({ receivedFinances = [] }) {
             </div>
             
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                     <h2 className="text-lg font-black text-[#0f1d45]">Received Finances</h2>
+                    <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+                        <input
+                            type="text"
+                            placeholder="Search by Trip ID or Customer Name..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full md:w-80 rounded-xl border-gray-200 text-sm focus:border-[#0f1d45] focus:ring-[#0f1d45]"
+                        />
+                        <button type="submit" className="px-4 py-2 bg-[#0f1d45] text-white rounded-xl text-sm font-bold hover:bg-black transition">
+                            Search
+                        </button>
+                    </form>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-100">
@@ -83,8 +102,8 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 bg-white">
-                            {receivedFinances.length > 0 ? (
-                                receivedFinances.map((tf) => {
+                            {receivedFinances.data && receivedFinances.data.length > 0 ? (
+                                receivedFinances.data.map((tf) => {
                                     let paymentNotes = [];
                                     try {
                                         const raw = tf.trip?.customer?.payment_notes;
@@ -168,6 +187,27 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {receivedFinances.links && receivedFinances.links.length > 3 && (
+                    <div className="mt-6 flex flex-wrap justify-center gap-1">
+                        {receivedFinances.links.map((link, k) => (
+                            <button
+                                key={k}
+                                onClick={() => link.url && router.get(link.url, { search }, { preserveState: true, preserveScroll: true })}
+                                disabled={!link.url}
+                                dangerouslySetInnerHTML={{ __html: link.label }}
+                                className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
+                                    link.active
+                                        ? 'bg-[#0f1d45] text-white shadow-md'
+                                        : link.url
+                                        ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                        : 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* View Slips Modal */}
