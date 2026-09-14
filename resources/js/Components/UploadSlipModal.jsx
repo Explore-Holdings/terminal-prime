@@ -62,8 +62,8 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
                 </div>
                 
                 <div className="p-6 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div className="md:col-span-4">
                             <p className="text-sm font-semibold text-gray-500 mb-1">Received Amount</p>
                             <p className="text-3xl font-black text-emerald-600">
                                 {originalCurrency} {originalAmount.toLocaleString()}
@@ -97,7 +97,7 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
                         </div>
 
                         {/* Dynamic Upload Fields */}
-                        <div className="border-l-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
+                        <div className="md:col-span-8 border-l-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="text-sm font-bold text-[#0f1d45]">Documents & Slips</h4>
                                 <button 
@@ -108,9 +108,9 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
                                 </button>
                             </div>
                             
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {uploadForm.data.uploads.map((upload, index) => (
-                                    <div key={index} className="bg-gray-50 border border-gray-200 p-4 rounded-xl relative">
+                                    <div key={index} className="bg-gray-50 border border-gray-200 p-4 rounded-xl relative flex flex-col">
                                         {uploadForm.data.uploads.length > 1 && (
                                             <button 
                                                 onClick={() => handleRemoveSlip(index)}
@@ -120,22 +120,22 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         )}
-                                        <div className="mb-3">
-                                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Upload File {index + 1}</label>
+                                        <div className="mb-3 flex-1">
+                                            <label className="block text-xs font-bold text-gray-700 mb-1.5 w-11/12">Upload File {index + 1}</label>
                                             <input
                                                 type="file"
                                                 onChange={e => handleUploadChange(index, 'file', e.target.files[0])}
-                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-lg bg-white"
+                                                className="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-lg bg-white p-1"
                                             />
                                         </div>
-                                        <div>
+                                        <div className="mt-auto">
                                             <label className="block text-xs font-bold text-gray-700 mb-1.5">Description (optional)</label>
                                             <textarea
                                                 value={upload.description}
                                                 onChange={e => handleUploadChange(index, 'description', e.target.value)}
                                                 rows="2"
-                                                placeholder="e.g. Bank deposit slip for cash"
-                                                className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                                placeholder="e.g. Deposit slip"
+                                                className="w-full border border-gray-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition resize-none"
                                             />
                                         </div>
                                     </div>
