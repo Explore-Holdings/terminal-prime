@@ -23,6 +23,7 @@ class Trip extends Model
     ];
 
     protected $casts = [
+        'trip_assigned_at' => 'datetime',
         'trip_started_at' => 'datetime',
         'trip_ended_at' => 'datetime',
     ];

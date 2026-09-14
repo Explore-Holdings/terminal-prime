@@ -21,11 +21,12 @@ class FinanceController extends Controller
     public function index()
     {
         $trips = Trip::with([
-            'customer.agent',
+            'customer.agent', 
             'agent.user',
             'driver',
             'finance',
             'tripFinance.receiver',
+            'tripFinance.paymentSlips',
         ])->latest()->get();
 
         $finances = TripFinance::with(['driver', 'agent.user'])->get();
@@ -184,6 +185,11 @@ class FinanceController extends Controller
             'received_amount' => 'required|numeric|min:0',
         ]);
 
+        $customer = $trip->customer;
+        $agent = $customer ? $customer->agent : null;
+        $originalCurrency = $agent ? ($agent->new_currency ?? $agent->currency ?? 'LKR') : 'LKR';
+        $originalAmount = $customer ? $customer->paid_amount : 0;
+
         TripFinance::updateOrCreate(
             ['trip_id' => $trip->id],
             [
@@ -195,12 +201,39 @@ class FinanceController extends Controller
                 'balance'         => $data['balance'],
                 'received'        => true,
                 'received_amount' => $data['received_amount'],
+                'original_currency' => $originalCurrency,
+                'original_amount' => $originalAmount,
                 'received_by'     => Auth::id(),
                 'received_at'     => now(),
             ]
         );
 
         $trip->update(['cash_received' => true]);
+
+        return back();
+    }
+
+    public function uploadSlips(Request $request, TripFinance $tripFinance)
+    {
+        $request->validate([
+            'uploads' => 'required|array',
+            'uploads.*.file' => 'required|file|max:10240',
+            'uploads.*.description' => 'nullable|string',
+        ]);
+
+        foreach ($request->uploads as $upload) {
+            if (isset($upload['file']) && $upload['file']->isValid()) {
+                $path = $upload['file']->store("payment_slips/trip_{$tripFinance->trip_id}", 'public');
+
+                \App\Models\PaymentSlip::create([
+                    'trip_finance_id' => $tripFinance->id,
+                    'slip_des' => $upload['description'] ?? null,
+                    'slip_path' => $path,
+                    'uploaded_by' => Auth::id(),
+                    'status' => 'pending',
+                ]);
+            }
+        }
 
         return back();
     }

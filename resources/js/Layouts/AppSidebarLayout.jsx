@@ -24,6 +24,7 @@ import {
     ExclamationTriangleIcon,
     ArrowRightStartOnRectangleIcon,
     DocumentChartBarIcon,
+    CalculatorIcon,
 } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
@@ -34,6 +35,7 @@ const iconMap = {
     Counter: BuildingStorefrontIcon,
     Manager: ClipboardDocumentListIcon,
     Finance: BanknotesIcon,
+    Accountant: CalculatorIcon,
     Drivers: TruckIcon,
     Customers: UserGroupIcon,
     Trips: MapIcon,
@@ -71,6 +73,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff', 'manager', 'executive'] },
         { label: 'Manager', path: '/manager-reports', roles: ['admin', 'manager', 'executive'] },
         { label: 'Finance', path: '/finance', roles: ['admin', 'finance', 'executive'] },
+        { label: 'Accountant', path: '/accountant', roles: ['admin', 'accountant', 'executive'] },
         { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive'] },
         { label: 'Customers', path: '/customers', roles: ['admin', 'counter staff', 'executive'] },
         { label: 'Tours', path: '/trips', roles: ['admin', 'counter staff', 'executive', 'manager'] },

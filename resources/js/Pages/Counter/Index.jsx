@@ -36,7 +36,7 @@ const getVehicleSlotNumber = (v) => {
     return match ? parseInt(match[0], 10) : null;
 };
 
-const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
+const getNextInLineVehicle = (vehiclesList, ongoingTripsList, lastReorderedAt = null) => {
     const activeSessions = (vehiclesList ?? []).map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
 
@@ -71,7 +71,16 @@ const getNextInLineVehicle = (vehiclesList, ongoingTripsList) => {
 
     // Only consider the last trip assigned from the CURRENT QUEUE (never a waiting queue trip)
     // Ignore out-of-turn assignments (trips with selection_reason) so they don't advance the pointer
+    // If reordered, ignore trips assigned before the reorder so the queue restarts from the first in-duty driver
     const lastCurrentQueueTrip = (ongoingTripsList ?? []).find((t) => {
+        const tripTimeStr = t.trip_assigned_at || t.created_at;
+        if (lastReorderedAt && tripTimeStr) {
+            const tripTime = new Date(tripTimeStr).getTime();
+            const reorderTime = new Date(lastReorderedAt).getTime();
+            if (tripTime < reorderTime) {
+                return false;
+            }
+        }
         const driverId = t.driver_id ?? t.driver?.id;
         const sid = vehicleSessionMap[driverId] ?? (t.driver?.session_id ?? 0);
         return sid > 0 && sid <= baseSessionId && !t.selection_reason;
@@ -145,7 +154,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -199,7 +208,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             if (isFetching) return;
             isFetching = true;
             router.reload({
-                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips'],
+                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips', 'lastReorderedAt'],
                 preserveScroll: true,
                 preserveState: true,
                 onFinish: () => {
@@ -341,7 +350,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         });
     };
 
-    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
     const isVehicleOnTrip = (v) => {
@@ -379,7 +388,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         });
     }, [vehicles, baseSessionId, ongoingTrips]);
 
-    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) === baseSessionId && v.driver?.duty_status === 'on_duty' && !isVehicleOnTrip(v));
+    const hasCheckedInCurrentQueue = vehicles.some(v => (v.driver?.session_id || 0) <= baseSessionId && v.driver?.duty_status === 'on_duty' && !isVehicleOnTrip(v));
 
     return (
         <>
@@ -400,7 +409,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             </span>
                             <button 
                                 type="button"
-                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
+                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
                                 className="flex items-center text-[13px] font-medium text-gray-600 bg-white px-3 py-2 rounded-r-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
                             >
                                 <RefreshCw size={14} className="mr-1.5 text-gray-500" />
@@ -459,7 +468,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
                             <button 
                                 type="button"
-                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
+                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
                                 className="p-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg shadow-sm transition flex items-center"
                                 title="Refresh Data"
                             >
@@ -923,7 +932,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} />
             )}
 
             {showCheckoutConfirm && (
@@ -1111,6 +1120,7 @@ function Modal({
     vehicleRates = [],
     eurRates,
     dbLanguages = [],
+    lastReorderedAt = null,
 }) {
     const effectiveCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id || null;
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
@@ -1158,7 +1168,7 @@ function Modal({
 
                     {agent.booking_type !== 'Rent a Car' ? (
                         <div className={activeTab === 'vehicle' ? '' : 'hidden'}>
-                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} />
+                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} />
                         </div>
                     ) : (
                         <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
@@ -1527,11 +1537,11 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null }) {
     const { auth } = usePage().props;
     const [confirmModal, setConfirmModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(() => {
-        const nextInLine = getNextInLineVehicle(vehicles, ongoingTrips);
+        const nextInLine = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
         if (nextInLine) {
             const slotNum = getVehicleSlotNumber(nextInLine);
             return { ...nextInLine, _slotNumber: slotNum };
@@ -1751,7 +1761,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         );
     };
 
-    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips);
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
 
     return (

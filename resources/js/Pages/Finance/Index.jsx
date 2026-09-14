@@ -1,4 +1,5 @@
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import UploadSlipModal from '@/Components/UploadSlipModal';
 import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
@@ -27,6 +28,7 @@ export default function Index({
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
+    const [uploadSlipModal, setUploadSlipModal] = useState(null);
     const [eurRates, setEurRates] = useState(null);
 
     useEffect(() => {
@@ -134,7 +136,7 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} />
+                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} setUploadSlipModal={setUploadSlipModal} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -190,11 +192,15 @@ export default function Index({
                     onClose={() => setSelectedTrip(null)}
                 />
             )}
+            {/* Upload Slip Modal */}
+            {uploadSlipModal && (
+                <UploadSlipModal uploadSlipModal={uploadSlipModal} setUploadSlipModal={setUploadSlipModal} />
+            )}
         </AppSidebarLayout>
     );
 }
 
-function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates }) {
+function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates, setUploadSlipModal }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 8;
@@ -388,10 +394,10 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             const isReceived = Boolean(trip.cash_received) || Boolean(tf?.received);
 
                                             const handleMarkReceived = () => {
-                                                if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received?`)) {
+                                                if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received from counter manager?`)) {
                                                     return;
                                                 }
-                                                const toastId = toast.loading(`Marking Trip #${trip.id} as received…`);
+                                                const toastId = toast.loading(`Marking Trip #${trip.id} as received from counter manager…`);
                                                 router.post(
                                                     `/finance/trip-finances/${trip.id}/mark-received`,
                                                     {
@@ -406,13 +412,13 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         preserveState: true,
                                                         onSuccess: () => {
                                                             toast.success(
-                                                                `Trip #${trip.id} marked as received — LKR ${amountInLkr.toLocaleString()}`,
+                                                                `Trip #${trip.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`,
                                                                 { id: toastId }
                                                             );
                                                         },
                                                         onError: () => {
                                                             toast.error(
-                                                                `Failed to mark Trip #${trip.id} as received`,
+                                                                `Failed to mark Trip #${trip.id} as received from counter manager`,
                                                                 { id: toastId }
                                                             );
                                                         },
@@ -469,19 +475,64 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        {isReceived ? (
-                                                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
-                                                                ✓ Received
-                                                            </span>
-                                                        ) : (
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleMarkReceived}
-                                                                className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform"
-                                                            >
-                                                                Mark Received
-                                                            </button>
-                                                        )}
+                                                        <div className="flex flex-col gap-2 items-start">
+                                                            {isReceived ? (
+                                                                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
+                                                                    ✓ Received from Counter Manager
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleMarkReceived}
+                                                                    className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform whitespace-nowrap"
+                                                                >
+                                                                    Received from Counter Manager
+                                                                </button>
+                                                            )}
+
+                                                                {tf?.accountant_approved && (
+                                                                    <>
+                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                                                            ✓ Approved by Accountant
+                                                                        </span>
+                                                                        {tf.payment_slips && tf.payment_slips.length > 0 ? (
+                                                                            tf.payment_slips.some(s => s.status === 'incomplete') ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ⚠️ Incomplete (Re-upload)
+                                                                                </button>
+                                                                            ) : tf.payment_slips.every(s => s.status === 'completed') ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled
+                                                                                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ✓ Completed
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled
+                                                                                    className="rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ⏳ Pending Review
+                                                                                </button>
+                                                                            )
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                                                className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
+                                                                            >
+                                                                                Upload Slips
+                                                                            </button>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );

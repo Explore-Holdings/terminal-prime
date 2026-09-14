@@ -1,9 +1,5 @@
 import '../css/app.css';
 import './bootstrap';
-import { initSecurityLockdown } from './security';
-
-// Initialize frontend security restrictions (disables right-click, inspect element, copy/cut/paste)
-initSecurityLockdown();
 
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
