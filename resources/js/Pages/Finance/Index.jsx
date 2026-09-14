@@ -1,4 +1,5 @@
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import UploadSlipModal from '@/Components/UploadSlipModal';
 import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
@@ -27,6 +28,7 @@ export default function Index({
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
+    const [uploadSlipModal, setUploadSlipModal] = useState(null);
     const [eurRates, setEurRates] = useState(null);
 
     useEffect(() => {
@@ -134,7 +136,7 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} />
+                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} setUploadSlipModal={setUploadSlipModal} />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -190,11 +192,15 @@ export default function Index({
                     onClose={() => setSelectedTrip(null)}
                 />
             )}
+            {/* Upload Slip Modal */}
+            {uploadSlipModal && (
+                <UploadSlipModal uploadSlipModal={uploadSlipModal} setUploadSlipModal={setUploadSlipModal} />
+            )}
         </AppSidebarLayout>
     );
 }
 
-function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates }) {
+function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates, setUploadSlipModal }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 8;
@@ -491,6 +497,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                                     </span>
                                                                     <button
                                                                         type="button"
+                                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
                                                                         className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
                                                                     >
                                                                         Upload Slips

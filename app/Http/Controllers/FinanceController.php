@@ -184,6 +184,11 @@ class FinanceController extends Controller
             'received_amount' => 'required|numeric|min:0',
         ]);
 
+        $customer = $trip->customer;
+        $agent = $customer ? $customer->agent : null;
+        $originalCurrency = $agent ? ($agent->new_currency ?? $agent->currency ?? 'LKR') : 'LKR';
+        $originalAmount = $customer ? $customer->paid_amount : 0;
+
         TripFinance::updateOrCreate(
             ['trip_id' => $trip->id],
             [
@@ -195,6 +200,8 @@ class FinanceController extends Controller
                 'balance'         => $data['balance'],
                 'received'        => true,
                 'received_amount' => $data['received_amount'],
+                'original_currency' => $originalCurrency,
+                'original_amount' => $originalAmount,
                 'received_by'     => Auth::id(),
                 'received_at'     => now(),
             ]

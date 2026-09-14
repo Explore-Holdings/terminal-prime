@@ -1,0 +1,167 @@
+import { useForm } from '@inertiajs/react';
+import toast from 'react-hot-toast';
+
+export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal }) {
+    if (!uploadSlipModal) return null;
+
+    const trip = uploadSlipModal.trip || {};
+    const customer = trip.customer || {};
+    const agent = customer.agent || {};
+    const originalCurrency = agent.new_currency ?? agent.currency ?? 'LKR';
+    const originalAmount = Number(customer.paid_amount ?? 0);
+    const amountInLkr = Number(uploadSlipModal.received_amount ?? 0);
+
+    let paymentNotes = [];
+    try {
+        paymentNotes = Array.isArray(customer?.payment_notes)
+            ? customer.payment_notes
+            : typeof customer?.payment_notes === 'string'
+                ? JSON.parse(customer.payment_notes || '[]')
+                : [];
+    } catch (e) {
+        paymentNotes = [];
+    }
+
+    // Upload form state supporting multiple slips
+    const uploadForm = useForm({ uploads: [{ file: null, description: '' }] });
+
+    const handleAddSlip = () => {
+        uploadForm.setData('uploads', [...uploadForm.data.uploads, { file: null, description: '' }]);
+    };
+
+    const handleRemoveSlip = (index) => {
+        const newUploads = uploadForm.data.uploads.filter((_, i) => i !== index);
+        uploadForm.setData('uploads', newUploads);
+    };
+
+    const handleUploadChange = (index, field, value) => {
+        const newUploads = [...uploadForm.data.uploads];
+        newUploads[index][field] = value;
+        uploadForm.setData('uploads', newUploads);
+    };
+
+    const handleUpload = () => {
+        if (uploadForm.data.uploads.some(u => !u.file)) {
+            toast.error('Please select a file for all upload fields');
+            return;
+        }
+        // TODO: Implement actual upload POST request
+        toast.success('Files ready to be uploaded (implementation pending)');
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setUploadSlipModal(null)}>
+            <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
+                    <h3 className="text-lg font-black text-[#0f1d45]">Upload Slip for Trip #{uploadSlipModal.trip_id}</h3>
+                    <button onClick={() => setUploadSlipModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-500 mb-1">Received Amount</p>
+                            <p className="text-3xl font-black text-emerald-600">
+                                {originalCurrency} {originalAmount.toLocaleString()}
+                            </p>
+                            <p className="text-sm font-semibold text-gray-400 mt-1">
+                                LKR {amountInLkr.toLocaleString()}
+                            </p>
+
+                            {/* Payment Breakdown */}
+                            {paymentNotes.length > 0 && (
+                                <div className="mt-6 pt-4 border-t border-gray-100">
+                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Payment Breakdown</p>
+                                    <div className="space-y-3">
+                                        {paymentNotes.map((p, pi) => (
+                                            <div key={pi} className="flex flex-col gap-2 text-sm">
+                                                <div>
+                                                    <span className={`px-2.5 py-1 rounded-md font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                        {p.method}
+                                                    </span>
+                                                </div>
+                                                {p.method === 'Cash' && Array.isArray(p.notes) && p.notes.map((n, ni) => (
+                                                    <div key={ni} className="bg-slate-50 text-gray-700 px-3 py-2 rounded-lg border border-gray-200 font-semibold inline-block">
+                                                        💵 {n.amount} x {n.count} ({n.currency || p.currency})
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Dynamic Upload Fields */}
+                        <div className="border-l-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-sm font-bold text-[#0f1d45]">Documents & Slips</h4>
+                                <button 
+                                    onClick={handleAddSlip}
+                                    className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-md transition"
+                                >
+                                    + Add Another Slip
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                {uploadForm.data.uploads.map((upload, index) => (
+                                    <div key={index} className="bg-gray-50 border border-gray-200 p-4 rounded-xl relative">
+                                        {uploadForm.data.uploads.length > 1 && (
+                                            <button 
+                                                onClick={() => handleRemoveSlip(index)}
+                                                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1"
+                                                title="Remove slip"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            </button>
+                                        )}
+                                        <div className="mb-3">
+                                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Upload File {index + 1}</label>
+                                            <input
+                                                type="file"
+                                                onChange={e => handleUploadChange(index, 'file', e.target.files[0])}
+                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-lg bg-white"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Description (optional)</label>
+                                            <textarea
+                                                value={upload.description}
+                                                onChange={e => handleUploadChange(index, 'description', e.target.value)}
+                                                rows="2"
+                                                placeholder="e.g. Bank deposit slip for cash"
+                                                className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setUploadSlipModal(null)}
+                        className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-xl transition mr-3"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleUpload}
+                        className="px-6 py-2.5 bg-[#0f1d45] text-white text-sm font-bold rounded-xl hover:bg-black active:scale-95 transition-transform shadow-md"
+                    >
+                        Upload {uploadForm.data.uploads.length} File{uploadForm.data.uploads.length > 1 ? 's' : ''}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

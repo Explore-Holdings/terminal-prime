@@ -24,6 +24,8 @@ class TripFinance extends Model
         'balance',
         'received',
         'received_amount',
+        'original_currency',
+        'original_amount',
         'received_by',
         'received_at',
         'accountant_approved',
@@ -40,6 +42,7 @@ class TripFinance extends Model
         'balance'             => 'decimal:2',
         'received'            => 'boolean',
         'received_amount'     => 'decimal:2',
+        'original_amount'     => 'decimal:2',
         'received_at'         => 'datetime',
         'accountant_approved' => 'boolean',
     ];
