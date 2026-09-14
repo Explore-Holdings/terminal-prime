@@ -19,7 +19,8 @@ class AccountantController extends Controller
             'trip.driver.vehicle',
             'trip.agent.user',
             'receiver', // User who marked it as received
-            'approver'
+            'approver',
+            'paymentSlips'
         ])
         ->where('received', true)
         ->orderByDesc('received_at')
@@ -36,6 +37,17 @@ class AccountantController extends Controller
             'accountant_approved' => true,
             'approved_by' => auth()->id(),
         ]);
+
+        return back();
+    }
+
+    public function updateSlipStatus(Request $request, \App\Models\PaymentSlip $slip)
+    {
+        $request->validate([
+            'status' => 'required|in:completed,incomplete,pending'
+        ]);
+
+        $slip->update(['status' => $request->status]);
 
         return back();
     }

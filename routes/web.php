@@ -163,6 +163,7 @@ Route::delete('/finance/incentives/{incentive}', [FinanceController::class, 'des
 Route::post('/finance/drivers/{driver}/payment', [FinanceController::class, 'updateDriverPayment'])->name('finance.drivers.payment');
 Route::post('/finance/drivers/{driver}/status', [FinanceController::class, 'updateDriverStatus'])->name('finance.drivers.status');
 Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::class, 'markReceived'])->name('finance.trip-finances.mark-received');
+Route::post('/finance/trip-finances/{tripFinance}/upload-slips', [FinanceController::class, 'uploadSlips'])->name('finance.trip-finances.upload-slips');
 Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
@@ -191,6 +192,7 @@ Route::prefix('reports')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accountant', [AccountantController::class, 'index'])->name('accountant.index');
     Route::post('/accountant/approve/{tripFinance}', [AccountantController::class, 'approve'])->name('accountant.approve');
+    Route::post('/accountant/slips/{slip}/status', [AccountantController::class, 'updateSlipStatus'])->name('accountant.slips.status');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -10,6 +10,8 @@ export default function AccountantIndex({ receivedFinances = [] }) {
     const totalReceived = useMemo(() => {
         return receivedFinances.reduce((acc, tf) => acc + Number(tf.received_amount || 0), 0);
     }, [receivedFinances]);
+
+    const [viewSlipsModal, setViewSlipsModal] = useState(null);
 
     const handleApprove = (tripFinance) => {
         if (window.confirm(`Are you sure you want to approve the finance record for Trip #${tripFinance.trip_id}?`)) {
@@ -24,6 +26,22 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                 }
             );
         }
+    };
+
+    const updateSlipStatus = (slipId, status) => {
+        const toastId = toast.loading(`Marking slip as ${status}...`);
+        router.post(
+            route('accountant.slips.status', slipId),
+            { status },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success(`Slip marked as ${status}.`, { id: toastId });
+                    setViewSlipsModal(null);
+                },
+                onError: () => toast.error('Failed to update status.', { id: toastId }),
+            }
+        );
     };
 
     return (
@@ -60,6 +78,7 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                                 <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Payment Breakdown</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Received By</th>
                                 <th className="px-4 py-3 text-right text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Amount (LKR)</th>
+                                <th className="px-4 py-3 text-center text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Slips</th>
                                 <th className="px-4 py-3 text-center text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Action</th>
                             </tr>
                         </thead>
@@ -110,6 +129,18 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                                                 LKR {fmt(tf.received_amount)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
+                                                {tf.payment_slips && tf.payment_slips.length > 0 ? (
+                                                    <button
+                                                        onClick={() => setViewSlipsModal(tf)}
+                                                        className="rounded bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-200 transition"
+                                                    >
+                                                        View Slips ({tf.payment_slips.length})
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs italic">No Slips</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
                                                 {tf.accountant_approved ? (
                                                     <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
                                                         Approved {tf.approver?.name ? `by ${tf.approver.name}` : ''}
@@ -129,7 +160,7 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500 font-medium bg-[#f5f6fa]/30">
+                                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500 font-medium bg-[#f5f6fa]/30">
                                         No received records found.
                                     </td>
                                 </tr>
@@ -138,6 +169,68 @@ export default function AccountantIndex({ receivedFinances = [] }) {
                     </table>
                 </div>
             </div>
+
+            {/* View Slips Modal */}
+            {viewSlipsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewSlipsModal(null)}>
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
+                            <h3 className="text-lg font-black text-[#0f1d45]">Slips for Trip #{viewSlipsModal.trip_id}</h3>
+                            <button onClick={() => setViewSlipsModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                            {viewSlipsModal.payment_slips.map(slip => (
+                                <div key={slip.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
+                                    <div>
+                                        <p className="text-sm font-bold text-[#0f1d45] mb-1">Description:</p>
+                                        <p className="text-sm text-gray-600 mb-2">{slip.slip_des || <span className="italic text-gray-400">No description provided</span>}</p>
+                                        <div className="flex gap-2 text-xs font-semibold">
+                                            <span className="text-gray-500">Status:</span>
+                                            <span className={`uppercase ${slip.status === 'completed' ? 'text-emerald-600' : slip.status === 'incomplete' ? 'text-rose-600' : 'text-amber-600'}`}>
+                                                {slip.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+                                        <a href={`/storage/${slip.slip_path}`} target="_blank" rel="noreferrer" className="text-center rounded bg-gray-200 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-300 transition">
+                                            View Slip
+                                        </a>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => updateSlipStatus(slip.id, 'completed')}
+                                                className="flex-1 rounded bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition"
+                                            >
+                                                Complete
+                                            </button>
+                                            <button 
+                                                onClick={() => updateSlipStatus(slip.id, 'incomplete')}
+                                                className="flex-1 rounded bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition"
+                                            >
+                                                Incomplete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setViewSlipsModal(null)}
+                                className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-xl transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AppSidebarLayout>
     );
 }

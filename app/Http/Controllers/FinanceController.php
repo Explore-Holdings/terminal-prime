@@ -21,11 +21,12 @@ class FinanceController extends Controller
     public function index()
     {
         $trips = Trip::with([
-            'customer.agent',
+            'customer.agent', 
             'agent.user',
             'driver',
             'finance',
             'tripFinance.receiver',
+            'tripFinance.paymentSlips',
         ])->latest()->get();
 
         $finances = TripFinance::with(['driver', 'agent.user'])->get();
@@ -208,6 +209,31 @@ class FinanceController extends Controller
         );
 
         $trip->update(['cash_received' => true]);
+
+        return back();
+    }
+
+    public function uploadSlips(Request $request, TripFinance $tripFinance)
+    {
+        $request->validate([
+            'uploads' => 'required|array',
+            'uploads.*.file' => 'required|file|max:10240',
+            'uploads.*.description' => 'nullable|string',
+        ]);
+
+        foreach ($request->uploads as $upload) {
+            if (isset($upload['file']) && $upload['file']->isValid()) {
+                $path = $upload['file']->store("payment_slips/trip_{$tripFinance->trip_id}", 'public');
+
+                \App\Models\PaymentSlip::create([
+                    'trip_finance_id' => $tripFinance->id,
+                    'slip_des' => $upload['description'] ?? null,
+                    'slip_path' => $path,
+                    'uploaded_by' => Auth::id(),
+                    'status' => 'pending',
+                ]);
+            }
+        }
 
         return back();
     }

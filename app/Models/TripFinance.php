@@ -77,6 +77,11 @@ class TripFinance extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
+    public function paymentSlips()
+    {
+        return $this->hasMany(PaymentSlip::class, 'trip_finance_id');
+    }
+
     // Helper: mark as received
 
     public function markAsReceived(int $userId, ?float $amount = null): void

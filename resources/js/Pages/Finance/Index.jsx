@@ -490,20 +490,48 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                                 </button>
                                                             )}
 
-                                                            {tf?.accountant_approved && (
-                                                                <>
-                                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                                                                        ✓ Approved by Accountant
-                                                                    </span>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                                        className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
-                                                                    >
-                                                                        Upload Slips
-                                                                    </button>
-                                                                </>
-                                                            )}
+                                                                {tf?.accountant_approved && (
+                                                                    <>
+                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                                                            ✓ Approved by Accountant
+                                                                        </span>
+                                                                        {tf.payment_slips && tf.payment_slips.length > 0 ? (
+                                                                            tf.payment_slips.some(s => s.status === 'incomplete') ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ⚠️ Incomplete (Re-upload)
+                                                                                </button>
+                                                                            ) : tf.payment_slips.every(s => s.status === 'completed') ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled
+                                                                                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ✓ Completed
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    disabled
+                                                                                    className="rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
+                                                                                >
+                                                                                    ⏳ Pending Review
+                                                                                </button>
+                                                                            )
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                                                className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
+                                                                            >
+                                                                                Upload Slips
+                                                                            </button>
+                                                                        )}
+                                                                    </>
+                                                                )}
                                                         </div>
                                                     </td>
                                                 </tr>
