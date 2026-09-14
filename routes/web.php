@@ -21,6 +21,7 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReportsHubController;
 use App\Http\Controllers\CustomerSurveyAdminController;
 use App\Http\Controllers\PricingDataController;
+use App\Http\Controllers\AccountantController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -185,6 +186,10 @@ Route::prefix('reports')->group(function () {
     Route::get('/revenue-chart', [ReportsController::class, 'revenueChart'])->name('reports.revenue-chart');
     Route::get('/top-destinations', [ReportsController::class, 'topDestinations'])->name('reports.top-destinations');
     Route::get('/trip-status', [ReportsController::class, 'tripStatus'])->name('reports.trip-status');
+});
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/accountant', [AccountantController::class, 'index'])->name('accountant.index');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
