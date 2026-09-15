@@ -14,10 +14,40 @@ class AccountantController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $range = $request->input('range', 'all');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if ($range === 'today') {
+            $startDate = now()->startOfDay()->toDateTimeString();
+            $endDate = now()->endOfDay()->toDateTimeString();
+        } elseif ($range === 'week') {
+            $startDate = now()->startOfWeek()->toDateTimeString();
+            $endDate = now()->endOfWeek()->toDateTimeString();
+        } elseif ($range === 'month') {
+            $startDate = now()->startOfMonth()->toDateTimeString();
+            $endDate = now()->endOfMonth()->toDateTimeString();
+        } elseif ($range === 'all') {
+            $startDate = null;
+            $endDate = null;
+        }
+
+        // Base queries for totals
+        $totalRecordsQuery = TripFinance::where('received', true);
+        $totalReceivedQuery = TripFinance::where('received', true);
+
+        if ($startDate) {
+            $totalRecordsQuery->where('received_at', '>=', $startDate);
+            $totalReceivedQuery->where('received_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $totalRecordsQuery->where('received_at', '<=', $endDate);
+            $totalReceivedQuery->where('received_at', '<=', $endDate);
+        }
 
         // Calculate totals across all received finances
-        $totalRecords = TripFinance::where('received', true)->count();
-        $totalReceived = TripFinance::where('received', true)->sum('received_amount');
+        $totalRecords = $totalRecordsQuery->count();
+        $totalReceived = $totalReceivedQuery->sum('received_amount');
 
         // Fetch paginated trip finances that have been received
         $receivedFinances = TripFinance::with([
@@ -39,6 +69,12 @@ class AccountantController extends Controller
                 })->orWhere('trip_id', 'like', "%{$search}%");
             });
         })
+        ->when($startDate, function ($query) use ($startDate) {
+            $query->where('received_at', '>=', $startDate);
+        })
+        ->when($endDate, function ($query) use ($endDate) {
+            $query->where('received_at', '<=', $endDate);
+        })
         ->orderByDesc('received_at')
         ->paginate(15)
         ->withQueryString();
@@ -47,7 +83,7 @@ class AccountantController extends Controller
             'receivedFinances' => $receivedFinances,
             'totalRecords' => $totalRecords,
             'totalReceived' => (float)$totalReceived,
-            'filters' => $request->only('search'),
+            'filters' => $request->only('search', 'range', 'start_date', 'end_date'),
         ]);
     }
 

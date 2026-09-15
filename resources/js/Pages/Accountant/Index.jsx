@@ -8,12 +8,38 @@ const fmtDate = (d) => d ? new Date(d).toLocaleString('en-US', { day: '2-digit',
 
 export default function AccountantIndex({ receivedFinances, totalRecords = 0, totalReceived = 0, filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
+    const [range, setRange] = useState(filters.range || 'all');
+    const [startDate, setStartDate] = useState(filters.start_date || '');
+    const [endDate, setEndDate] = useState(filters.end_date || '');
 
     const handleSearch = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         router.get(
             route('accountant.index'),
-            { search },
+            { search, range, start_date: startDate, end_date: endDate },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
+    };
+
+    const handleRangeChange = (newRange) => {
+        setRange(newRange);
+        if (newRange !== 'custom') {
+            router.get(
+                route('accountant.index'),
+                { search, range: newRange },
+                { preserveState: true, preserveScroll: true, replace: true }
+            );
+        }
+    };
+
+    const clearFilters = () => {
+        setSearch('');
+        setRange('all');
+        setStartDate('');
+        setEndDate('');
+        router.get(
+            route('accountant.index'),
+            { range: 'all' },
             { preserveState: true, preserveScroll: true, replace: true }
         );
     };
@@ -74,18 +100,68 @@ export default function AccountantIndex({ receivedFinances, totalRecords = 0, to
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                     <h2 className="text-lg font-black text-[#0f1d45]">Received Finances</h2>
-                    <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
-                        <input
-                            type="text"
-                            placeholder="Search by Trip ID or Customer Name..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full md:w-80 rounded-xl border-gray-200 text-sm focus:border-[#0f1d45] focus:ring-[#0f1d45]"
-                        />
-                        <button type="submit" className="px-4 py-2 bg-[#0f1d45] text-white rounded-xl text-sm font-bold hover:bg-black transition">
-                            Search
-                        </button>
-                    </form>
+                    <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-center">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {[
+                                { key: 'all', label: 'All Time' },
+                                { key: 'today', label: 'Today' },
+                                { key: 'week',  label: 'This Week' },
+                                { key: 'month', label: 'This Month' },
+                                { key: 'custom', label: 'Custom' },
+                            ].map((item) => (
+                                <button
+                                    key={item.key}
+                                    type="button"
+                                    onClick={() => handleRangeChange(item.key)}
+                                    className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+                                        range === item.key
+                                            ? 'bg-blue-700 text-white'
+                                            : 'bg-gray-100 text-black hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                            <input
+                                type="text"
+                                placeholder="Search by Trip ID or Customer Name..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full md:w-64 rounded-xl border-gray-200 text-sm focus:border-[#0f1d45] focus:ring-[#0f1d45]"
+                            />
+                            
+                            {range === 'custom' && (
+                                <>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="w-full md:w-auto rounded-xl border-gray-200 text-sm focus:border-[#0f1d45] focus:ring-[#0f1d45]"
+                                    />
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="w-full md:w-auto rounded-xl border-gray-200 text-sm focus:border-[#0f1d45] focus:ring-[#0f1d45]"
+                                    />
+                                </>
+                            )}
+                            
+                            <div className="flex gap-2">
+                                <button type="submit" className="px-4 py-2 bg-[#0f1d45] text-white rounded-xl text-sm font-bold hover:bg-black transition">
+                                    Search
+                                </button>
+                                {(search || range === 'custom') && (
+                                    <button type="button" onClick={clearFilters} className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold hover:bg-gray-200 transition">
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-100">
@@ -194,7 +270,7 @@ export default function AccountantIndex({ receivedFinances, totalRecords = 0, to
                         {receivedFinances.links.map((link, k) => (
                             <button
                                 key={k}
-                                onClick={() => link.url && router.get(link.url, { search }, { preserveState: true, preserveScroll: true })}
+                                onClick={() => link.url && router.get(link.url, { search, range, start_date: startDate, end_date: endDate }, { preserveState: true, preserveScroll: true })}
                                 disabled={!link.url}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
