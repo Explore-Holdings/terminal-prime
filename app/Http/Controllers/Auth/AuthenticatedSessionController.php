@@ -52,24 +52,26 @@ class AuthenticatedSessionController extends Controller
         }
 
         // Retrieve user to extract employee_id for 2FA push notification
-        $user = User::where('email', $request->email)->first();
+        $user = User::with('role')->where('email', $request->email)->first();
+        $roleName = strtolower($user->role?->name ?? '');
+        
+        $adminRoles = ['admin', 'super_admin'];
         
         // Check if admin (bypasses 2FA mobile notification)
-        $isAdmin = ($user->role ?? null) === 'admin'
-            || ($user->role ?? null) === 'super_admin'
+        $isAdmin = in_array($roleName, $adminRoles)
             || ($user->is_admin ?? false) == 1
             || (property_exists($user, 'is_admin') && $user->is_admin)
             || str_contains(strtolower($user->email), 'admin');
 
         $employeeId = $user->employee_id ?? ($user->email === 'randeepa@explorevacations.lk' ? '88' : $user->id);
 
-        \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name . ', Is Admin: ' . ($isAdmin ? 'YES' : 'NO'));
+        \Illuminate\Support\Facades\Log::info('[2FA] Credentials MATCH! User ID: ' . $user->id . ', Employee ID: ' . $employeeId . ', Name: ' . $user->name . ', Role: ' . $roleName . ', Is Admin: ' . ($isAdmin ? 'YES' : 'NO'));
 
         return response()->json([
             'success'      => true,
             'employee_id'  => $employeeId,
             'name'         => $user->name,
-            'role'         => $isAdmin ? 'admin' : ($user->role ?? 'user'),
+            'role'         => $isAdmin ? 'admin' : ($roleName ?: 'user'),
             'requires_2fa' => !$isAdmin,
             'is_admin'     => $isAdmin,
         ]);
