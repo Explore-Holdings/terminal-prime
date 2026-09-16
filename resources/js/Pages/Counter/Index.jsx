@@ -154,7 +154,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0 }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -208,7 +208,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             if (isFetching) return;
             isFetching = true;
             router.reload({
-                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips', 'lastReorderedAt'],
+                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips', 'lastReorderedAt', 'pettyCash'],
                 preserveScroll: true,
                 preserveState: true,
                 onFinish: () => {
@@ -932,7 +932,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} />
             )}
 
             {showCheckoutConfirm && (
@@ -1121,6 +1121,7 @@ function Modal({
     eurRates,
     dbLanguages = [],
     lastReorderedAt = null,
+    pettyCash = 0,
 }) {
     const effectiveCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id || null;
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
@@ -1162,7 +1163,7 @@ function Modal({
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
                         {effectiveCustomerId && (
-                            <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} />
+                            <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} pettyCash={pettyCash} eurRates={eurRates} />
                         )}
                     </div>
 
@@ -1289,7 +1290,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
 
 function PaymentTab({
     agent, customerId, form, invoicePath,
-    setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose,
+    setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose, pettyCash = 0, eurRates
 }) {
     const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
     const payments = form.data.payments ?? [];
@@ -1389,7 +1390,12 @@ function PaymentTab({
             setActiveTab('vehicle');
         }
 
-        form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal }));
+        let returnedLkr = 0;
+        if (grandTotal > price) {
+            returnedLkr = getAmountInLkr(grandTotal - price, form.data.currency, eurRates);
+        }
+
+        form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal, returned_lkr: returnedLkr }));
         form.post(`/customers/${targetCustomerId}/payment`, {
             preserveScroll: true,
             preserveState: true,
@@ -1517,12 +1523,26 @@ function PaymentTab({
             <button type="button" onClick={addPayment}
                 className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm">+ Add Payment Method</button>
 
-            <div className="border rounded-xl p-4 bg-gray-50 flex justify-between font-bold">
-                <span>Required: {form.data.currency} {price.toLocaleString()}</span>
-                <span className={balanced ? 'text-green-700' : 'text-red-600'}>
-                    Entered: {form.data.currency} {grandTotal.toLocaleString()}
-                    {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
-                </span>
+            <div className="border rounded-xl p-4 bg-gray-50 flex flex-col gap-2 font-bold">
+                <div className="flex justify-between">
+                    <span>Required: {form.data.currency} {price.toLocaleString()}</span>
+                    <span className={balanced ? 'text-green-700' : 'text-red-600'}>
+                        Entered: {form.data.currency} {grandTotal.toLocaleString()}
+                        {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
+                    </span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-700 pt-2 border-t border-gray-200">
+                    <span>Petty Cash Balance: LKR {Number(pettyCash).toLocaleString()}</span>
+                    {grandTotal > price && (
+                        <span className="text-orange-600">
+                            Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString()}
+                            {(() => {
+                                const lkrVal = formatToLkrString(grandTotal - price, form.data.currency, eurRates);
+                                return lkrVal ? ` (${lkrVal})` : '';
+                            })()}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {form.errors.payments && <p className="text-red-600 text-sm">{form.errors.payments}</p>}

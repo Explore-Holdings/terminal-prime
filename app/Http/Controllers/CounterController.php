@@ -229,6 +229,7 @@ class CounterController extends Controller
 
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
+            'pettyCash' => DB::table('petty_cash')->sum('amount'),
         ]);
     }
 

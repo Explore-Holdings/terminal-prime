@@ -97,6 +97,7 @@ class CustomerController extends Controller
             'payments.*.notes.*.currency' => 'nullable|string|max:10',
             'payments.*.notes.*.amount'   => 'nullable|numeric|min:0.01',
             'payments.*.notes.*.count'    => 'nullable|integer|min:1',
+            'returned_lkr'                => 'nullable|numeric|min:0',
         ]);
 
         $payments = collect($data['payments'])->map(function ($p) use ($data) {
@@ -132,10 +133,10 @@ class CustomerController extends Controller
 
         $paidAmount = $payments->sum('amount');
 
-        if (round($paidAmount, 2) !== round((float) $data['price'], 2)) {
+        if (round($paidAmount, 2) < round((float) $data['price'], 2)) {
             return back()->withErrors([
                 'payments' => 'Total paid (' . number_format($paidAmount, 2) .
-                            ') must match the price (' . number_format($data['price'], 2) . ').',
+                            ') must be at least the price (' . number_format($data['price'], 2) . ').',
             ]);
         }
 
@@ -175,6 +176,14 @@ class CustomerController extends Controller
         $invoiceNumber = 'INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT);
         $customer->update(['invoice_number' => $invoiceNumber]);
 
+        if (!empty($data['returned_lkr']) && $data['returned_lkr'] > 0) {
+            \App\Models\PettyCashReturn::create([
+                'customer_id' => $customer->id,
+                'amount_lkr' => $data['returned_lkr']
+            ]);
+            \Illuminate\Support\Facades\DB::table('petty_cash')->decrement('amount', $data['returned_lkr']);
+        }
+
         return redirect()
             ->route('counter.index');
     }
@@ -190,12 +199,16 @@ class CustomerController extends Controller
 
         $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
 
+        $pettyCashReturn = \App\Models\PettyCashReturn::where('customer_id', $customer->id)->first();
+        $returnedLkr = $pettyCashReturn ? $pettyCashReturn->amount_lkr : 0;
+
         $pdf = Pdf::loadView('invoices.customer-invoice', [
-            'customer'   => $customer,
-            'currency'   => $currency,
-            'price'      => $price,
-            'paidAmount' => $customer->paid_amount,
-            'payments'   => collect($payments),
+            'customer'    => $customer,
+            'currency'    => $currency,
+            'price'       => $price,
+            'paidAmount'  => $customer->paid_amount,
+            'payments'    => collect($payments),
+            'returnedLkr' => $returnedLkr,
         ]);
 
         return $pdf->stream("{$invoiceNumber}.pdf");

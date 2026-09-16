@@ -297,12 +297,27 @@
                     <td class="value">{{ $customer->payment_status }}</td>
                 </tr>
                 <tr>
+                    <td class="label">Original Amount</td>
+                    <td class="value">
+                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
+                        {{ number_format($price, 2) }}
+                    </td>
+                </tr>
+                <tr>
                     <td class="label">Paid Amount</td>
                     <td class="value">
                         {{ $customer->agent->new_currency ?? $customer->agent->currency }}
                         {{ number_format($customer->paid_amount, 2) }}
                     </td>
                 </tr>
+                @if(isset($returnedLkr) && $returnedLkr > 0)
+                <tr>
+                    <td class="label">Change Returned</td>
+                    <td class="value">
+                        LKR {{ number_format($returnedLkr, 2) }}
+                    </td>
+                </tr>
+                @endif
             </table>
         </div>
 
