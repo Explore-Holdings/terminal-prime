@@ -1311,7 +1311,7 @@ function PaymentTab({
 
     const grandTotal = payments.reduce((s, p) => s + methodAmount(p), 0);
     const price = Number(form.data.price || 0);
-    const balanced = Number(grandTotal) === price;
+    const balanced = Number(grandTotal) >= price;
     const canSubmit = !form.processing && balanced && payments.length > 0;
 
     const setPayments = (next) => form.setData('payments', next);
@@ -1367,7 +1367,7 @@ function PaymentTab({
     const savePayment = (e) => {
         e.preventDefault();
         if (!targetCustomerId) return alert('Please save customer first.');
-        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must match price (${price}).`);
+        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must be at least the price (${price}).`);
 
         const payload = payments.map((p) => ({
             ...p,
