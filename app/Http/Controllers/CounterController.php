@@ -229,6 +229,7 @@ class CounterController extends Controller
 
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
+            'pettyCash' => DB::table('petty_cash')->sum('amount'),
         ]);
     }
 
@@ -362,11 +363,20 @@ class CounterController extends Controller
 
         $paymentSummary = $this->buildPaymentSummary($trips);
 
+        $pettyCashReturns = [];
+        if ($userLoginLog->shift_id) {
+            $pettyCashReturns = \App\Models\PettyCashReturn::with('customer')
+                ->where('shift_id', $userLoginLog->shift_id)
+                ->latest()
+                ->get();
+        }
+
         $pdf = Pdf::loadView('pdf.checkout-summary', [
             'log' => $userLoginLog,
             'user' => $user,
             'trips' => $trips,
             'paymentSummary' => $paymentSummary,
+            'pettyCashReturns' => $pettyCashReturns,
         ]);
         $pdf->getDomPDF()->set_option('isPhpEnabled', true);
 

@@ -17,6 +17,7 @@ class ManagerReportController extends Controller
 
         $data = $this->getTripsByRange($request, $range);
         $paymentSummary = $this->buildPaymentSummary($data['trips']);
+        $pettyCashReturns = $this->getPettyCashReturnsByRange($request, $range);
 
         $reports = UserLoginLog::with('user')
             ->whereNotNull('handed_over_at')
@@ -43,6 +44,7 @@ class ManagerReportController extends Controller
             'trips' => $data['trips'],
             'paymentSummary' => $paymentSummary,
             'reports' => $reports,
+            'pettyCashReturns' => $pettyCashReturns,
             'filters' => [
                 'range' => $range,
                 'from' => $request->get('from'),
@@ -57,10 +59,12 @@ class ManagerReportController extends Controller
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
         $paymentSummary = $this->buildPaymentSummary($data['trips']);
+        $pettyCashReturns = $this->getPettyCashReturnsByRange($request, $range);
 
         $pdf = Pdf::loadView('pdf.today-trips', [
             'trips' => $data['trips'],
             'paymentSummary' => $paymentSummary,
+            'pettyCashReturns' => $pettyCashReturns,
             'date' => $data['date'],
             'title' => $data['title'],
             'is_print' => false,
@@ -84,6 +88,7 @@ class ManagerReportController extends Controller
         $range = $request->get('range', 'today');
         $data = $this->getTripsByRange($request, $range);
         $paymentSummary = $this->buildPaymentSummary($data['trips']);
+        $pettyCashReturns = $this->getPettyCashReturnsByRange($request, $range);
 
         \App\Services\AuditLogger::logExport(
             'PRINT_EXPORT',
@@ -95,6 +100,7 @@ class ManagerReportController extends Controller
         return view('pdf.today-trips', [
             'trips' => $data['trips'],
             'paymentSummary' => $paymentSummary,
+            'pettyCashReturns' => $pettyCashReturns,
             'date' => $data['date'],
             'title' => $data['title'],
             'is_print' => true,
@@ -171,6 +177,33 @@ class ManagerReportController extends Controller
             'title' => $title,
             'date' => $dateStr,
         ];
+    }
+
+    private function getPettyCashReturnsByRange(Request $request, string $range)
+    {
+        $query = \App\Models\PettyCashReturn::with('customer');
+
+        if ($range === 'today') {
+            $query->whereDate('created_at', today());
+        } elseif ($range === 'week') {
+            $start = now()->startOfWeek();
+            $end = now()->endOfWeek();
+            $query->whereBetween('created_at', [$start, $end]);
+        } elseif ($range === 'month') {
+            $query->whereMonth('created_at', now()->month)
+                  ->whereYear('created_at', now()->year);
+        } elseif ($range === 'custom') {
+            $from = $request->get('from');
+            $to = $request->get('to');
+            if ($from && $to) {
+                $query->whereBetween('created_at', [
+                    Carbon::parse($from)->startOfDay(),
+                    Carbon::parse($to)->endOfDay()
+                ]);
+            }
+        }
+
+        return $query->latest('created_at')->get();
     }
 
     private function buildPaymentSummary($trips)
