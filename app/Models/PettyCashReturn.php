@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PettyCashReturn extends Model
 {
-    protected $fillable = ['customer_id', 'amount_lkr'];
+    protected $fillable = ['customer_id', 'amount_lkr', 'shift_id'];
 
     public function customer()
     {

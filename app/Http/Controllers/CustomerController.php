@@ -177,9 +177,22 @@ class CustomerController extends Controller
         $customer->update(['invoice_number' => $invoiceNumber]);
 
         if (!empty($data['returned_lkr']) && $data['returned_lkr'] > 0) {
+            $shiftId = null;
+            $userId = auth()->id();
+            if ($userId) {
+                $log = \App\Models\UserLoginLog::where('user_id', $userId)
+                    ->whereNull('logout_at')
+                    ->latest('login_at')
+                    ->first();
+                if ($log) {
+                    $shiftId = 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT);
+                }
+            }
+
             \App\Models\PettyCashReturn::create([
                 'customer_id' => $customer->id,
-                'amount_lkr' => $data['returned_lkr']
+                'amount_lkr'  => $data['returned_lkr'],
+                'shift_id'    => $shiftId
             ]);
             \Illuminate\Support\Facades\DB::table('petty_cash')->decrement('amount', $data['returned_lkr']);
         }

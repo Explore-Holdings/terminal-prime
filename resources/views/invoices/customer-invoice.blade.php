@@ -266,7 +266,7 @@
                     <td>Airport Counter Service</td>
                     <td class="amount">
                         {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                        {{ number_format($customer->paid_amount, 2) }}
+                        {{ number_format($price, 2) }}
                     </td>
                 </tr>
             </tbody>
