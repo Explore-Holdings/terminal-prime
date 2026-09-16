@@ -1294,6 +1294,7 @@ function PaymentTab({
 }) {
     const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
     const payments = form.data.payments ?? [];
+    const [manualReturnedLkr, setManualReturnedLkr] = useState('');
 
     // amount counts only notes whose currency matches the payment currency
     const methodAmount = (p) => {
@@ -1392,7 +1393,8 @@ function PaymentTab({
 
         let returnedLkr = 0;
         if (grandTotal > price) {
-            returnedLkr = getAmountInLkr(grandTotal - price, form.data.currency, eurRates);
+            const calc = getAmountInLkr(grandTotal - price, form.data.currency, eurRates);
+            returnedLkr = manualReturnedLkr !== '' ? Number(manualReturnedLkr) : calc;
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal, returned_lkr: returnedLkr }));
@@ -1531,15 +1533,20 @@ function PaymentTab({
                         {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
                     </span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-700 pt-2 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm text-gray-700 pt-2 border-t border-gray-200 gap-2">
                     <span>Petty Cash Balance: LKR {Number(pettyCash).toLocaleString()}</span>
                     {grandTotal > price && (
-                        <span className="text-orange-600">
-                            Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString()}
-                            {(() => {
-                                const lkrVal = formatToLkrString(grandTotal - price, form.data.currency, eurRates);
-                                return lkrVal ? ` (${lkrVal})` : '';
-                            })()}
+                        <span className="flex items-center gap-2 text-orange-600">
+                            <span>Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString()}</span>
+                            <div className="flex items-center gap-1 text-black font-normal bg-white px-2 py-0.5 rounded border border-orange-300">
+                                <span className="text-xs font-bold text-gray-500">LKR</span>
+                                <input 
+                                    type="number" 
+                                    className="w-32 text-right font-bold text-sm focus:outline-none bg-transparent"
+                                    value={manualReturnedLkr !== '' ? manualReturnedLkr : getAmountInLkr(grandTotal - price, form.data.currency, eurRates)}
+                                    onChange={(e) => setManualReturnedLkr(e.target.value)}
+                                />
+                            </div>
                         </span>
                     )}
                 </div>
