@@ -319,6 +319,43 @@
         </table>
     </div>
 
+    @if(isset($pettyCashReturns) && count($pettyCashReturns) > 0)
+    <div style="page-break-before: always; padding-top: 20px;">
+        <h3>Petty Cash Returns (Change Given)</h3>
+        <table class="trips-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Customer</th>
+                    <th class="text-right">Amount Returned (LKR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($pettyCashReturns as $return)
+                    <tr>
+                        <td>{{ $return->created_at ? $return->created_at->format('h:i A') : '-' }}</td>
+                        <td>
+                            {{ $return->customer?->name ?? 'Guest' }}<br>
+                            <small style="color: #6b7280;">{{ $return->customer?->customer_code }}</small>
+                        </td>
+                        <td class="text-right">LKR {{ number_format($return->amount_lkr, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        
+        <div class="totals-section" style="margin-top: 15px; width: 40%; float: right;">
+            <table class="totals-table">
+                <tr>
+                    <td class="totals-label">Total Returned:</td>
+                    <td class="totals-value text-right">LKR {{ number_format($pettyCashReturns->sum('amount_lkr'), 2) }}</td>
+                </tr>
+            </table>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+    @endif
+
     <!-- Static signature footer at the bottom of the page -->
     <div class="signature-footer">
         <table class="signature-table">

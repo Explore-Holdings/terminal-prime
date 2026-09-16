@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Clock, Eye, Printer, FileText, Calendar, CheckCircle, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
-export default function ManagerReports({ trips = [], reports = [], filters = {}, paymentSummary = null }) {
+export default function ManagerReports({ trips = [], reports = [], filters = {}, paymentSummary = null, pettyCashReturns = [] }) {
     const currentRange = filters.range || 'today';
     const [fromDate, setFromDate] = useState(filters.from || '');
     const [toDate, setToDate] = useState(filters.to || '');
@@ -345,6 +345,66 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                             ) : (
                                 <div className="p-12 text-center text-black">
                                     No trips assigned for this range.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Petty Cash Returns Panel */}
+                    <div className="bg-white border rounded-2xl overflow-hidden shadow-sm mt-6">
+                        <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                                    <Banknote size={18} className="text-black" />
+                                    Petty Cash Returns (Change Given)
+                                </h2>
+                                <p className="text-xs text-black mt-0.5">Change returned from the petty cash drawer during this period</p>
+                            </div>
+
+                            <div className="text-right">
+                                <span className="text-xs font-semibold text-black uppercase tracking-wider block">Total Returned</span>
+                                <span className="text-xl font-black text-black">LKR {pettyCashReturns.reduce((sum, r) => sum + Number(r.amount_lkr), 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            {pettyCashReturns.length > 0 ? (
+                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b text-black font-semibold uppercase text-[10px]">
+                                            <th className="px-5 py-3">Date & Time</th>
+                                            <th className="px-5 py-3">Customer</th>
+                                            <th className="px-5 py-3 text-right">Amount (LKR)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y text-black">
+                                        {pettyCashReturns.map((r) => {
+                                            const rTime = new Date(r.created_at);
+                                            return (
+                                                <tr key={r.id} className="hover:bg-gray-50/50 transition">
+                                                    <td className="px-5 py-4 text-xs">
+                                                        <div className="font-semibold text-black">
+                                                            {rTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </div>
+                                                        <div className="text-black">
+                                                            {rTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-4">
+                                                        <div className="font-semibold text-black">{r.customer?.name ?? 'Guest'}</div>
+                                                        <div className="text-xs text-black">{r.customer?.customer_code}</div>
+                                                    </td>
+                                                    <td className="px-5 py-4 text-right font-bold text-black">
+                                                        LKR {Number(r.amount_lkr).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="p-12 text-center text-black">
+                                    No petty cash returns for this range.
                                 </div>
                             )}
                         </div>

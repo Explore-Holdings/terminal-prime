@@ -363,11 +363,20 @@ class CounterController extends Controller
 
         $paymentSummary = $this->buildPaymentSummary($trips);
 
+        $pettyCashReturns = [];
+        if ($userLoginLog->shift_id) {
+            $pettyCashReturns = \App\Models\PettyCashReturn::with('customer')
+                ->where('shift_id', $userLoginLog->shift_id)
+                ->latest()
+                ->get();
+        }
+
         $pdf = Pdf::loadView('pdf.checkout-summary', [
             'log' => $userLoginLog,
             'user' => $user,
             'trips' => $trips,
             'paymentSummary' => $paymentSummary,
+            'pettyCashReturns' => $pettyCashReturns,
         ]);
         $pdf->getDomPDF()->set_option('isPhpEnabled', true);
 
