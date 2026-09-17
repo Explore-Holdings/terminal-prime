@@ -45,28 +45,56 @@ class AccountantController extends Controller
             $totalReceivedQuery->where('received_at', '<=', $endDate);
         }
 
+        // Status filter
+        $status = $request->input('status', 'all');
+
+        // Notification and status metrics
+        $pendingApprovalsCount = TripFinance::where('received', true)->where('accountant_approved', false)->count();
+        $pendingSlipsCount = \App\Models\PaymentSlip::where('status', 'pending')->count();
+        $pendingSlipsTripsCount = TripFinance::whereHas('paymentSlips', fn($q) => $q->where('status', 'pending'))->count();
+
         // Calculate totals across all received finances
         $totalRecords = $totalRecordsQuery->count();
         $totalReceived = $totalReceivedQuery->sum('received_amount');
 
         // Fetch paginated trip finances that have been received
         $receivedFinances = TripFinance::with([
-            'trip.customer',
+            'trip.customer.agent.user',
             'trip.driver.vehicle',
             'trip.agent.user',
+            'agentUser',
             'receiver', // User who marked it as received
             'approver',
-            'paymentSlips'
+            'paymentSlips.uploader',
         ])
         ->where('received', true)
+        ->when($status === 'pending_slips', function ($query) {
+            $query->whereHas('paymentSlips', fn($sq) => $sq->where('status', 'pending'));
+        })
+        ->when($status === 'pending_approval', function ($query) {
+            $query->where('accountant_approved', false);
+        })
+        ->when($status === 'approved', function ($query) {
+            $query->where('accountant_approved', true);
+        })
         ->when($search, function ($query, $search) {
             $query->where(function($q) use ($search) {
                 $q->whereHas('trip', function ($tq) use ($search) {
                     $tq->where('id', 'like', "%{$search}%")
                        ->orWhereHas('customer', function ($cq) use ($search) {
-                           $cq->where('name', 'like', "%{$search}%");
+                           $cq->where('name', 'like', "%{$search}%")
+                              ->orWhereHas('agent.user', function ($auq) use ($search) {
+                                  $auq->where('name', 'like', "%{$search}%");
+                              });
+                       })
+                       ->orWhereHas('agent.user', function ($auq) use ($search) {
+                           $auq->where('name', 'like', "%{$search}%");
                        });
-                })->orWhere('trip_id', 'like', "%{$search}%");
+                })
+                ->orWhereHas('agentUser', function ($auq) use ($search) {
+                    $auq->where('name', 'like', "%{$search}%");
+                })
+                ->orWhere('trip_id', 'like', "%{$search}%");
             });
         })
         ->when($startDate, function ($query) use ($startDate) {
@@ -83,7 +111,10 @@ class AccountantController extends Controller
             'receivedFinances' => $receivedFinances,
             'totalRecords' => $totalRecords,
             'totalReceived' => (float)$totalReceived,
-            'filters' => $request->only('search', 'range', 'start_date', 'end_date'),
+            'pendingApprovalsCount' => $pendingApprovalsCount,
+            'pendingSlipsCount' => $pendingSlipsCount,
+            'pendingSlipsTripsCount' => $pendingSlipsTripsCount,
+            'filters' => $request->only('search', 'range', 'start_date', 'end_date', 'status'),
         ]);
     }
 
@@ -106,6 +137,19 @@ class AccountantController extends Controller
         $slip->update(['status' => $request->status]);
 
         return back();
+    }
+
+    public function updateAllSlipsStatus(Request $request, TripFinance $tripFinance)
+    {
+        $request->validate([
+            'status' => 'required|in:completed,incomplete,pending'
+        ]);
+
+        $tripFinance->paymentSlips()->update([
+            'status' => $request->status,
+        ]);
+
+        return back()->with('success', 'Slips status updated successfully.');
     }
 }
 

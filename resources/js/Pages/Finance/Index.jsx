@@ -33,6 +33,7 @@ export default function Index({
     const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
     const [uploadSlipModal, setUploadSlipModal] = useState(null);
+    const [viewSlipsModal, setViewSlipsModal] = useState(null);
     const [eurRates, setEurRates] = useState(null);
 
     useEffect(() => {
@@ -51,7 +52,7 @@ export default function Index({
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
-    const { auth } = usePage().props;
+    const { auth, pendingFinanceCount, pendingAccountantSlipsCount } = usePage().props;
     const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
 
     return (
@@ -128,13 +129,30 @@ export default function Index({
                         Daily Operations
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'settlements'} onClick={() => setMainTab('settlements')}>
-                        Settlements
+                        <span className="flex items-center gap-2">
+                            Settlements
+                            {pendingFinanceCount > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[18px]">
+                                    {pendingFinanceCount}
+                                </span>
+                            )}
+                        </span>
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'expenses'} onClick={() => setMainTab('expenses')}>
                         Expenses
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
                         Reports
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'accountant_auth'} onClick={() => setMainTab('accountant_auth')}>
+                        <span className="flex items-center gap-2">
+                            Accountant Authorization
+                            {pendingAccountantSlipsCount > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[18px]">
+                                    {pendingAccountantSlipsCount}
+                                </span>
+                            )}
+                        </span>
                     </MainTabCard>
                 </div>
 
@@ -200,6 +218,16 @@ export default function Index({
                     {mainTab === 'expenses' && (
                         <ExpensesPanel expenses={expenses} />
                     )}
+
+                    {mainTab === 'accountant_auth' && (
+                        <AccountantAuthTab
+                            trips={trips}
+                            rateSetting={rateSetting}
+                            eurRates={eurRates}
+                            setUploadSlipModal={setUploadSlipModal}
+                            setViewSlipsModal={setViewSlipsModal}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -212,6 +240,82 @@ export default function Index({
             {/* Upload Slip Modal */}
             {uploadSlipModal && (
                 <UploadSlipModal uploadSlipModal={uploadSlipModal} setUploadSlipModal={setUploadSlipModal} />
+            )}
+            {/* View Slips Modal */}
+            {viewSlipsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewSlipsModal(null)}>
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
+                            <div>
+                                <h3 className="text-lg font-black text-[#0f1d45]">Uploaded Slips — Trip #{viewSlipsModal.trip_id}</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Payment slip documents uploaded for accountant verification</p>
+                            </div>
+                            <button onClick={() => setViewSlipsModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                            {viewSlipsModal.payment_slips && viewSlipsModal.payment_slips.length > 0 ? (
+                                viewSlipsModal.payment_slips.map(slip => {
+                                    const isImage = slip.slip_path && slip.slip_path.match(/\.(jpeg|jpg|png|webp|gif)$/i);
+                                    return (
+                                        <div key={slip.id} className="rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center border bg-gray-50 border-gray-200">
+                                            <div className="space-y-1.5 flex-1">
+                                                <div className="text-xs text-gray-500">
+                                                    Uploaded by: <span className="font-semibold text-gray-700">{slip.uploader?.name || 'Finance User'}</span>
+                                                    {slip.created_at && (
+                                                        <span className="ml-2 text-gray-400">• {new Date(slip.created_at).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-[#0f1d45]">Description:</p>
+                                                    <p className="text-sm text-gray-700">{slip.slip_des || <span className="italic text-gray-400">No description provided</span>}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs font-semibold pt-0.5">
+                                                    <span className="text-gray-500">Status:</span>
+                                                    <span className={`uppercase font-bold ${slip.status === 'completed' ? 'text-emerald-600' : slip.status === 'incomplete' ? 'text-rose-600' : 'text-amber-600'}`}>
+                                                        {slip.status === 'completed' ? '✓ Completed' : slip.status === 'incomplete' ? '⚠️ Incomplete' : '⏳ Pending Review'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col items-center gap-2 shrink-0 w-full md:w-auto">
+                                                {isImage && (
+                                                    <a href={`/storage/${slip.slip_path}`} target="_blank" rel="noreferrer" className="block w-28 h-20 rounded-lg overflow-hidden border border-gray-300 bg-white shadow-sm hover:opacity-90 transition">
+                                                        <img src={`/storage/${slip.slip_path}`} alt="Slip Preview" className="w-full h-full object-cover" />
+                                                    </a>
+                                                )}
+                                                <a
+                                                    href={`/storage/${slip.slip_path}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="w-full md:w-auto text-center rounded-xl bg-[#0f1d45] hover:bg-black text-white px-4 py-2 text-xs font-bold shadow-sm transition"
+                                                >
+                                                    📄 Open Full Document
+                                                </a>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No slips found for this trip.</p>
+                            )}
+                        </div>
+                        
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setViewSlipsModal(null)}
+                                className="px-5 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-xl transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </AppSidebarLayout>
     );
@@ -353,6 +457,8 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                 <thead className="bg-gray-50 border-b border-gray-200">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Agent Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Driver Share</th>
@@ -370,7 +476,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             <td className="px-3 py-3 font-bold text-black">
                                                 LKR {group.totalAmount.toLocaleString()}
                                             </td>
-                                            <td className="px-3 py-3 text-black font-medium" colSpan={4}>
+                                            <td className="px-3 py-3 text-black font-medium" colSpan={6}>
                                                 {group.trips.length} Trip{group.trips.length !== 1 && 's'}
                                             </td>
                                             <td className="px-3 py-3 text-right text-black font-semibold text-xs uppercase tracking-wider">
@@ -449,6 +555,12 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         <div className="font-semibold text-black">#{trip.id}</div>
                                                         <div className="text-xs text-black">{customer?.name ?? '-'}</div>
                                                     </td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="text-xs font-medium text-black">{customer?.agent?.user?.name ?? '-'}</div>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="text-xs font-medium text-black">{trip.driver?.vehicle?.registration_number ?? '-'}</div>
+                                                    </td>
                                                     <td className="px-3 py-2 font-medium text-black">
                                                         <div>LKR {amountInLkr.toLocaleString()}</div>
                                                         {originalCurrency !== 'LKR' && (
@@ -506,49 +618,6 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                                     Received from Counter Manager
                                                                 </button>
                                                             )}
-
-                                                                {tf?.accountant_approved && (
-                                                                    <>
-                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                                                                            ✓ Approved by Accountant
-                                                                        </span>
-                                                                        {tf.payment_slips && tf.payment_slips.length > 0 ? (
-                                                                            tf.payment_slips.some(s => s.status === 'incomplete') ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ⚠️ Incomplete (Re-upload)
-                                                                                </button>
-                                                                            ) : tf.payment_slips.every(s => s.status === 'completed') ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    disabled
-                                                                                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ✓ Completed
-                                                                                </button>
-                                                                            ) : (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    disabled
-                                                                                    className="rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ⏳ Pending Review
-                                                                                </button>
-                                                                            )
-                                                                        ) : (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                                                className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
-                                                                            >
-                                                                                Upload Slips
-                                                                            </button>
-                                                                        )}
-                                                                    </>
-                                                                )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -584,6 +653,250 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                 </>
             )}
         </>
+    );
+}
+
+function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, setViewSlipsModal }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [authRange, setAuthRange] = useState('today');
+    const [authFrom, setAuthFrom] = useState('');
+    const [authTo, setAuthTo] = useState('');
+    const [page, setPage] = useState(1);
+    const pageSize = 15;
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const filterByDate = (dateString) => {
+        const d = dateString ? new Date(dateString) : null;
+        if (!d || isNaN(d.getTime())) return false;
+        if (authRange === 'today') return d >= startOfToday && d <= endOfToday;
+        if (authRange === 'week') {
+            const ws = new Date(startOfToday);
+            ws.setDate(startOfToday.getDate() - startOfToday.getDay());
+            const we = new Date(ws); we.setDate(ws.getDate() + 6); we.setHours(23, 59, 59, 999);
+            return d >= ws && d <= we;
+        }
+        if (authRange === 'month') {
+            const ms = new Date(today.getFullYear(), today.getMonth(), 1);
+            const me = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+            return d >= ms && d <= me;
+        }
+        if (authRange === 'custom') {
+            const from = authFrom ? new Date(authFrom) : new Date(0);
+            const to = authTo ? new Date(authTo) : new Date('2100-01-01');
+            to.setHours(23, 59, 59, 999);
+            return d >= from && d <= to;
+        }
+        return true;
+    };
+
+    const approvedTrips = trips.filter(t =>
+        t.trip_finance?.accountant_approved && filterByDate(t.trip_assigned_at)
+    );
+
+    const filtered = approvedTrips.filter(trip => {
+        const q = searchTerm.toLowerCase();
+        return (
+            String(trip.id).includes(q) ||
+            (trip.customer?.name ?? '').toLowerCase().includes(q) ||
+            (trip.customer?.agent?.user?.name ?? '').toLowerCase().includes(q)
+        );
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+    const rangeOptions = [
+        { key: 'today', label: 'Today' },
+        { key: 'week', label: 'This Week' },
+        { key: 'month', label: 'This Month' },
+        { key: 'custom', label: 'Custom' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-black">Accountant Authorization</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Trips approved by the accountant and their slip upload status</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    {rangeOptions.map(opt => (
+                        <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => { setAuthRange(opt.key); setPage(1); }}
+                            className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${authRange === opt.key ? 'bg-blue-700 text-white' : 'bg-gray-100 text-black hover:bg-gray-200'}`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                    {authRange === 'custom' && (
+                        <>
+                            <input type="date" value={authFrom} onChange={e => { setAuthFrom(e.target.value); setPage(1); }} className="rounded border border-gray-300 px-3 py-1.5 text-sm" />
+                            <input type="date" value={authTo} onChange={e => { setAuthTo(e.target.value); setPage(1); }} className="rounded border border-gray-300 px-3 py-1.5 text-sm" />
+                        </>
+                    )}
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 text-sm border border-emerald-200">
+                        {approvedTrips.length} Approved
+                    </span>
+                </div>
+            </div>
+
+            {approvedTrips.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
+                    No accountant-approved trips found for this period.
+                </div>
+            ) : (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-gray-200 p-3 gap-3">
+                        <input
+                            type="text"
+                            placeholder="Search trips..."
+                            className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                        />
+                        <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} record(s)</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Accountant Status</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Uploaded Slips</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white">
+                                {paged.map(trip => {
+                                    const tf = trip.trip_finance;
+                                    const customer = trip.customer;
+                                    const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+                                    const originalAmount = Number(customer?.paid_amount ?? 0);
+                                    const amountInLkr = tf?.total_amount
+                                        ? Number(tf.total_amount)
+                                        : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+                                    const slips = tf?.payment_slips || [];
+                                    const pendingSlips = slips.filter(s => s.status === 'pending');
+                                    const completedSlips = slips.filter(s => s.status === 'completed');
+                                    const incompleteSlips = slips.filter(s => s.status === 'incomplete');
+
+                                    return (
+                                        <tr key={trip.id} className="hover:bg-emerald-50/40">
+                                            <td className="px-3 py-2 border-l-2 border-emerald-500">
+                                                <div className="font-semibold text-black">#{trip.id}</div>
+                                                <div className="text-xs text-gray-500">{customer?.name ?? '-'}</div>
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-black">
+                                                {customer?.agent?.user?.name ?? '-'}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs font-medium text-black">
+                                                {trip.driver?.vehicle?.registration_number ?? '-'}
+                                            </td>
+                                            <td className="px-3 py-2 font-medium text-black">
+                                                LKR {amountInLkr.toLocaleString()}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                                    ✓ Approved by Accountant
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {slips.length === 0 ? (
+                                                    <span className="text-gray-400 text-xs italic">No Slips Uploaded</span>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setViewSlipsModal({ ...tf, trip_id: trip.id })}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-bold transition active:scale-95 whitespace-nowrap shadow-sm"
+                                                        >
+                                                            👁 View Slips ({slips.length})
+                                                        </button>
+                                                        {completedSlips.length === slips.length && (
+                                                            <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ✓ Verified
+                                                            </span>
+                                                        )}
+                                                        {incompleteSlips.length > 0 && (
+                                                            <span className="inline-flex items-center rounded-full bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ⚠️ Incomplete
+                                                            </span>
+                                                        )}
+                                                        {pendingSlips.length > 0 && incompleteSlips.length === 0 && (
+                                                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ⏳ Pending Review
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                {slips.length === 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        className="rounded-lg bg-[#0f1d45] hover:bg-black text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
+                                                    >
+                                                        Upload Slips
+                                                    </button>
+                                                ) : incompleteSlips.length > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
+                                                    >
+                                                        ⚠️ Re-upload
+                                                    </button>
+                                                ) : completedSlips.length === slips.length ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                                        ✓ Slips Approved
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 whitespace-nowrap">
+                                                        ⏳ Awaiting Approval
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between border-t border-gray-200 p-3 text-sm text-black">
+                        <button
+                            type="button"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <span>
+                            Showing {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -848,9 +1161,10 @@ function PayoutsTab({ drivers, agents }) {
 
 function IncentivesTab({ drivers, incentives }) {
     const [search, setSearch] = useState('');
-    const filteredDrivers = (drivers || []).filter(d =>
-        (d.full_name ?? '').toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredDrivers = (drivers || []).filter(d => {
+        const fullName = `${d.first_name ?? ''} ${d.last_name ?? ''}`.trim().toLowerCase();
+        return fullName.includes(search.toLowerCase());
+    });
 
     const [inputs, setInputs] = useState({});
 
@@ -901,9 +1215,9 @@ function IncentivesTab({ drivers, incentives }) {
     const columns = [
         {
             name: 'Driver Name',
-            selector: row => row.full_name,
+            selector: row => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
             sortable: true,
-            cell: row => <strong>{row.full_name}</strong>
+            cell: row => <strong>{`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()}</strong>
         },
         {
             name: 'Reg. Number',
@@ -1325,8 +1639,9 @@ function DriversTable({ drivers }) {
 
     const filteredDrivers = drivers.filter(driver => {
         const query = search.toLowerCase();
+        const fullName = `${driver.first_name ?? ''} ${driver.last_name ?? ''}`.trim().toLowerCase();
         return (
-            (driver.full_name?.toLowerCase().includes(query) ?? false) ||
+            fullName.includes(query) ||
             (driver.registration_number?.toLowerCase().includes(query) ?? false)
         );
     });
@@ -1339,9 +1654,9 @@ function DriversTable({ drivers }) {
         },
         {
             name: 'Driver Name',
-            selector: row => row.full_name ?? '-',
+            selector: row => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
             sortable: true,
-            cell: row => <strong>{row.full_name ?? '-'}</strong>,
+            cell: row => <strong>{`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()}</strong>,
         },
         {
             name: 'Amount',
