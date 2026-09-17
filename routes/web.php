@@ -91,6 +91,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect()->back()->with('success', 'Request approved.');
     })->name('attendance-requests.approve');
 
+    Route::post('/finance/petty-cash-requests/{id}/approve', [FinanceController::class, 'approvePettyCashRequest'])->name('finance.petty-cash.approve');
+
     Route::post('/dashboard/attendance-requests/{id}/reject', function(Request $request, $id) {
         DB::table('agent_checkin_requests')->where('id', $id)->update([
             'status' => 'rejected',

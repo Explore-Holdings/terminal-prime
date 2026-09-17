@@ -27,6 +27,7 @@ export default function Index({
     pettyCashShiftLogs = [],
     pettyCashReturns = [],
     pettyCashBalance = 0,
+    pettyCashRequests = [],
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
@@ -156,6 +157,7 @@ export default function Index({
                                     shiftLogs={pettyCashShiftLogs}
                                     returns={pettyCashReturns}
                                     currentBalance={pettyCashBalance}
+                                    requests={pettyCashRequests}
                                     range={range}
                                     customStart={customStart}
                                     customEnd={customEnd}
@@ -1996,7 +1998,7 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
             </div>
         </div>
     );
-}function TillAmountTab({ shiftLogs, returns, currentBalance, range, customStart, customEnd }) {
+}function TillAmountTab({ shiftLogs, returns, currentBalance, requests, range, customStart, customEnd }) {
     const filterByDate = (dateString) => {
         if (!dateString) return false;
         const d = new Date(dateString);
@@ -2085,6 +2087,71 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                             LKR {Number(currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Pending Requests Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-rose-100 overflow-hidden mb-6">
+                <div className="px-5 py-4 border-b border-rose-100 bg-rose-50 flex justify-between items-center">
+                    <h3 className="font-bold text-rose-900 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        Pending Replenishment Requests
+                    </h3>
+                </div>
+                <div className="p-0 overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-rose-700 uppercase bg-rose-50/50">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold">Requested By</th>
+                                <th className="px-6 py-4 font-semibold">Shift ID</th>
+                                <th className="px-6 py-4 font-semibold text-right">Current Balance</th>
+                                <th className="px-6 py-4 font-semibold text-right">Needed Amount</th>
+                                <th className="px-6 py-4 font-semibold text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-rose-100">
+                            {requests && requests.filter(r => r.status === 'Pending').length > 0 ? (
+                                requests.filter(r => r.status === 'Pending').map(req => (
+                                    <tr key={req.id} className="hover:bg-rose-50/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-gray-900">{req.requested_by?.name || 'Counter Staff'}</div>
+                                            <div className="text-[10px] text-gray-500">{new Date(req.created_at).toLocaleString()}</div>
+                                        </td>
+                                        <td className="px-6 py-4 font-medium text-gray-900">
+                                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs font-mono">
+                                                {req.shift_id}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-600 font-medium">
+                                            LKR {Number(req.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-rose-600 font-bold">
+                                            LKR {Number(req.needed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button 
+                                                onClick={() => router.post(`/finance/petty-cash-requests/${req.id}/approve`, {}, {
+                                                    preserveScroll: true,
+                                                    onSuccess: () => toast.success('Petty cash request approved!')
+                                                })}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-4 rounded shadow text-xs transition"
+                                            >
+                                                Approve & Replenish
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-8 text-center text-rose-300 font-medium">
+                                        No pending requests
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
