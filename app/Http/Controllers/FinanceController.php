@@ -11,6 +11,9 @@ use App\Models\Trip;
 use App\Models\TripFinance;
 use App\Models\Expense;
 use App\Models\Payout;
+use App\Models\PettyCashShiftLog;
+use App\Models\PettyCashReturn;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -87,6 +90,10 @@ class FinanceController extends Controller
 
         $expenses = Expense::with('creator')->latest()->get();
 
+        $pettyCashShiftLogs = PettyCashShiftLog::latest()->get();
+        $pettyCashReturns = PettyCashReturn::with('customer')->latest()->get();
+        $pettyCashBalance = DB::table('petty_cash')->where('id', 1)->value('amount') ?? 0;
+
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
             'drivers' => Driver::select('id', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
@@ -97,6 +104,9 @@ class FinanceController extends Controller
             'rateSetting' => $rateSetting,
             'expenses' => $expenses,
             'payouts' => $payouts,
+            'pettyCashShiftLogs' => $pettyCashShiftLogs,
+            'pettyCashReturns' => $pettyCashReturns,
+            'pettyCashBalance' => $pettyCashBalance,
         ]);
     }
 

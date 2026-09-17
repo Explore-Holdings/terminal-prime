@@ -145,8 +145,21 @@
     <!-- Signature footer has been moved to the bottom -->
 
     <div class="header">
-        <div class="title">{{ strtoupper($title ?? "Today's Trips Report") }}</div>
-        <div class="subtitle">Terminal Prime Management System</div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 70px; vertical-align: middle;">
+                    @php
+                        $imagePath = public_path('assets/images/logo.png');
+                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo.png');
+                    @endphp
+                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Logo">
+                </td>
+                <td style="vertical-align: middle;">
+                    <div class="title">{{ strtoupper($title ?? "Today's Trips Report") }}</div>
+                    <div class="subtitle">Terminal Prime Management System</div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <div class="meta-section">
@@ -316,6 +329,33 @@
 
     @if(isset($pettyCashReturns) && count($pettyCashReturns) > 0)
     <div style="page-break-before: always; padding-top: 20px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px;">
+            <tr>
+                <td style="width: 70px; vertical-align: middle;">
+                    @php
+                        $imagePath = public_path('assets/images/logo.png');
+                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo.png');
+                    @endphp
+                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Logo">
+                </td>
+                <td style="vertical-align: middle;">
+                    <div class="title">PETTY CASH RETURNS</div>
+                    <div class="subtitle">Terminal Prime Management System</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="meta-section">
+            <table class="meta-table">
+                <tr>
+                    <td class="meta-label">Report Date:</td>
+                    <td class="meta-value">{{ $date }}</td>
+                    <td class="meta-label">Generated:</td>
+                    <td class="meta-value">{{ now()->format('M d, Y h:i A') }}</td>
+                </tr>
+            </table>
+        </div>
+
         <h3>Petty Cash Returns (Change Given)</h3>
         <table class="trips-table">
             <thead>

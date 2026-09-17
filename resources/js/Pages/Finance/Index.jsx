@@ -24,6 +24,9 @@ export default function Index({
     incentives = [],
     rateSetting = null,
     expenses = [],
+    pettyCashShiftLogs = [],
+    pettyCashReturns = [],
+    pettyCashBalance = 0,
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
@@ -76,7 +79,7 @@ export default function Index({
                             </p>
                         </div>
 
-                        {(mainTab === 'daily_operations' || mainTab === 'reports') && (
+                        {(mainTab === 'daily_operations' || mainTab === 'reports' || (mainTab === 'settlements' && subTab === 'till_amount')) && (
                             <div className="flex flex-wrap items-center gap-2">
                                 {[
                                     { key: 'today', label: 'Today' },
@@ -142,10 +145,22 @@ export default function Index({
                     {mainTab === 'settlements' && (
                         <>
                             <div className="flex flex-wrap gap-2 mb-4">
+                                <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
+                                <SubTab active={subTab === 'till_amount'} onClick={() => setSubTab('till_amount')}>Till Amount</SubTab>
                                 <SubTab active={subTab === 'drivers'} onClick={() => setSubTab('drivers')}>Driver Inactive</SubTab>
                                 <SubTab active={subTab === 'incentives'} onClick={() => setSubTab('incentives')}>Incentives</SubTab>
-                                <SubTab active={subTab === 'payouts'} onClick={() => setSubTab('payouts')}>Payouts</SubTab>
                             </div>
+
+                            {subTab === 'till_amount' && (
+                                <TillAmountTab 
+                                    shiftLogs={pettyCashShiftLogs}
+                                    returns={pettyCashReturns}
+                                    currentBalance={pettyCashBalance}
+                                    range={range}
+                                    customStart={customStart}
+                                    customEnd={customEnd}
+                                />
+                            )}
 
                             {subTab === 'drivers' && (
                                 <DriversTable drivers={drivers} />
@@ -1981,4 +1996,143 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
             </div>
         </div>
     );
+}function TillAmountTab({ shiftLogs, returns, currentBalance, range, customStart, customEnd }) {
+    const filterByDate = (dateString) => {
+        if (!dateString) return false;
+        const d = new Date(dateString);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (range === 'today') {
+            return d >= today;
+        } else if (range === 'week') {
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            return d >= weekStart;
+        } else if (range === 'month') {
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            return d >= monthStart;
+        } else if (range === 'custom') {
+            const start = customStart ? new Date(customStart) : new Date(0);
+            const end = customEnd ? new Date(customEnd) : new Date('2100-01-01');
+            end.setHours(23, 59, 59, 999);
+            return d >= start && d <= end;
+        }
+        return true;
+    };
+
+    const filteredLogs = shiftLogs.filter(log => filterByDate(log.created_at));
+    const filteredReturns = returns.filter(ret => filterByDate(ret.created_at));
+
+    const combined = [];
+
+    // Map Returns (Cash Out)
+    filteredReturns.forEach(ret => {
+        combined.push({
+            id: `ret-${ret.id}`,
+            date: new Date(ret.created_at),
+            desc: `Cash Return to ${ret.customer?.name ?? 'Guest'} (${ret.shift_id || 'No Shift'})`,
+            in: 0,
+            out: Number(ret.amount_lkr),
+        });
+    });
+
+    // Map Shift Logs / Replenishments (Cash In)
+    filteredLogs.forEach(log => {
+        combined.push({
+            id: `log-${log.id}`,
+            date: new Date(log.created_at),
+            desc: `Till Replenishment - Checkout ${log.shift_id}`,
+            in: Number(log.amount_spent), // Cash added back to till to reach 100k
+            out: 0,
+        });
+    });
+
+    // Sort chronologically ascending to calculate running balance
+    combined.sort((a, b) => a.date - b.date);
+
+    // Assume standard opening balance is 100,000
+    let runningBalance = 100000;
+    
+    // Add an opening balance row
+    const ledger = [
+        {
+            id: 'opening-balance',
+            date: combined.length > 0 ? new Date(combined[0].date.getTime() - 1000) : new Date(),
+            desc: 'Opening Balance (Default)',
+            in: 0,
+            out: 0,
+            balance: 100000
+        }
+    ];
+
+    combined.forEach(item => {
+        runningBalance = runningBalance + item.in - item.out;
+        item.balance = runningBalance;
+        ledger.push(item);
+    });
+
+    // Reverse to show newest on top
+    ledger.reverse();
+
+    return (
+        <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-6 shadow-lg">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-lg font-bold text-blue-100 uppercase tracking-wider mb-1">Current Till Balance</h2>
+                        <div className="text-4xl font-extrabold tracking-tight">
+                            LKR {Number(currentBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Petty Cash Ledger Book
+                    </h3>
+                </div>
+                <div className="p-0 overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-gray-500 uppercase bg-gray-100">
+                            <tr>
+                                <th className="px-6 py-4 font-semibold">Date & Time</th>
+                                <th className="px-6 py-4 font-semibold">Description</th>
+                                <th className="px-6 py-4 font-semibold text-right">Cash In (Dr)</th>
+                                <th className="px-6 py-4 font-semibold text-right">Cash Out (Cr)</th>
+                                <th className="px-6 py-4 font-semibold text-right">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {ledger.map((row) => (
+                                <tr key={row.id} className={`hover:bg-blue-50/50 transition-colors ${row.id === 'opening-balance' ? 'bg-gray-50' : ''}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                        {row.id === 'opening-balance' ? '-' : row.date.toLocaleString()}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-gray-900">
+                                        {row.desc}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-emerald-600 font-medium">
+                                        {row.in > 0 ? Number(row.in).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-rose-600 font-medium">
+                                        {row.out > 0 ? Number(row.out).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-gray-900 font-bold bg-gray-50/50">
+                                        {Number(row.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
 }
+
