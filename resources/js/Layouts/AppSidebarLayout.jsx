@@ -209,6 +209,11 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                                             {props.pendingAttendanceCount}
                                         </span>
                                     )}
+                                    {item.label === 'Accountant' && props.accountantTotalBadgeCount > 0 && (
+                                        <span className={`text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${active ? 'bg-red-400' : 'bg-red-500'}`}>
+                                            {props.accountantTotalBadgeCount}
+                                        </span>
+                                    )}
                                     {item.label === 'Finance' && (props.pendingFinanceCount > 0 || props.pendingAccountantSlipsCount > 0) && (
                                         <span className={`text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${active ? 'bg-red-400' : 'bg-red-500'}`}>
                                             {(props.pendingFinanceCount ?? 0) + (props.pendingAccountantSlipsCount ?? 0)}

@@ -33,6 +33,7 @@ export default function Index({
     const [subTab, setSubTab] = useState('payouts');
     const [selectedTrip, setSelectedTrip] = useState(null);
     const [uploadSlipModal, setUploadSlipModal] = useState(null);
+    const [viewSlipsModal, setViewSlipsModal] = useState(null);
     const [eurRates, setEurRates] = useState(null);
 
     useEffect(() => {
@@ -224,6 +225,7 @@ export default function Index({
                             rateSetting={rateSetting}
                             eurRates={eurRates}
                             setUploadSlipModal={setUploadSlipModal}
+                            setViewSlipsModal={setViewSlipsModal}
                         />
                     )}
                 </div>
@@ -238,6 +240,82 @@ export default function Index({
             {/* Upload Slip Modal */}
             {uploadSlipModal && (
                 <UploadSlipModal uploadSlipModal={uploadSlipModal} setUploadSlipModal={setUploadSlipModal} />
+            )}
+            {/* View Slips Modal */}
+            {viewSlipsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewSlipsModal(null)}>
+                    <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
+                            <div>
+                                <h3 className="text-lg font-black text-[#0f1d45]">Uploaded Slips — Trip #{viewSlipsModal.trip_id}</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Payment slip documents uploaded for accountant verification</p>
+                            </div>
+                            <button onClick={() => setViewSlipsModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                            {viewSlipsModal.payment_slips && viewSlipsModal.payment_slips.length > 0 ? (
+                                viewSlipsModal.payment_slips.map(slip => {
+                                    const isImage = slip.slip_path && slip.slip_path.match(/\.(jpeg|jpg|png|webp|gif)$/i);
+                                    return (
+                                        <div key={slip.id} className="rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center border bg-gray-50 border-gray-200">
+                                            <div className="space-y-1.5 flex-1">
+                                                <div className="text-xs text-gray-500">
+                                                    Uploaded by: <span className="font-semibold text-gray-700">{slip.uploader?.name || 'Finance User'}</span>
+                                                    {slip.created_at && (
+                                                        <span className="ml-2 text-gray-400">• {new Date(slip.created_at).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-[#0f1d45]">Description:</p>
+                                                    <p className="text-sm text-gray-700">{slip.slip_des || <span className="italic text-gray-400">No description provided</span>}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs font-semibold pt-0.5">
+                                                    <span className="text-gray-500">Status:</span>
+                                                    <span className={`uppercase font-bold ${slip.status === 'completed' ? 'text-emerald-600' : slip.status === 'incomplete' ? 'text-rose-600' : 'text-amber-600'}`}>
+                                                        {slip.status === 'completed' ? '✓ Completed' : slip.status === 'incomplete' ? '⚠️ Incomplete' : '⏳ Pending Review'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col items-center gap-2 shrink-0 w-full md:w-auto">
+                                                {isImage && (
+                                                    <a href={`/storage/${slip.slip_path}`} target="_blank" rel="noreferrer" className="block w-28 h-20 rounded-lg overflow-hidden border border-gray-300 bg-white shadow-sm hover:opacity-90 transition">
+                                                        <img src={`/storage/${slip.slip_path}`} alt="Slip Preview" className="w-full h-full object-cover" />
+                                                    </a>
+                                                )}
+                                                <a
+                                                    href={`/storage/${slip.slip_path}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="w-full md:w-auto text-center rounded-xl bg-[#0f1d45] hover:bg-black text-white px-4 py-2 text-xs font-bold shadow-sm transition"
+                                                >
+                                                    📄 Open Full Document
+                                                </a>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">No slips found for this trip.</p>
+                            )}
+                        </div>
+                        
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setViewSlipsModal(null)}
+                                className="px-5 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-xl transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </AppSidebarLayout>
     );
@@ -578,7 +656,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
     );
 }
 
-function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal }) {
+function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, setViewSlipsModal }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [authRange, setAuthRange] = useState('today');
     const [authFrom, setAuthFrom] = useState('');
@@ -692,7 +770,8 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal })
                                     <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Accountant Status</th>
-                                    <th className="px-3 py-2 text-left font-semibold text-black">Slip Upload</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Uploaded Slips</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
@@ -705,42 +784,10 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal })
                                         ? Number(tf.total_amount)
                                         : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
 
-                                    const slipStatus = () => {
-                                        if (!tf.payment_slips || tf.payment_slips.length === 0) {
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                    className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
-                                                >
-                                                    Upload Slips
-                                                </button>
-                                            );
-                                        }
-                                        if (tf.payment_slips.some(s => s.status === 'incomplete')) {
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
-                                                >
-                                                    ⚠️ Incomplete (Re-upload)
-                                                </button>
-                                            );
-                                        }
-                                        if (tf.payment_slips.every(s => s.status === 'completed')) {
-                                            return (
-                                                <span className="inline-flex items-center rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white gap-1">
-                                                    ✓ Completed
-                                                </span>
-                                            );
-                                        }
-                                        return (
-                                            <span className="inline-flex items-center rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white gap-1">
-                                                ⏳ Pending Review
-                                            </span>
-                                        );
-                                    };
+                                    const slips = tf?.payment_slips || [];
+                                    const pendingSlips = slips.filter(s => s.status === 'pending');
+                                    const completedSlips = slips.filter(s => s.status === 'completed');
+                                    const incompleteSlips = slips.filter(s => s.status === 'incomplete');
 
                                     return (
                                         <tr key={trip.id} className="hover:bg-emerald-50/40">
@@ -763,7 +810,61 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal })
                                                 </span>
                                             </td>
                                             <td className="px-3 py-2">
-                                                {slipStatus()}
+                                                {slips.length === 0 ? (
+                                                    <span className="text-gray-400 text-xs italic">No Slips Uploaded</span>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setViewSlipsModal({ ...tf, trip_id: trip.id })}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-bold transition active:scale-95 whitespace-nowrap shadow-sm"
+                                                        >
+                                                            👁 View Slips ({slips.length})
+                                                        </button>
+                                                        {completedSlips.length === slips.length && (
+                                                            <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ✓ Verified
+                                                            </span>
+                                                        )}
+                                                        {incompleteSlips.length > 0 && (
+                                                            <span className="inline-flex items-center rounded-full bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ⚠️ Incomplete
+                                                            </span>
+                                                        )}
+                                                        {pendingSlips.length > 0 && incompleteSlips.length === 0 && (
+                                                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">
+                                                                ⏳ Pending Review
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                {slips.length === 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        className="rounded-lg bg-[#0f1d45] hover:bg-black text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
+                                                    >
+                                                        Upload Slips
+                                                    </button>
+                                                ) : incompleteSlips.length > 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
+                                                    >
+                                                        ⚠️ Re-upload
+                                                    </button>
+                                                ) : completedSlips.length === slips.length ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                                        ✓ Slips Approved
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200 whitespace-nowrap">
+                                                        ⏳ Awaiting Approval
+                                                    </span>
+                                                )}
                                             </td>
                                         </tr>
                                     );

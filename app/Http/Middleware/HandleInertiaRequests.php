@@ -58,6 +58,13 @@ class HandleInertiaRequests extends Middleware
                     return $tf->paymentSlips->some(fn($s) => $s->status !== 'completed');
                 })->count();
             })(),
+            'accountantPendingApprovalsCount' => \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count(),
+            'accountantPendingSlipsCount' => \App\Models\PaymentSlip::where('status', 'pending')->count(),
+            'accountantTotalBadgeCount' => (function () {
+                $unapproved = \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count();
+                $pendingSlips = \App\Models\PaymentSlip::where('status', 'pending')->count();
+                return $unapproved + $pendingSlips;
+            })(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

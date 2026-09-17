@@ -30,7 +30,7 @@ class FinanceController extends Controller
             'driver.vehicle',
             'finance',
             'tripFinance.receiver',
-            'tripFinance.paymentSlips',
+            'tripFinance.paymentSlips.uploader',
         ])->latest()->get();
 
         $finances = TripFinance::with(['driver', 'agent.user'])->get();
@@ -229,6 +229,12 @@ class FinanceController extends Controller
 
     public function uploadSlips(Request $request, TripFinance $tripFinance)
     {
+        // Prevent upload if slips have already been approved by accountant
+        $existingSlips = $tripFinance->paymentSlips;
+        if ($existingSlips->isNotEmpty() && $existingSlips->every(fn($s) => $s->status === 'completed')) {
+            return back()->with('error', 'Payment slips have already been approved by the accountant. Further uploads are not permitted.');
+        }
+
         $request->validate([
             'uploads' => 'required|array',
             'uploads.*.file' => 'required|file|max:10240',
