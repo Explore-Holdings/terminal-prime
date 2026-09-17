@@ -71,7 +71,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff', 'executive', 'manager'] },
         { label: 'DSS', path: '/dss', roles: ['admin', 'executive'] },
         { label: 'Counter', path: '/counter', roles: ['admin', 'counter staff', 'manager', 'executive'] },
-        { label: 'Manager', path: '/manager-reports', roles: ['admin', 'manager', 'executive'] },
+        { label: 'Counter Manager', path: '/manager-reports', roles: ['admin', 'manager', 'executive'] },
         { label: 'Finance', path: '/finance', roles: ['admin', 'finance', 'executive'] },
         { label: 'Accountant', path: '/accountant', roles: ['admin', 'accountant', 'executive'] },
         { label: 'Drivers', path: '/drivers', roles: ['admin', 'executive'] },
@@ -207,6 +207,16 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                                     {item.label === 'Dashboard' && role === 'admin' && props.pendingAttendanceCount > 0 && (
                                         <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
                                             {props.pendingAttendanceCount}
+                                        </span>
+                                    )}
+                                    {item.label === 'Accountant' && props.accountantTotalBadgeCount > 0 && (
+                                        <span className={`text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${active ? 'bg-red-400' : 'bg-red-500'}`}>
+                                            {props.accountantTotalBadgeCount}
+                                        </span>
+                                    )}
+                                    {item.label === 'Finance' && (props.pendingFinanceCount > 0 || props.pendingAccountantSlipsCount > 0) && (
+                                        <span className={`text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${active ? 'bg-red-400' : 'bg-red-500'}`}>
+                                            {(props.pendingFinanceCount ?? 0) + (props.pendingAccountantSlipsCount ?? 0)}
                                         </span>
                                     )}
                                 </Link>

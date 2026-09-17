@@ -195,6 +195,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accountant', [AccountantController::class, 'index'])->name('accountant.index');
     Route::post('/accountant/approve/{tripFinance}', [AccountantController::class, 'approve'])->name('accountant.approve');
     Route::post('/accountant/slips/{slip}/status', [AccountantController::class, 'updateSlipStatus'])->name('accountant.slips.status');
+    Route::post('/accountant/trip-finances/{tripFinance}/slips/status', [AccountantController::class, 'updateAllSlipsStatus'])->name('accountant.trip-finances.slips.status');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

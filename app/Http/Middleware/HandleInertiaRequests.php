@@ -48,6 +48,23 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'pendingAttendanceCount' => \Illuminate\Support\Facades\DB::table('agent_checkin_requests')->where('status', 'pending')->count(),
+            'pendingFinanceCount' => \App\Models\PettyCashRequest::where('status', 'Pending')->count(),
+            'pendingAccountantSlipsCount' => (function () {
+                $approved = \App\Models\TripFinance::where('accountant_approved', true)
+                    ->with('paymentSlips')
+                    ->get();
+                return $approved->filter(function ($tf) {
+                    if (!$tf->paymentSlips || $tf->paymentSlips->isEmpty()) return true;
+                    return $tf->paymentSlips->some(fn($s) => $s->status !== 'completed');
+                })->count();
+            })(),
+            'accountantPendingApprovalsCount' => \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count(),
+            'accountantPendingSlipsCount' => \App\Models\PaymentSlip::where('status', 'pending')->count(),
+            'accountantTotalBadgeCount' => (function () {
+                $unapproved = \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count();
+                $pendingSlips = \App\Models\PaymentSlip::where('status', 'pending')->count();
+                return $unapproved + $pendingSlips;
+            })(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
