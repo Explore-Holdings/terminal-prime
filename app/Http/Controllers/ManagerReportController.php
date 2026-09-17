@@ -40,11 +40,14 @@ class ManagerReportController extends Controller
                 return $log;
             });
 
+        $pettyCashRequests = \App\Models\PettyCashRequest::with('approvedBy')->latest()->get();
+
         return Inertia::render('Reports/ManagerReports', [
             'trips' => $data['trips'],
             'paymentSummary' => $paymentSummary,
             'reports' => $reports,
             'pettyCashReturns' => $pettyCashReturns,
+            'pettyCashRequests' => $pettyCashRequests,
             'filters' => [
                 'range' => $range,
                 'from' => $request->get('from'),
