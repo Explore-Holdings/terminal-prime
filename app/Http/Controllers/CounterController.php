@@ -275,7 +275,16 @@ class CounterController extends Controller
             'amount_spent' => 100000.00 - $currentPettyCash,
         ]);
 
-        \Illuminate\Support\Facades\DB::table('petty_cash')->update(['amount' => 100000.00]);
+        \App\Models\PettyCashRequest::create([
+            'shift_id' => $shiftId,
+            'balance_amount' => $currentPettyCash,
+            'needed_amount' => 100000.00 - $currentPettyCash,
+            'status' => 'Pending',
+            'requested_by' => $userId,
+        ]);
+
+        // Removed automatic update so Finance has to approve it
+        // \Illuminate\Support\Facades\DB::table('petty_cash')->update(['amount' => 100000.00]);
 
         return redirect()->route('counter.checkout-summary', $logId);
     }

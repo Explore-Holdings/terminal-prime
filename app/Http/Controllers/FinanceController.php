@@ -94,6 +94,8 @@ class FinanceController extends Controller
         $pettyCashReturns = PettyCashReturn::with('customer')->latest()->get();
         $pettyCashBalance = DB::table('petty_cash')->where('id', 1)->value('amount') ?? 0;
 
+        $pettyCashRequests = \App\Models\PettyCashRequest::with('requestedBy', 'approvedBy')->latest()->get();
+
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
             'drivers' => Driver::select('id', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
@@ -107,6 +109,7 @@ class FinanceController extends Controller
             'pettyCashShiftLogs' => $pettyCashShiftLogs,
             'pettyCashReturns' => $pettyCashReturns,
             'pettyCashBalance' => $pettyCashBalance,
+            'pettyCashRequests' => $pettyCashRequests,
         ]);
     }
 
@@ -471,5 +474,23 @@ class FinanceController extends Controller
         return response($html)
             ->header('Content-Type', 'application/vnd.ms-excel')
             ->header('Content-Disposition', 'attachment; filename="Terminal_Prime_PnL_'.now()->format('Y-m-d').'.xls"');
+    }
+
+    public function approvePettyCashRequest(Request $request, $id)
+    {
+        $pcRequest = \App\Models\PettyCashRequest::findOrFail($id);
+
+        if ($pcRequest->status === 'Pending') {
+            $pcRequest->update([
+                'status' => 'Approved',
+                'approved_by' => \Illuminate\Support\Facades\Auth::id(),
+                'approved_at' => now(),
+            ]);
+
+            // Reset the actual till balance
+            \Illuminate\Support\Facades\DB::table('petty_cash')->update(['amount' => 100000.00]);
+        }
+
+        return back()->with('success', 'Petty cash request approved and till replenished.');
     }
 }

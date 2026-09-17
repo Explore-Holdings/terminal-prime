@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Clock, Eye, Printer, FileText, Calendar, CheckCircle, Banknote, CreditCard, Wallet } from 'lucide-react';
 import { useState } from 'react';
 
-export default function ManagerReports({ trips = [], reports = [], filters = {}, paymentSummary = null, pettyCashReturns = [] }) {
+export default function ManagerReports({ trips = [], reports = [], filters = {}, paymentSummary = null, pettyCashReturns = [], pettyCashRequests = [] }) {
     const currentRange = filters.range || 'today';
     const [fromDate, setFromDate] = useState(filters.from || '');
     const [toDate, setToDate] = useState(filters.to || '');
@@ -239,6 +239,78 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Petty Cash Requests Panel */}
+                    <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
+                        <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                                    <Banknote size={18} className="text-black" />
+                                    Petty Cash Replenishment Requests
+                                </h2>
+                                <p className="text-xs text-black mt-0.5">Requests sent to Finance after each shift</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            {pettyCashRequests.length > 0 ? (
+                                <table className="w-full text-left text-sm whitespace-nowrap">
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b text-black font-semibold uppercase text-[10px]">
+                                            <th className="px-5 py-3">Date & Time</th>
+                                            <th className="px-5 py-3">Shift ID</th>
+                                            <th className="px-5 py-3 text-right">Till Balance</th>
+                                            <th className="px-5 py-3 text-right">Requested (To 100k)</th>
+                                            <th className="px-5 py-3 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y text-black">
+                                        {pettyCashRequests.map((req) => (
+                                            <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-5 py-3">
+                                                    <span className="font-semibold block">{formatDateTime(req.created_at)}</span>
+                                                </td>
+                                                <td className="px-5 py-3">
+                                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-mono font-bold">
+                                                        {req.shift_id}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-3 text-right font-semibold text-gray-600">
+                                                    LKR {Number(req.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="px-5 py-3 text-right font-bold text-black">
+                                                    LKR {Number(req.needed_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="px-5 py-3 text-center">
+                                                    {req.status === 'Pending' ? (
+                                                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                            Pending
+                                                        </span>
+                                                    ) : (
+                                                        <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                            Approved
+                                                        </span>
+                                                    )}
+                                                    {req.approved_at && (
+                                                        <div className="text-[10px] text-gray-500 mt-1">
+                                                            {formatDateTime(req.approved_at)}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="p-8 text-center">
+                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                                        <Banknote size={24} className="text-slate-400" />
+                                    </div>
+                                    <p className="text-slate-500 font-medium">No petty cash requests found.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
