@@ -25,9 +25,9 @@ class FinanceController extends Controller
     public function index()
     {
         $trips = Trip::with([
-            'customer.agent', 
+            'customer.agent.user', 
             'agent.user',
-            'driver',
+            'driver.vehicle',
             'finance',
             'tripFinance.receiver',
             'tripFinance.paymentSlips',

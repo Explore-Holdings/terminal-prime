@@ -353,6 +353,8 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                 <thead className="bg-gray-50 border-b border-gray-200">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Agent Share</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Driver Share</th>
@@ -370,7 +372,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                             <td className="px-3 py-3 font-bold text-black">
                                                 LKR {group.totalAmount.toLocaleString()}
                                             </td>
-                                            <td className="px-3 py-3 text-black font-medium" colSpan={4}>
+                                            <td className="px-3 py-3 text-black font-medium" colSpan={6}>
                                                 {group.trips.length} Trip{group.trips.length !== 1 && 's'}
                                             </td>
                                             <td className="px-3 py-3 text-right text-black font-semibold text-xs uppercase tracking-wider">
@@ -448,6 +450,12 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                     <td className="px-3 py-2 border-l-2 border-blue-500">
                                                         <div className="font-semibold text-black">#{trip.id}</div>
                                                         <div className="text-xs text-black">{customer?.name ?? '-'}</div>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="text-xs font-medium text-black">{customer?.agent?.user?.name ?? '-'}</div>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="text-xs font-medium text-black">{trip.driver?.vehicle?.registration_number ?? '-'}</div>
                                                     </td>
                                                     <td className="px-3 py-2 font-medium text-black">
                                                         <div>LKR {amountInLkr.toLocaleString()}</div>
