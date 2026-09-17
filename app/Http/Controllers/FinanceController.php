@@ -98,7 +98,7 @@ class FinanceController extends Controller
 
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
-            'drivers' => Driver::select('id', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
+            'drivers' => Driver::select('id', 'first_name', 'last_name', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
             'agents' => Agent::with('user')->latest()->get(),
             'driverTotals' => $driverTotals,
             'agentTotals' => $agentTotals,

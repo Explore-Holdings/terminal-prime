@@ -848,9 +848,10 @@ function PayoutsTab({ drivers, agents }) {
 
 function IncentivesTab({ drivers, incentives }) {
     const [search, setSearch] = useState('');
-    const filteredDrivers = (drivers || []).filter(d =>
-        (d.full_name ?? '').toLowerCase().includes(search.toLowerCase())
-    );
+    const filteredDrivers = (drivers || []).filter(d => {
+        const fullName = `${d.first_name ?? ''} ${d.last_name ?? ''}`.trim().toLowerCase();
+        return fullName.includes(search.toLowerCase());
+    });
 
     const [inputs, setInputs] = useState({});
 
@@ -901,9 +902,9 @@ function IncentivesTab({ drivers, incentives }) {
     const columns = [
         {
             name: 'Driver Name',
-            selector: row => row.full_name,
+            selector: row => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
             sortable: true,
-            cell: row => <strong>{row.full_name}</strong>
+            cell: row => <strong>{`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()}</strong>
         },
         {
             name: 'Reg. Number',
@@ -1325,8 +1326,9 @@ function DriversTable({ drivers }) {
 
     const filteredDrivers = drivers.filter(driver => {
         const query = search.toLowerCase();
+        const fullName = `${driver.first_name ?? ''} ${driver.last_name ?? ''}`.trim().toLowerCase();
         return (
-            (driver.full_name?.toLowerCase().includes(query) ?? false) ||
+            fullName.includes(query) ||
             (driver.registration_number?.toLowerCase().includes(query) ?? false)
         );
     });
@@ -1339,9 +1341,9 @@ function DriversTable({ drivers }) {
         },
         {
             name: 'Driver Name',
-            selector: row => row.full_name ?? '-',
+            selector: row => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
             sortable: true,
-            cell: row => <strong>{row.full_name ?? '-'}</strong>,
+            cell: row => <strong>{`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()}</strong>,
         },
         {
             name: 'Amount',
