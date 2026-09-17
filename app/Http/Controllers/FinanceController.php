@@ -13,6 +13,7 @@ use App\Models\Expense;
 use App\Models\Payout;
 use App\Models\PettyCashShiftLog;
 use App\Models\PettyCashReturn;
+use App\Models\PettyCashRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +95,7 @@ class FinanceController extends Controller
         $pettyCashReturns = PettyCashReturn::with('customer')->latest()->get();
         $pettyCashBalance = DB::table('petty_cash')->where('id', 1)->value('amount') ?? 0;
 
-        $pettyCashRequests = \App\Models\PettyCashRequest::with('requestedBy', 'approvedBy')->latest()->get();
+        $pettyCashRequests = PettyCashRequest::with('requestedBy', 'approvedBy')->latest()->get();
 
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
@@ -425,7 +426,7 @@ class FinanceController extends Controller
 
         $trips = $tripsQuery->get();
         $expenses = $expensesQuery->get();
-        $rateSetting = \App\Models\RateSetting::first();
+        $rateSetting = RateSetting::first();
         $defaultDriverRate = $rateSetting ? $rateSetting->driver_rate : 0;
         $defaultAgentRate = $rateSetting ? $rateSetting->agent_rate : 0;
 
@@ -478,17 +479,17 @@ class FinanceController extends Controller
 
     public function approvePettyCashRequest(Request $request, $id)
     {
-        $pcRequest = \App\Models\PettyCashRequest::findOrFail($id);
+        $pcRequest = PettyCashRequest::findOrFail($id);
 
         if ($pcRequest->status === 'Pending') {
             $pcRequest->update([
                 'status' => 'Approved',
-                'approved_by' => \Illuminate\Support\Facades\Auth::id(),
+                'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
             // Reset the actual till balance
-            \Illuminate\Support\Facades\DB::table('petty_cash')->update(['amount' => 100000.00]);
+            DB::table('petty_cash')->update(['amount' => 100000.00]);
         }
 
         return back()->with('success', 'Petty cash request approved and till replenished.');
