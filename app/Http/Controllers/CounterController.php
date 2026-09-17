@@ -267,6 +267,16 @@ class CounterController extends Controller
 
         Cache::forget('counter_last_reordered_at');
 
+        $currentPettyCash = \Illuminate\Support\Facades\DB::table('petty_cash')->where('id', 1)->value('amount') ?? 100000;
+        
+        \App\Models\PettyCashShiftLog::create([
+            'shift_id' => $shiftId,
+            'ending_balance' => $currentPettyCash,
+            'amount_spent' => 100000.00 - $currentPettyCash,
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('petty_cash')->update(['amount' => 100000.00]);
+
         return redirect()->route('counter.checkout-summary', $logId);
     }
 
