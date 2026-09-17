@@ -51,7 +51,7 @@ export default function Index({
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
 
-    const { auth } = usePage().props;
+    const { auth, pendingFinanceCount, pendingAccountantSlipsCount } = usePage().props;
     const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
 
     return (
@@ -128,13 +128,30 @@ export default function Index({
                         Daily Operations
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'settlements'} onClick={() => setMainTab('settlements')}>
-                        Settlements
+                        <span className="flex items-center gap-2">
+                            Settlements
+                            {pendingFinanceCount > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[18px]">
+                                    {pendingFinanceCount}
+                                </span>
+                            )}
+                        </span>
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'expenses'} onClick={() => setMainTab('expenses')}>
                         Expenses
                     </MainTabCard>
                     <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
                         Reports
+                    </MainTabCard>
+                    <MainTabCard active={mainTab === 'accountant_auth'} onClick={() => setMainTab('accountant_auth')}>
+                        <span className="flex items-center gap-2">
+                            Accountant Authorization
+                            {pendingAccountantSlipsCount > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 min-w-[18px]">
+                                    {pendingAccountantSlipsCount}
+                                </span>
+                            )}
+                        </span>
                     </MainTabCard>
                 </div>
 
@@ -199,6 +216,15 @@ export default function Index({
 
                     {mainTab === 'expenses' && (
                         <ExpensesPanel expenses={expenses} />
+                    )}
+
+                    {mainTab === 'accountant_auth' && (
+                        <AccountantAuthTab
+                            trips={trips}
+                            rateSetting={rateSetting}
+                            eurRates={eurRates}
+                            setUploadSlipModal={setUploadSlipModal}
+                        />
                     )}
                 </div>
             </div>
@@ -514,49 +540,6 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                                     Received from Counter Manager
                                                                 </button>
                                                             )}
-
-                                                                {tf?.accountant_approved && (
-                                                                    <>
-                                                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                                                                            ✓ Approved by Accountant
-                                                                        </span>
-                                                                        {tf.payment_slips && tf.payment_slips.length > 0 ? (
-                                                                            tf.payment_slips.some(s => s.status === 'incomplete') ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ⚠️ Incomplete (Re-upload)
-                                                                                </button>
-                                                                            ) : tf.payment_slips.every(s => s.status === 'completed') ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    disabled
-                                                                                    className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ✓ Completed
-                                                                                </button>
-                                                                            ) : (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    disabled
-                                                                                    className="rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white cursor-not-allowed whitespace-nowrap flex items-center gap-1"
-                                                                                >
-                                                                                    ⏳ Pending Review
-                                                                                </button>
-                                                                            )
-                                                                        ) : (
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => setUploadSlipModal({ ...tf, trip })}
-                                                                                className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
-                                                                            >
-                                                                                Upload Slips
-                                                                            </button>
-                                                                        )}
-                                                                    </>
-                                                                )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -592,6 +575,227 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                 </>
             )}
         </>
+    );
+}
+
+function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [authRange, setAuthRange] = useState('today');
+    const [authFrom, setAuthFrom] = useState('');
+    const [authTo, setAuthTo] = useState('');
+    const [page, setPage] = useState(1);
+    const pageSize = 15;
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const filterByDate = (dateString) => {
+        const d = dateString ? new Date(dateString) : null;
+        if (!d || isNaN(d.getTime())) return false;
+        if (authRange === 'today') return d >= startOfToday && d <= endOfToday;
+        if (authRange === 'week') {
+            const ws = new Date(startOfToday);
+            ws.setDate(startOfToday.getDate() - startOfToday.getDay());
+            const we = new Date(ws); we.setDate(ws.getDate() + 6); we.setHours(23, 59, 59, 999);
+            return d >= ws && d <= we;
+        }
+        if (authRange === 'month') {
+            const ms = new Date(today.getFullYear(), today.getMonth(), 1);
+            const me = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+            return d >= ms && d <= me;
+        }
+        if (authRange === 'custom') {
+            const from = authFrom ? new Date(authFrom) : new Date(0);
+            const to = authTo ? new Date(authTo) : new Date('2100-01-01');
+            to.setHours(23, 59, 59, 999);
+            return d >= from && d <= to;
+        }
+        return true;
+    };
+
+    const approvedTrips = trips.filter(t =>
+        t.trip_finance?.accountant_approved && filterByDate(t.trip_assigned_at)
+    );
+
+    const filtered = approvedTrips.filter(trip => {
+        const q = searchTerm.toLowerCase();
+        return (
+            String(trip.id).includes(q) ||
+            (trip.customer?.name ?? '').toLowerCase().includes(q) ||
+            (trip.customer?.agent?.user?.name ?? '').toLowerCase().includes(q)
+        );
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+    const rangeOptions = [
+        { key: 'today', label: 'Today' },
+        { key: 'week', label: 'This Week' },
+        { key: 'month', label: 'This Month' },
+        { key: 'custom', label: 'Custom' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-black">Accountant Authorization</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">Trips approved by the accountant and their slip upload status</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    {rangeOptions.map(opt => (
+                        <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => { setAuthRange(opt.key); setPage(1); }}
+                            className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${authRange === opt.key ? 'bg-blue-700 text-white' : 'bg-gray-100 text-black hover:bg-gray-200'}`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                    {authRange === 'custom' && (
+                        <>
+                            <input type="date" value={authFrom} onChange={e => { setAuthFrom(e.target.value); setPage(1); }} className="rounded border border-gray-300 px-3 py-1.5 text-sm" />
+                            <input type="date" value={authTo} onChange={e => { setAuthTo(e.target.value); setPage(1); }} className="rounded border border-gray-300 px-3 py-1.5 text-sm" />
+                        </>
+                    )}
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 text-sm border border-emerald-200">
+                        {approvedTrips.length} Approved
+                    </span>
+                </div>
+            </div>
+
+            {approvedTrips.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
+                    No accountant-approved trips found for this period.
+                </div>
+            ) : (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-gray-200 p-3 gap-3">
+                        <input
+                            type="text"
+                            placeholder="Search trips..."
+                            className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                        />
+                        <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} record(s)</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Accountant Status</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Slip Upload</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 bg-white">
+                                {paged.map(trip => {
+                                    const tf = trip.trip_finance;
+                                    const customer = trip.customer;
+                                    const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+                                    const originalAmount = Number(customer?.paid_amount ?? 0);
+                                    const amountInLkr = tf?.total_amount
+                                        ? Number(tf.total_amount)
+                                        : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+                                    const slipStatus = () => {
+                                        if (!tf.payment_slips || tf.payment_slips.length === 0) {
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                    className="rounded bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black active:scale-95 transition-transform whitespace-nowrap"
+                                                >
+                                                    Upload Slips
+                                                </button>
+                                            );
+                                        }
+                                        if (tf.payment_slips.some(s => s.status === 'incomplete')) {
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                    className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 active:scale-95 transition-transform whitespace-nowrap flex items-center gap-1"
+                                                >
+                                                    ⚠️ Incomplete (Re-upload)
+                                                </button>
+                                            );
+                                        }
+                                        if (tf.payment_slips.every(s => s.status === 'completed')) {
+                                            return (
+                                                <span className="inline-flex items-center rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white gap-1">
+                                                    ✓ Completed
+                                                </span>
+                                            );
+                                        }
+                                        return (
+                                            <span className="inline-flex items-center rounded bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white gap-1">
+                                                ⏳ Pending Review
+                                            </span>
+                                        );
+                                    };
+
+                                    return (
+                                        <tr key={trip.id} className="hover:bg-emerald-50/40">
+                                            <td className="px-3 py-2 border-l-2 border-emerald-500">
+                                                <div className="font-semibold text-black">#{trip.id}</div>
+                                                <div className="text-xs text-gray-500">{customer?.name ?? '-'}</div>
+                                            </td>
+                                            <td className="px-3 py-2 text-xs text-black">
+                                                {customer?.agent?.user?.name ?? '-'}
+                                            </td>
+                                            <td className="px-3 py-2 text-xs font-medium text-black">
+                                                {trip.driver?.vehicle?.registration_number ?? '-'}
+                                            </td>
+                                            <td className="px-3 py-2 font-medium text-black">
+                                                LKR {amountInLkr.toLocaleString()}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                                    ✓ Approved by Accountant
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2">
+                                                {slipStatus()}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between border-t border-gray-200 p-3 text-sm text-black">
+                        <button
+                            type="button"
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <span>
+                            Showing {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="rounded border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 
