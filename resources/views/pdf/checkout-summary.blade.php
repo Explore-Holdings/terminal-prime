@@ -9,26 +9,26 @@
             margin: 15mm 15mm 35mm 15mm;
         }
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-family: 'Cambria';
             font-size: 11px;
-            color: #1f2937;
+            color: #000000;
             margin: 0;
             background: #ffffff;
         }
         .header {
             margin-bottom: 20px;
-            border-bottom: 2px solid #3b82f6;
+            border-bottom: 2px solid #00703c;
             padding-bottom: 10px;
         }
         .title {
             font-size: 20px;
             font-weight: bold;
-            color: #1e3a8a;
+            color: #00703c;
             margin: 0;
         }
         .subtitle {
             font-size: 11px;
-            color: #6b7280;
+            color: #000000;
             margin-top: 5px;
         }
         .meta-section {
@@ -44,12 +44,12 @@
             font-size: 11px;
         }
         .meta-label {
-            color: #4b5563;
+            color: #000000;
             font-weight: bold;
             width: 25%;
         }
         .meta-value {
-            color: #1f2937;
+            color: #000000;
         }
         .trips-table {
             width: 100%;
@@ -90,11 +90,11 @@
         }
         .totals-label {
             font-weight: bold;
-            color: #4b5563;
+            color: #000000;
         }
         .totals-value {
             font-weight: bold;
-            color: #111827;
+            color: #000000;
             font-size: 13px;
         }
         
@@ -116,7 +116,7 @@
             margin-bottom: 4px;
         }
         .signature-title {
-            color: #4b5563;
+            color: #000000;
             font-size: 9px;
             font-weight: bold;
             text-transform: uppercase;
@@ -142,14 +142,14 @@
             <tr>
                 <td style="width: 70px; vertical-align: middle;">
                     @php
-                        $imagePath = public_path('assets/images/logo.png');
-                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo.png');
+                        $imagePath = public_path('assets/images/logo-europcar.png');
+                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo-europcar.png');
                     @endphp
-                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Logo">
+                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Europcar Logo">
                 </td>
                 <td style="vertical-align: middle;">
                     <div class="title">CHECKOUT SUMMARY</div>
-                    <div class="subtitle">Airport Counter Management System</div>
+                    <div class="subtitle">Europcar - Airport Counter</div>
                 </td>
             </tr>
         </table>
@@ -338,14 +338,14 @@
             <tr>
                 <td style="width: 70px; vertical-align: middle;">
                     @php
-                        $imagePath = public_path('assets/images/logo.png');
-                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo.png');
+                        $imagePath = public_path('assets/images/logo-europcar.png');
+                        $logoSrc = file_exists($imagePath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($imagePath)) : asset('assets/images/logo-europcar.png');
                     @endphp
-                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Logo">
+                    <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Europcar Logo">
                 </td>
                 <td style="vertical-align: middle;">
                     <div class="title">PETTY CASH RETURNS</div>
-                    <div class="subtitle">Airport Counter Management System</div>
+                    <div class="subtitle">Europcar - Airport Counter</div>
                 </td>
             </tr>
         </table>
@@ -413,10 +413,10 @@
             </tr>
         </table>
         
-        <table style="width: 100%; border: none; margin-top: 8px; font-size: 8px; color: #9ca3af;">
+        <table style="width: 100%; border: none; margin-top: 8px; font-size: 8px; color: #000000;">
             <tr>
                 <td style="text-align: left; border: none; padding: 0;">
-                    Generated on {{ now()->format('M d, Y h:i A') }} | Airport Counter Management System
+                    Generated on {{ now()->format('M d, Y h:i A') }} | Europcar - Airport Counter
                 </td>
                 <td style="text-align: right; border: none; padding: 0;">
                     <!-- Page numbers rendered dynamically by DOMPDF page_text -->
