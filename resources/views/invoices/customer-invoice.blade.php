@@ -6,339 +6,407 @@
     <style>
         @page {
             size: A5;
-            margin: 14mm 12mm;
+            margin: 10mm 10mm 12mm 10mm;
         }
 
         body {
-            font-family: Cambria, DejaVu Serif, serif;
+            font-family: 'Cambria';
             font-size: 10px;
-            color: #111827;
+            color: #000000ff;
             margin: 0;
             background: #ffffff;
         }
 
-        .receipt {
+        /* ── Header ── */
+        .header-table {
             width: 100%;
-        }
-
-        .header {
-            background: transparent;
-            color: #111827;
-            padding: 12px 12px 10px;
-            border-radius: 0;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .brand {
-            font-size: 25px;
-            font-weight: bold;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-            margin: 0;
-        }
-
-        .subtitle {
-            font-size: 10px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-
-        .meta-table {
-            width: 100%;
-            margin-top: 14px;
             border-collapse: collapse;
+            margin-bottom: 20px;
         }
 
-        .meta-table td {
+        .header-table td {
             border: none;
             padding: 0;
-            color: #374151;
-            font-size: 10px;
-        }
-
-        .right {
-            text-align: right;
-        }
-
-        .status-pill {
-            display: inline-block;
-            background: #d4af37;
-            color: #111827;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 9px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .section {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 8px 10px;
-            margin-bottom: 8px;
-            background: #fbfbfb;
-        }
-
-        .section-title {
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 1.2px;
-            text-transform: uppercase;
-            color: #111827;
-            margin-bottom: 4px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .info-table td {
-            border: none;
-            padding: 2px 0;
             vertical-align: top;
         }
 
-        .label {
-            width: 36%;
-            color: #6b7280;
+        .invoice-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00703c;
+            text-align: right;
+            margin: 0 0 6px 0;
         }
 
-        .value {
-            color: #111827;
+        .invoice-meta-table {
+            float: right;
+            border-collapse: collapse;
+        }
+
+        .invoice-meta-table td {
+            border: none;
+            padding: 1px 0;
+            font-size: 10px;
+        }
+
+        .invoice-meta-table td:first-child {
+            color: #000000ff;
+            font-weight: bold;
+            padding-right: 12px;
+            text-align: right;
+        }
+
+        .invoice-meta-table td:last-child {
+            color: #000000ff;
             font-weight: bold;
         }
 
-        .items {
+        /* ── Address Block ── */
+        .address-block {
             width: 100%;
             border-collapse: collapse;
-            margin: 6px 0;
-            border-radius: 8px;
+            margin-bottom: 18px;
         }
 
-        .items th {
-            background: #f3f4f6;
-            color: #374151;
-            padding: 5px;
-            font-size: 10px;
-            text-transform: uppercase;
-            border-bottom: 1px solid #d1d5db;
-        }
-
-        .items td {
-            padding: 5px 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .amount {
-            text-align: right;
-            font-weight: bold;
-        }
-
-        .summary {
-            width: 58%;
-            margin-left: auto;
-            border-collapse: collapse;
-            margin-top: 8px;
-            border: 1px solid #111827;
-            border-radius: 8px;
-        }
-
-        .summary td {
-            padding: 5px;
+        .address-block td {
             border: none;
-        }
-
-        .summary-label {
-            background: #111827;
-            color: #ffffff;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .summary-value {
-            text-align: right;
-            font-size: 15px;
-            font-weight: bold;
-            color: #111827;
-        }
-
-        .gold-line {
-            height: 3px;
-            background: #d4af37;
-            margin: 8px 0;
-            border-radius: 10px;
-        }
-
-        .footer {
-            margin-top: 10px;
-            padding-top: 6px;
-            border-top: 1px dashed #9ca3af;
-            text-align: center;
-            color: #6b7280;
+            padding: 0;
+            vertical-align: top;
             font-size: 10px;
             line-height: 1.5;
         }
 
-        .footer strong {
-            color: #111827;
+        .address-from {
+            color: #000000ff;
+        }
+
+        .address-to {
+            border: 1px solid #d1d5db;
+            padding: 10px 14px;
+            background: #f9fafb;
+        }
+
+        /* ── Section Title ── */
+        .section-heading {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00703c;
+            margin: 16px 0 6px 0;
+            padding: 0;
+        }
+
+        /* ── Info Tables ── */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #d1d5db;
+            margin-bottom: 4px;
+        }
+
+        .info-table td {
+            border: none;
+            padding: 4px 8px;
+            font-size: 10px;
+            vertical-align: top;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #000000ff;
+            width: 28%;
+        }
+
+        .info-value {
+            color: #000000ff;
+        }
+
+        /* ── Charges Table ── */
+        .charges-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 4px;
+        }
+
+        .charges-table th {
+            background: #00703c;
+            color: #ffffff;
+            padding: 6px 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            border: 1px solid #00703c;
+        }
+
+        .charges-table th.text-right {
+            text-align: right;
+        }
+
+        .charges-table td {
+            padding: 5px 8px;
+            border: 1px solid #e5e7eb;
+            font-size: 10px;
+        }
+
+        .charges-table .category-row td {
+            font-weight: bold;
+            background: #f9fafb;
+        }
+
+        .charges-table .total-row td {
+            font-weight: bold;
+            background: #f3f4f6;
+            border-top: 2px solid #00703c;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        /* ── Payment Section ── */
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #d1d5db;
+            margin-bottom: 4px;
+        }
+
+        .payment-table td {
+            border: none;
+            padding: 5px 8px;
+            font-size: 10px;
+        }
+
+        .payment-table .total-due td {
+            font-weight: bold;
+            font-size: 11px;
+            border-top: 1px solid #d1d5db;
+        }
+
+        /* ── Signature ── */
+        .signature-block {
+            margin-top: 30px;
+            text-align: right;
+            padding-right: 20px;
+        }
+
+        /* ── Footer ── */
+        .footer-section {
+            margin-top: 40px;
+            border-top: 3px solid #00703c;
+            padding-top: 12px;
+        }
+
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .footer-table td {
+            border: none;
+            padding: 0;
+            vertical-align: top;
+            font-size: 8px;
+            color: #000000ff;
+            line-height: 1.5;
         }
     </style>
 </head>
 
 <body>
-    <div class="receipt">
+    {{-- ── HEADER: Logo + Invoice Meta ── --}}
+    <table class="header-table">
+        <tr>
+            <td style="width: 50%;">
+                @php
+                    $logoPath = public_path('assets/images/logo-europcar.png');
+                    $logoSrc = file_exists($logoPath)
+                        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+                        : asset('assets/images/logo-europcar.png');
+                @endphp
+                <img src="{{ $logoSrc }}" style="height: 50px; width: auto; display: block;" alt="Europcar Logo">
+            </td>
+            <td style="width: 50%;">
+                <!-- <div class="invoice-title">This is your invoice</div> -->
+                <table class="invoice-meta-table">
+                    <tr>
+                        <td>Invoice/Receipt</td>
+                        <td>{{ $customer->invoice_number }}</td>
+                    </tr>
+                    <tr>
+                        <td>Date</td>
+                        <td>{{ now('Asia/Colombo')->format('d.m.Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Customer ID</td>
+                        <td>{{ str_pad($customer->id, 8, '0', STR_PAD_LEFT) }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 
-        <div class="header">
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                    <td style="border: none; padding: 0 10px 0 0; vertical-align: middle;">
-                        <img src="{{ public_path('assets/images/logo.png') }}" style="height: 55px; width: auto; display: block;" alt="Logo">
-                    </td>
-                    <td style="border: none; padding: 0; vertical-align: middle;">
-                        <h1 class="brand" style="margin: 0; padding: 0; line-height: 1.1;">Terminal Prime</h1>
-                        <div class="subtitle" style="margin: 2px 0 0 0; padding: 0;">Airport Counter Receipt</div>
-                    </td>
+    {{-- ── ADDRESS BLOCK ── --}}
+    <table class="address-block">
+        <tr>
+            <td style="width: 50%; padding-right: 20px;">
+                <div class="address-from">
+                    Services provided by:<br>
+                    <strong>EUROPCAR - AIRPORT COUNTER</strong><br>
+                    Bandaranaike International Airport<br>
+                    Katunayake, Sri Lanka
+                </div>
+            </td>
+            <td style="width: 50%;">
+                <div class="address-to">
+                    <strong>{{ strtoupper($customer->name) }}</strong><br>
+                    @if($customer->country)
+                        {{ $customer->country }}<br>
+                    @endif
+                    @if($customer->whatsapp_number)
+                        Tel: {{ $customer->whatsapp_number }}
+                    @endif
+                </div>
+            </td>
+        </tr>
+    </table>
 
-                    <td class="right" style="border: none; padding: 0;">
-                        <span class="status-pill">
-                            {{ $customer->payment_status }}
-                        </span>
-                    </td>
-                </tr>
-            </table>
 
-            <table class="meta-table">
-                <tr>
-                    <td>
-                        <strong>Receipt No:</strong>
-                        {{ $customer->invoice_number }}
-                    </td>
+    {{-- ── YOUR RENTAL ── --}}
+    <div class="section-heading">Your Rental</div>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Counter Station</td>
+            <td class="info-value">BIA AIRPORT COUNTER</td>
+            <td class="info-label">Drop-off Location</td>
+            <td class="info-value">{{ strtoupper($customer->dropoff_location ?? '-') }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Service Date</td>
+            <td class="info-value">{{ $customer->created_at ? $customer->created_at->format('d.m.Y H:i') : now('Asia/Colombo')->format('d.m.Y H:i') }}</td>
+            <td class="info-label">Payment Method</td>
+            <td class="info-value">{{ strtoupper($customer->payment_method ?? '-') }}</td>
+        </tr>
 
-                    <td class="right">
-                        <strong>Date:</strong>
-                        {{ now('Asia/Colombo')->format('d/m/Y h:i A') }}
-                    </td>
-                </tr>
-            </table>
-        </div>
+    </table>
 
-        <div class="section">
-            <div class="section-title">Customer Information</div>
-
-            <table class="info-table">
-                <tr>
-                    <td class="label">Customer Name</td>
-                    <td class="value">{{ $customer->name }}</td>
-                </tr>
-                <tr>
-                    <td class="label">WhatsApp</td>
-                    <td class="value">{{ $customer->whatsapp_number ?? '-' }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Country</td>
-                    <td class="value">{{ $customer->country ?? '-' }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Drop-off Location</td>
-                    <td class="value">{{ $customer->dropoff_location ?? '-' }}</td>
-                </tr>
-            </table>
-        </div>
-
-        <table class="items">
-            <thead>
-                <tr>
-                    <th style="text-align: left;">Service Description</th>
-                    <th class="right">Amount</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr>
-                    <td>Airport Counter Service</td>
-                    <td class="amount">
-                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                        {{ number_format($price, 2) }}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table class="summary">
+    {{-- ── YOUR COSTS ── --}}
+    <div class="section-heading">Your Costs</div>
+    <table class="charges-table">
+        <thead>
             <tr>
-                <td class="summary-label">Total Paid</td>
-                <td class="summary-value">
-                    {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                    {{ number_format($customer->paid_amount, 2) }}
+                <th style="width: 40%;">Charges</th>
+                <!-- <th class="text-right">Qty</th> -->
+                <!-- <th class="text-right">Unit</th> -->
+                <th class="text-right">Price {{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}</th>
+                <th class="text-right">Amount {{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="category-row">
+                <td colspan="3">Airport Counter Service</td>
+            </tr>
+            <tr>
+                <td style="padding-left: 16px;">Airport Transfer Service</td>
+                <!-- <td class="text-right">1</td> -->
+                <!-- <td class="text-right">Service</td> -->
+                <td class="text-right">{{ number_format($price, 2) }}</td>
+                <td class="text-right">{{ number_format($price, 2) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="1"><strong>Total Charges:</strong></td>
+                <td class="text-right">
+                    {{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}
+                    {{ number_format($price, 2) }}
+                </td>
+                <td class="text-right">
+                    <strong>{{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}
+                    {{ number_format($price, 2) }}</strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    {{-- ── YOUR PAYMENT ── --}}
+    <div class="section-heading">Your Payment</div>
+    <table class="payment-table">
+        <tr>
+            <td class="info-label" style="width: 40%;">Invoice Total</td>
+            <td class="text-right">
+                {{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}
+                {{ number_format($price, 2) }}
+            </td>
+        </tr>
+        <tr>
+            <td class="info-label">Payment {{ $customer->payment_method ?? '' }}</td>
+            <td class="text-right">
+                -{{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}
+                {{ number_format($customer->paid_amount, 2) }}
+            </td>
+        </tr>
+        @if(isset($returnedLkr) && $returnedLkr > 0)
+        <tr>
+            <td class="info-label">Change Returned</td>
+            <td class="text-right">
+                LKR {{ number_format($returnedLkr, 2) }}
+            </td>
+        </tr>
+        @endif
+        <tr class="total-due">
+            <td>Amount Due</td>
+            <td class="text-right">
+                @php
+                    $due = max(0, $price - $customer->paid_amount);
+                @endphp
+                {{ $customer->agent->new_currency ?? $customer->agent->currency ?? '' }}
+                {{ number_format($due, 2) }}
+            </td>
+        </tr>
+
+        <tr>
+            <td class="info-label">Payment Status</td>
+            <td class="text-right">
+                <span style="background: {{ $customer->payment_status === 'Paid' ? '#dcfce7' : '#fef9c3' }}; color: {{ $customer->payment_status === 'Paid' ? '#166534' : '#854d0e' }}; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 9px; text-transform: uppercase;">
+                    {{ $customer->payment_status }}
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    {{-- ── SIGNATURE ── --}}
+    <div class="signature-block" style="margin-top: 15px;">
+        @if(auth()->check())
+            @if(auth()->user()->signature && file_exists(storage_path('app/public/' . auth()->user()->signature)))
+                <img src="{{ storage_path('app/public/' . auth()->user()->signature) }}" style="height: 50px; object-fit: contain; margin-bottom: 5px;">
+                <br>
+            @endif
+            <strong style="color: #333; font-size: 12px;">{{ auth()->user()->name }}</strong><br>
+            @if(auth()->user()->designation)
+                <span style="color: #666; font-size: 10px;">{{ auth()->user()->designation }}</span>
+            @endif
+        @endif
+    </div>
+
+    {{-- ── FOOTER ── --}}
+    <div class="footer-section" style="margin-top: 15px;">
+        <table class="footer-table">
+            <tr>
+                <td style="width: 40%;">
+                    <strong style="color: #1f2937;">EUROPCAR - AIRPORT COUNTER</strong><br>
+                    Bandaranaike International Airport<br>
+                    Katunayake, Sri Lanka
+                </td>
+                <td style="width: 30%;">
+                    Generated: {{ now('Asia/Colombo')->format('d.m.Y H:i') }}<br>
+                    This is a computer generated invoice.
+                </td>
+                <td style="width: 30%; text-align: right;">
+                    Your feedback really counts. Thank you<br>
+                    for choosing Europcar - Airport Counter.
                 </td>
             </tr>
         </table>
-
-        <div class="gold-line"></div>
-
-        <div class="section">
-            <div class="section-title">Payment Summary</div>
-
-            <table class="info-table">
-                <tr>
-                    <td class="label">Payment Method</td>
-                    <td class="value">{{ $customer->payment_method }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Payment Status</td>
-                    <td class="value">{{ $customer->payment_status }}</td>
-                </tr>
-                <tr>
-                    <td class="label">Original Amount</td>
-                    <td class="value">
-                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                        {{ number_format($price, 2) }}
-                    </td>
-                </tr>
-                <tr>
-                    <td class="label">Paid Amount</td>
-                    <td class="value">
-                        {{ $customer->agent->new_currency ?? $customer->agent->currency }}
-                        {{ number_format($customer->paid_amount, 2) }}
-                    </td>
-                </tr>
-                @if(isset($returnedLkr) && $returnedLkr > 0)
-                <tr>
-                    <td class="label">Change Returned</td>
-                    <td class="value">
-                        LKR {{ number_format($returnedLkr, 2) }}
-                    </td>
-                </tr>
-                @endif
-            </table>
-        </div>
-
-        <div style="margin-top: 15px; text-align: right; padding-right: 20px;">
-            @if(auth()->check())
-                @if(auth()->user()->signature && file_exists(storage_path('app/public/' . auth()->user()->signature)))
-                    <img src="{{ storage_path('app/public/' . auth()->user()->signature) }}" style="height: 50px; object-fit: contain; margin-bottom: 5px;">
-                    <br>
-                @endif
-                <strong style="color: #333; font-size: 14px;">{{ auth()->user()->name }}</strong><br>
-                @if(auth()->user()->designation)
-                    <span style="color: #666; font-size: 12px;">{{ auth()->user()->designation }}</span>
-                @endif
-            @endif
-        </div>
-
-        <div class="footer">
-            Thank you for choosing <strong>Terminal Prime</strong>.<br>
-            This is a computer generated receipt.
-        </div>
-
     </div>
+
 </body>
 </html>

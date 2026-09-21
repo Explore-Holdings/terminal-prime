@@ -7,8 +7,8 @@
             margin: 0;
             padding: 0;
             background: #f3f4f6;
-            font-family: Arial, sans-serif;
-            color: #1f2937;
+            font-family: 'Cambria';
+            color: #000000ff;
         }
 
         .wrapper {
@@ -26,7 +26,7 @@
         }
 
         .header {
-            background: #111827;
+            background: #00703c;
             color: #ffffff;
             padding: 28px 30px;
             text-align: center;
@@ -114,7 +114,7 @@
         <div class="email-card">
 
             <div class="header">
-                <h1>Terminal Prime</h1>
+                <h1>Europcar - Airport Counter</h1>
                 <p>Your Airport Counter Receipt</p>
             </div>
 
@@ -124,7 +124,7 @@
                 </div>
 
                 <p class="message">
-                    Thank you for choosing <strong>Terminal Prime</strong>.
+                    Thank you for choosing <strong>Europcar - Airport Counter</strong>.
                     Your payment has been successfully received and your invoice is attached to this email.
                 </p>
 
@@ -143,12 +143,12 @@
 
                 <p class="message">
                     Best regards,<br>
-                    <strong>Terminal Prime Team</strong>
+                    <strong>Europcar - Airport Counter Team</strong>
                 </p>
             </div>
 
             <div class="footer">
-                This is an automated email from <span class="brand">Terminal Prime</span>.<br>
+                This is an automated email from <span class="brand">Europcar - Airport Counter</span>.<br>
                 Please do not reply to this message.
             </div>
 
