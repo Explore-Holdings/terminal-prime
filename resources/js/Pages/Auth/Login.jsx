@@ -250,37 +250,33 @@ export default function Login({ status }) {
 
     return (
         <>
-            <Head title="Airport Counter Login" />
+            <Head title="Airport Counter - Europcar Sri Lanka" />
 
             <div
                 className="min-h-screen flex items-center justify-center bg-cover bg-center px-4"
                 style={{
                     backgroundImage:
-                        "linear-gradient(rgba(2, 6, 23, 0.68), rgba(2, 6, 23, 0.68)), url('/assets/images/airport-login-bg-1.jpg')",
+                        "linear-gradient(rgba(2, 6, 23, 0.65), rgba(2, 6, 23, 0.65)), url('/assets/images/airport-login-bg-2.jpg')",
                 }}
             >
                 <div className="w-full max-w-md">
                     <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
                         <div className="text-center mb-7">
-                            <div className="mx-auto h-14 w-14 rounded-2xl overflow-hidden mb-3">
+                            <div className="flex justify-center mb-4">
                                 <img
-                                    src="/assets/images/logo.png"
-                                    alt="Airport"
-                                    className="h-full w-full object-cover"
+                                    src="/assets/images/logo-europcar.png"
+                                    alt="Europcar"
+                                    className="h-12 w-auto rounded-lg shadow-sm object-contain"
                                 />
                             </div>
 
-                            <h1 className="text-3xl font-bold text-slate-900">
-                                TERMINAL PRIME
+                            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                                Airport Counter - Europcar Sri Lanka
                             </h1>
-
-                            <p className="text-sm text-slate-500">
-                                Airport Counter Login
-                            </p>
                         </div>
 
                         {status && (
-                            <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+                            <div className="mb-4 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700 font-medium">
                                 {status}
                             </div>
                         )}
@@ -313,7 +309,7 @@ export default function Login({ status }) {
                                     autoFocus
                                     onChange={(e) => setData('email', e.target.value)}
                                     placeholder="counter@airport.lk"
-                                    className="w-full rounded-xl border-slate-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    className="w-full rounded-xl border-slate-300 px-4 py-3 shadow-sm focus:border-[#00703c] focus:ring-2 focus:ring-[#00703c]/20 outline-none transition"
                                 />
 
                                 <InputError message={errors.email} className="mt-2" />
@@ -333,13 +329,13 @@ export default function Login({ status }) {
                                         autoComplete="current-password"
                                         onChange={(e) => setData('password', e.target.value)}
                                         placeholder="Enter password"
-                                        className="w-full rounded-xl border-slate-300 px-4 py-3 pr-20 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        className="w-full rounded-xl border-slate-300 px-4 py-3 pr-20 shadow-sm focus:border-[#00703c] focus:ring-2 focus:ring-[#00703c]/20 outline-none transition"
                                     />
 
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-3 text-sm font-semibold text-blue-700"
+                                        className="absolute right-4 top-3 text-xs font-bold uppercase tracking-wider text-[#00703c] hover:text-[#00522c] transition"
                                     >
                                         {showPassword ? 'Hide' : 'Show'}
                                     </button>
@@ -349,11 +345,12 @@ export default function Login({ status }) {
                             </div>
 
                             <div className="flex items-center justify-between">
-                                <label className="flex items-center">
+                                <label className="flex items-center cursor-pointer">
                                     <Checkbox
                                         name="remember"
                                         checked={data.remember}
                                         onChange={(e) => setData('remember', e.target.checked)}
+                                        className="text-[#00703c] focus:ring-[#00703c] rounded border-slate-300"
                                     />
                                     <span className="ms-2 text-sm text-slate-600">
                                         Remember me
@@ -364,7 +361,7 @@ export default function Login({ status }) {
                             <button
                                 type="submit"
                                 disabled={processing || isVerifying}
-                                className="w-full rounded-xl bg-blue-900 px-4 py-3 text-white font-semibold shadow-lg hover:bg-blue-800 active:scale-[0.98] transition disabled:opacity-50"
+                                className="w-full rounded-xl bg-[#00703c] hover:bg-[#005b31] active:bg-[#004a28] px-4 py-3 text-white font-semibold shadow-lg shadow-[#00703c]/25 hover:shadow-xl hover:shadow-[#00703c]/35 active:scale-[0.98] transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                             >
                                 {isVerifying ? 'Checking...' : processing ? 'Signing in...' : 'Log in with 2FA'}
                             </button>
@@ -372,7 +369,7 @@ export default function Login({ status }) {
                     </div>
 
                     <p className="text-center text-xs text-white/80 mt-4">
-                        © {new Date().getFullYear()} Explore Holdings IT Department
+                        © {new Date().getFullYear()} Europcar Sri Lanka • Explore Holdings IT Department
                     </p>
                 </div>
             </div>
@@ -381,7 +378,7 @@ export default function Login({ status }) {
             {show2FAModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md px-4">
                     <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl animate-in fade-in zoom-in duration-200">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600 text-3xl">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-[#00703c] text-3xl">
                             🛡️
                         </div>
 
@@ -393,17 +390,17 @@ export default function Login({ status }) {
                             A login request was sent to your <strong>Explore Enterprise Suite</strong> mobile app.
                         </p>
 
-                        <div className="my-5 inline-block rounded-2xl border border-amber-200 bg-amber-50 px-6 py-2.5">
-                            <span className="block text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                        <div className="my-5 inline-block rounded-2xl border border-emerald-200 bg-emerald-50/70 px-6 py-2.5">
+                            <span className="block text-[11px] font-bold uppercase tracking-wider text-[#00703c]">
                                 Verification Number
                             </span>
-                            <span className="text-3xl font-black tracking-widest text-amber-900">
+                            <span className="text-3xl font-black tracking-widest text-[#00703c]">
                                 {securityCode}
                             </span>
                         </div>
 
                         <div className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600"></div>
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#00703c]"></div>
                             <span>Waiting for approval... ({countdown}s)</span>
                         </div>
 
