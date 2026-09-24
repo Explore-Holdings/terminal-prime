@@ -109,7 +109,7 @@ export default function Index({ customers = [] }) {
             cell: row => (
                 row.invoice_path ? (
                     <a
-                        href={`/storage/${row.invoice_path}`}
+                        href={row.invoice_path}
                         target="_blank"
                         rel="noreferrer"
                         className="bg-blue-700 text-white px-3 py-1 rounded text-xs hover:bg-blue-800"
