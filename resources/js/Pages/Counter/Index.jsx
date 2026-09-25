@@ -3,6 +3,21 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
+const CURRENCY_TO_COUNTRY = {
+    LKR: 'lk', USD: 'us', EUR: 'eu', GBP: 'gb', AUD: 'au', CAD: 'ca', INR: 'in', AED: 'ae', CNY: 'cn', JPY: 'jp',
+    RUB: 'ru', SAR: 'sa', SGD: 'sg', CHF: 'ch', SEK: 'se', NOK: 'no', ZAR: 'za', THB: 'th', MYR: 'my', KRW: 'kr',
+    NZD: 'nz', BRL: 'br', MXN: 'mx', EGP: 'eg', OMR: 'om', QAR: 'qa', KWD: 'kw', BHD: 'bh', JOD: 'jo', TUR: 'tr',
+    IDR: 'id', PHP: 'ph', VND: 'vn', PKR: 'pk', BDT: 'bd', HKD: 'hk', TWD: 'tw', PLN: 'pl', CZK: 'cz', HUF: 'hu',
+    DKK: 'dk', ILS: 'il', ARS: 'ar', CLP: 'cl', COP: 'co', PEN: 'pe', KZT: 'kz', UAH: 'ua', NGN: 'ng', KES: 'ke',
+};
+
+const getCurrencyFlagUrl = (currency) => {
+    if (!currency) return null;
+    const code = currency.toUpperCase();
+    const country = CURRENCY_TO_COUNTRY[code] || code.substring(0, 2).toLowerCase();
+    return `https://flagcdn.com/w40/${country}.png`;
+};
+
 function SearchableCurrencySelect({ label, value, onChange, options = [], className = '' }) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -24,26 +39,38 @@ function SearchableCurrencySelect({ label, value, onChange, options = [], classN
         return options.filter(c => c.toLowerCase().includes(q));
     }, [options, search]);
 
+    const flagUrl = getCurrencyFlagUrl(value);
+
     return (
-        <div className={`relative ${className}`} ref={containerRef}>
+        <div className={`relative ${isOpen ? 'z-[100]' : 'z-10'} ${className}`} ref={containerRef}>
             {label && <label className="label">{label}</label>}
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="input text-left flex justify-between items-center bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                className="input text-left flex justify-between items-center bg-white border border-gray-300 rounded-lg px-2.5 py-2 text-sm font-semibold text-gray-800 shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
             >
-                <span>{value || 'Select'}</span>
-                <ChevronDown size={14} className={`transition-transform text-gray-500 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                <span className="flex items-center gap-2 truncate">
+                    {flagUrl && (
+                        <img 
+                            src={flagUrl} 
+                            alt={value} 
+                            className="w-5 h-3.5 object-cover rounded-xs border border-gray-200 shrink-0 shadow-xs" 
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                    )}
+                    <span>{value || 'Select'}</span>
+                </span>
+                <ChevronDown size={14} className={`transition-transform text-gray-500 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-                <div className="absolute z-[100] left-0 mt-1 w-full min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-2xl p-2 space-y-2 max-h-60 overflow-hidden flex flex-col">
+                <div className="absolute z-[100] left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-2xl p-2 space-y-2 max-h-60 overflow-hidden flex flex-col">
                     <div className="relative shrink-0">
                         <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
                         <input
                             type="text"
                             autoFocus
-                            placeholder="Search..."
+                            placeholder="Search currency..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full text-xs border border-gray-200 rounded-md pl-8 pr-2 py-1.5 focus:outline-none focus:border-blue-500 font-semibold"
@@ -51,23 +78,36 @@ function SearchableCurrencySelect({ label, value, onChange, options = [], classN
                     </div>
                     <div className="overflow-y-auto flex-1 space-y-0.5 max-h-44 pr-1">
                         {filteredOptions.length > 0 ? (
-                            filteredOptions.map((c) => (
-                                <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => {
-                                        onChange(c);
-                                        setIsOpen(false);
-                                        setSearch('');
-                                    }}
-                                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition flex items-center justify-between ${
-                                        c === value ? 'bg-blue-50 text-blue-700 font-extrabold' : 'hover:bg-gray-100 text-gray-700'
-                                    }`}
-                                >
-                                    <span>{c}</span>
-                                    {c === value && <Check size={13} className="text-blue-700 shrink-0" />}
-                                </button>
-                            ))
+                            filteredOptions.map((c) => {
+                                const optionFlagUrl = getCurrencyFlagUrl(c);
+                                return (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => {
+                                            onChange(c);
+                                            setIsOpen(false);
+                                            setSearch('');
+                                        }}
+                                        className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition flex items-center justify-between ${
+                                            c === value ? 'bg-blue-50 text-blue-700 font-extrabold' : 'hover:bg-gray-100 text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {optionFlagUrl && (
+                                                <img 
+                                                    src={optionFlagUrl} 
+                                                    alt={c} 
+                                                    className="w-5 h-3.5 object-cover rounded-xs border border-gray-200 shrink-0 shadow-xs" 
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                            )}
+                                            <span>{c}</span>
+                                        </span>
+                                        {c === value && <Check size={13} className="text-blue-700 shrink-0" />}
+                                    </button>
+                                );
+                            })
                         ) : (
                             <div className="p-2 text-center text-xs text-gray-400 font-medium">
                                 No currency found
