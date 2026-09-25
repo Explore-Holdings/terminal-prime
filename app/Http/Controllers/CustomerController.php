@@ -28,7 +28,7 @@ class CustomerController extends Controller
     public function index()
     {
         return Inertia::render('Customers/Index', [
-            'customers' => Customer::with(['agent.user'])
+            'customers' => Customer::with(['agent.user', 'latestTrip.driver.vehicle'])
                 ->latest()
                 ->get(),
         ]);
