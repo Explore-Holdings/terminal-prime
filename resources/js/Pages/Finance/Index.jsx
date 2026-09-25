@@ -2220,12 +2220,12 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 border-b border-gray-200 p-4 flex flex-col items-center relative">
                     <img
-                        src="/assets/images/logo.png"
-                        alt="Terminal Prime Logo"
+                        src="/assets/images/logo-europcar.png"
+                        alt="Europcar Logo"
                         className="h-16 w-auto object-contain mb-3"
                     />
-                    <h1 className="text-xl font-black text-black uppercase tracking-widest mb-1">Terminal Prime</h1>
-                    <h2 className="text-lg font-bold text-black uppercase tracking-wider">FINANCIAL STATEMENT</h2>
+                    <h1 className="text-xl font-black text-black uppercase tracking-widest mb-1">EUROPCAR SRI LANKA</h1>
+                    <h2 className="text-lg font-bold text-black uppercase tracking-wider">BALANCE SHEET & FINANCIAL STATEMENT</h2>
                     
                     <div className="text-sm text-black mt-3 flex flex-col items-center space-y-1">
                         <p>For the period : <span className="font-semibold text-black">{dateLabel}</span></p>
