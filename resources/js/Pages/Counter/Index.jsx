@@ -3,24 +3,30 @@ import { useEffect, useState, useMemo } from 'react';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
+const convertCurrencyAmount = (amount, fromCur, toCur, rates) => {
+    const amt = Number(amount || 0);
+    if (!amt) return 0;
+    if (!fromCur || !toCur) return amt;
+    const from = fromCur.toLowerCase();
+    const to = toCur.toLowerCase();
+    if (from === to) return amt;
+    if (!rates) return amt;
+    const rateFrom = rates[from];
+    const rateTo = rates[to];
+    if (!rateFrom || !rateTo) return amt;
+    return (amt / rateFrom) * rateTo;
+};
+
 const convertToLkr = (amount, currency, rates) => {
-    if (!rates) return null;
-    const fromCurrency = (currency ?? 'USD').toLowerCase();
-    if (fromCurrency === 'lkr') return null;
-    const rateFrom = rates[fromCurrency];
-    const rateLkr = rates['lkr'];
-    if (!rateFrom || !rateLkr) return null;
-    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+    if (!rates || !currency || currency.toUpperCase() === 'LKR') return null;
+    const lkrVal = convertCurrencyAmount(amount, currency, 'LKR', rates);
+    if (lkrVal === Number(amount || 0) && currency.toUpperCase() !== 'LKR') return null;
+    return lkrVal;
 };
 
 const getAmountInLkr = (amount, currency, rates) => {
-    const fromCurrency = (currency ?? 'LKR').toLowerCase();
-    if (fromCurrency === 'lkr') return Number(amount ?? 0);
-    if (!rates) return Number(amount ?? 0);
-    const rateFrom = rates[fromCurrency];
-    const rateLkr = rates['lkr'];
-    if (!rateFrom || !rateLkr) return Number(amount ?? 0);
-    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+    const fromCurrency = currency ?? 'LKR';
+    return convertCurrencyAmount(amount, fromCurrency, 'LKR', rates);
 };
 
 const formatToLkrString = (amount, currency, rates) => {
@@ -1295,24 +1301,30 @@ function PaymentTab({
     const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
     const payments = form.data.payments ?? [];
 
-    // amount counts only notes whose currency matches the payment currency
-    const methodAmount = (p) => {
+    const methodNativeAmount = (p) => {
         if (p.method !== 'Cash') {
             return Number(p.amount || 0);
         }
-
         return (p.notes ?? []).reduce((total, note) => {
-            return (
-                total +
-                Number(note.amount || 0) *
-                Number(note.count || 0)
-            );
+            return total + (Number(note.amount || 0) * Number(note.count || 0));
         }, 0);
     };
 
-    const grandTotal = payments.reduce((s, p) => s + methodAmount(p), 0);
+    const methodConvertedAmount = (p, targetCurrency, rates) => {
+        if (p.method !== 'Cash') {
+            const payCur = p.currency ?? targetCurrency;
+            return convertCurrencyAmount(p.amount || 0, payCur, targetCurrency, rates);
+        }
+        return (p.notes ?? []).reduce((total, note) => {
+            const noteCur = note.currency ?? p.currency ?? targetCurrency;
+            const noteVal = Number(note.amount || 0) * Number(note.count || 0);
+            return total + convertCurrencyAmount(noteVal, noteCur, targetCurrency, rates);
+        }, 0);
+    };
+
+    const grandTotal = payments.reduce((s, p) => s + methodConvertedAmount(p, form.data.currency, eurRates), 0);
     const price = Number(form.data.price || 0);
-    const balanced = Number(grandTotal) >= price;
+    const balanced = Number(grandTotal.toFixed(2)) >= Number(price.toFixed(2));
     const canSubmit = !form.processing && balanced && payments.length > 0;
 
     const setPayments = (next) => form.setData('payments', next);
@@ -1368,13 +1380,13 @@ function PaymentTab({
     const savePayment = (e) => {
         e.preventDefault();
         if (!targetCustomerId) return alert('Please save customer first.');
-        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must be at least the price (${price}).`);
+        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}) must be at least the price (${price.toLocaleString()}).`);
 
         const payload = payments.map((p) => ({
             ...p,
             currency: p.currency ?? form.data.currency,
-            amount: methodAmount(p),
-            // keep notes with their own currency in JSON
+            amount: methodNativeAmount(p),
+            converted_amount: methodConvertedAmount(p, form.data.currency, eurRates),
             notes: p.method === 'Cash'
                 ? (p.notes ?? []).map((n) => ({ ...n, currency: n.currency ?? p.currency ?? form.data.currency }))
                 : null,
@@ -1424,8 +1436,25 @@ function PaymentTab({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select label="Main Currency" value={form.data.currency}
-                    onChange={(e) => form.setData('currency', e.target.value)} options={CURRENCIES} />
+                <Select 
+                    label="Main Currency" 
+                    value={form.data.currency}
+                    onChange={(e) => {
+                        const newCur = e.target.value;
+                        const oldCur = form.data.currency;
+                        let newPrice = form.data.price;
+                        if (oldCur !== newCur && newPrice > 0 && eurRates) {
+                            const converted = convertCurrencyAmount(newPrice, oldCur, newCur, eurRates);
+                            newPrice = Math.round(converted * 100) / 100;
+                        }
+                        form.setData({
+                            ...form.data,
+                            currency: newCur,
+                            price: newPrice,
+                        });
+                    }} 
+                    options={CURRENCIES} 
+                />
                 <Field label="Total Price" type="number" value={form.data.price}
                     onChange={(e) => form.setData('price', e.target.value)} />
             </div>
@@ -1433,6 +1462,9 @@ function PaymentTab({
             <div className="space-y-4">
                 {payments.map((p, pi) => {
                     const payCur = p.currency ?? form.data.currency;
+                    const convertedAmt = methodConvertedAmount(p, form.data.currency, eurRates);
+                    const nativeAmt = methodNativeAmount(p);
+
                     return (
                         <div key={pi} className="border rounded-xl p-4 bg-gray-50 space-y-3">
                             <div className="flex items-end gap-3">
@@ -1447,15 +1479,24 @@ function PaymentTab({
                                         <option value="POS">POS</option>
                                     </select>
                                 </div>
-                                {/* <div className="w-28">
-                                    <label className="label">Currency</label>
-                                    <select className="input" value={payCur}
-                                        onChange={(e) => updatePayment(pi, 'currency', e.target.value)}>
-                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div> */}
+                                {p.method === 'POS' && (
+                                    <div className="w-28">
+                                        <label className="label">Currency</label>
+                                        <select className="input" value={payCur}
+                                            onChange={(e) => updatePayment(pi, 'currency', e.target.value)}>
+                                            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="flex-1 text-right font-bold text-green-800 pb-2">
-                                    {payCur} {methodAmount(p).toLocaleString()}
+                                    <div>
+                                        {form.data.currency} {convertedAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </div>
+                                    {p.method === 'POS' && payCur !== form.data.currency && (
+                                        <div className="text-xs font-medium text-gray-500">
+                                            ({payCur} {nativeAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                        </div>
+                                    )}
                                 </div>
                                 <button type="button" disabled={payments.length === 1}
                                     onClick={() => removePayment(pi)}
@@ -1469,10 +1510,11 @@ function PaymentTab({
                                     <h4 className="font-semibold text-sm">Cash Notes</h4>
                                     {p.notes.map((n, ni) => {
                                         const noteCur = n.currency ?? payCur;
-                                        // const mismatch = noteCur !== payCur;
+                                        const noteVal = Number(n.amount || 0) * Number(n.count || 0);
+                                        const noteConverted = convertCurrencyAmount(noteVal, noteCur, form.data.currency, eurRates);
+
                                         return (
                                             <div key={ni} className="grid grid-cols-12 gap-2 items-end">
-                                                {/* NEW: per-note currency */}
                                                 <div className="col-span-3">
                                                     <label className="label">Currency</label>
                                                     <select className="input" value={noteCur}
@@ -1494,11 +1536,11 @@ function PaymentTab({
                                                     <Trash2 size={14} className="mx-auto" />
                                                 </button>
 
-                                                {/* {mismatch && (
-                                                    <p className="col-span-12 text-[11px] text-amber-600">
-                                                        ⚠ {noteCur} note not counted toward {payCur} total (different currency).
+                                                {noteCur !== form.data.currency && noteVal > 0 && (
+                                                    <p className="col-span-12 text-[11px] font-semibold text-indigo-600">
+                                                        ≈ {form.data.currency} {noteConverted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({noteCur} {noteVal.toLocaleString()} converted)
                                                     </p>
-                                                )} */}
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1525,17 +1567,21 @@ function PaymentTab({
 
             <div className="border rounded-xl p-4 bg-gray-50 flex flex-col gap-2 font-bold">
                 <div className="flex justify-between">
-                    <span>Required: {form.data.currency} {price.toLocaleString()}</span>
+                    <span>Required: {form.data.currency} {price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <span className={balanced ? 'text-green-700' : 'text-red-600'}>
-                        Entered: {form.data.currency} {grandTotal.toLocaleString()}
-                        {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
+                        Entered: {form.data.currency} {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {!balanced && (
+                            <span className="ml-2 text-xs">
+                                (Balance: {(price - grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                            </span>
+                        )}
                     </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-700 pt-2 border-t border-gray-200">
                     <span>Petty Cash Balance: LKR {Number(pettyCash).toLocaleString()}</span>
                     {grandTotal > price && (
                         <span className="text-orange-600">
-                            Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString()}
+                            Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             {(() => {
                                 const lkrVal = Math.ceil(getAmountInLkr(grandTotal - price, form.data.currency, eurRates));
                                 return lkrVal ? ` (LKR ${lkrVal.toLocaleString()})` : '';
