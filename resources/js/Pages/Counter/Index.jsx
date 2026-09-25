@@ -1,26 +1,149 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock } from 'lucide-react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
+const CURRENCY_TO_COUNTRY = {
+    LKR: 'lk', USD: 'us', EUR: 'eu', GBP: 'gb', AUD: 'au', CAD: 'ca', INR: 'in', AED: 'ae', CNY: 'cn', JPY: 'jp',
+    RUB: 'ru', SAR: 'sa', SGD: 'sg', CHF: 'ch', SEK: 'se', NOK: 'no', ZAR: 'za', THB: 'th', MYR: 'my', KRW: 'kr',
+    NZD: 'nz', BRL: 'br', MXN: 'mx', EGP: 'eg', OMR: 'om', QAR: 'qa', KWD: 'kw', BHD: 'bh', JOD: 'jo', TUR: 'tr',
+    IDR: 'id', PHP: 'ph', VND: 'vn', PKR: 'pk', BDT: 'bd', HKD: 'hk', TWD: 'tw', PLN: 'pl', CZK: 'cz', HUF: 'hu',
+    DKK: 'dk', ILS: 'il', ARS: 'ar', CLP: 'cl', COP: 'co', PEN: 'pe', KZT: 'kz', UAH: 'ua', NGN: 'ng', KES: 'ke',
+};
+
+const getCurrencyFlagUrl = (currency) => {
+    if (!currency) return null;
+    const code = currency.toUpperCase();
+    const country = CURRENCY_TO_COUNTRY[code] || code.substring(0, 2).toLowerCase();
+    return `https://flagcdn.com/w40/${country}.png`;
+};
+
+function SearchableCurrencySelect({ label, value, onChange, options = [], className = '' }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!search.trim()) return options;
+        const q = search.toLowerCase();
+        return options.filter(c => c.toLowerCase().includes(q));
+    }, [options, search]);
+
+    const flagUrl = getCurrencyFlagUrl(value);
+
+    return (
+        <div className={`relative ${isOpen ? 'z-[100]' : 'z-10'} ${className}`} ref={containerRef}>
+            {label && <label className="label">{label}</label>}
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="input text-left flex justify-between items-center bg-white border border-gray-300 rounded-lg px-2.5 py-2 text-sm font-semibold text-gray-800 shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            >
+                <span className="flex items-center gap-2 truncate">
+                    {flagUrl && (
+                        <img 
+                            src={flagUrl} 
+                            alt={value} 
+                            className="w-5 h-3.5 object-cover rounded-xs border border-gray-200 shrink-0 shadow-xs" 
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                    )}
+                    <span>{value || 'Select'}</span>
+                </span>
+                <ChevronDown size={14} className={`transition-transform text-gray-500 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-[100] left-0 top-full mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-2xl p-2 space-y-2 max-h-60 overflow-hidden flex flex-col">
+                    <div className="relative shrink-0">
+                        <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
+                        <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search currency..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full text-xs border border-gray-200 rounded-md pl-8 pr-2 py-1.5 focus:outline-none focus:border-blue-500 font-semibold"
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 space-y-0.5 max-h-44 pr-1">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((c) => {
+                                const optionFlagUrl = getCurrencyFlagUrl(c);
+                                return (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => {
+                                            onChange(c);
+                                            setIsOpen(false);
+                                            setSearch('');
+                                        }}
+                                        className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition flex items-center justify-between ${
+                                            c === value ? 'bg-blue-50 text-blue-700 font-extrabold' : 'hover:bg-gray-100 text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {optionFlagUrl && (
+                                                <img 
+                                                    src={optionFlagUrl} 
+                                                    alt={c} 
+                                                    className="w-5 h-3.5 object-cover rounded-xs border border-gray-200 shrink-0 shadow-xs" 
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                            )}
+                                            <span>{c}</span>
+                                        </span>
+                                        {c === value && <Check size={13} className="text-blue-700 shrink-0" />}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-2 text-center text-xs text-gray-400 font-medium">
+                                No currency found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const convertCurrencyAmount = (amount, fromCur, toCur, rates) => {
+    const amt = Number(amount || 0);
+    if (!amt) return 0;
+    if (!fromCur || !toCur) return amt;
+    const from = fromCur.toLowerCase();
+    const to = toCur.toLowerCase();
+    if (from === to) return amt;
+    if (!rates) return amt;
+    const rateFrom = rates[from];
+    const rateTo = rates[to];
+    if (!rateFrom || !rateTo) return amt;
+    return (amt / rateFrom) * rateTo;
+};
+
 const convertToLkr = (amount, currency, rates) => {
-    if (!rates) return null;
-    const fromCurrency = (currency ?? 'USD').toLowerCase();
-    if (fromCurrency === 'lkr') return null;
-    const rateFrom = rates[fromCurrency];
-    const rateLkr = rates['lkr'];
-    if (!rateFrom || !rateLkr) return null;
-    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+    if (!rates || !currency || currency.toUpperCase() === 'LKR') return null;
+    const lkrVal = convertCurrencyAmount(amount, currency, 'LKR', rates);
+    if (lkrVal === Number(amount || 0) && currency.toUpperCase() !== 'LKR') return null;
+    return lkrVal;
 };
 
 const getAmountInLkr = (amount, currency, rates) => {
-    const fromCurrency = (currency ?? 'LKR').toLowerCase();
-    if (fromCurrency === 'lkr') return Number(amount ?? 0);
-    if (!rates) return Number(amount ?? 0);
-    const rateFrom = rates[fromCurrency];
-    const rateLkr = rates['lkr'];
-    if (!rateFrom || !rateLkr) return Number(amount ?? 0);
-    return (Number(amount ?? 0) / rateFrom) * rateLkr;
+    const fromCurrency = currency ?? 'LKR';
+    return convertCurrencyAmount(amount, fromCurrency, 'LKR', rates);
 };
 
 const formatToLkrString = (amount, currency, rates) => {
@@ -1292,27 +1415,39 @@ function PaymentTab({
     agent, customerId, form, invoicePath,
     setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose, pettyCash = 0, eurRates
 }) {
-    const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+    const CURRENCIES = useMemo(() => {
+        const defaultCurrencies = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+        if (!eurRates) return defaultCurrencies;
+        const apiKeys = Object.keys(eurRates).map(c => c.toUpperCase()).sort();
+        return Array.from(new Set([...defaultCurrencies, ...apiKeys]));
+    }, [eurRates]);
+
     const payments = form.data.payments ?? [];
 
-    // amount counts only notes whose currency matches the payment currency
-    const methodAmount = (p) => {
+    const methodNativeAmount = (p) => {
         if (p.method !== 'Cash') {
             return Number(p.amount || 0);
         }
-
         return (p.notes ?? []).reduce((total, note) => {
-            return (
-                total +
-                Number(note.amount || 0) *
-                Number(note.count || 0)
-            );
+            return total + (Number(note.amount || 0) * Number(note.count || 0));
         }, 0);
     };
 
-    const grandTotal = payments.reduce((s, p) => s + methodAmount(p), 0);
+    const methodConvertedAmount = (p, targetCurrency, rates) => {
+        if (p.method !== 'Cash') {
+            const payCur = p.currency ?? targetCurrency;
+            return convertCurrencyAmount(p.amount || 0, payCur, targetCurrency, rates);
+        }
+        return (p.notes ?? []).reduce((total, note) => {
+            const noteCur = note.currency ?? p.currency ?? targetCurrency;
+            const noteVal = Number(note.amount || 0) * Number(note.count || 0);
+            return total + convertCurrencyAmount(noteVal, noteCur, targetCurrency, rates);
+        }, 0);
+    };
+
+    const grandTotal = payments.reduce((s, p) => s + methodConvertedAmount(p, form.data.currency, eurRates), 0);
     const price = Number(form.data.price || 0);
-    const balanced = Number(grandTotal) >= price;
+    const balanced = Number(grandTotal.toFixed(2)) >= Number(price.toFixed(2));
     const canSubmit = !form.processing && balanced && payments.length > 0;
 
     const setPayments = (next) => form.setData('payments', next);
@@ -1368,13 +1503,13 @@ function PaymentTab({
     const savePayment = (e) => {
         e.preventDefault();
         if (!targetCustomerId) return alert('Please save customer first.');
-        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal}) must be at least the price (${price}).`);
+        if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}) must be at least the price (${price.toLocaleString()}).`);
 
         const payload = payments.map((p) => ({
             ...p,
             currency: p.currency ?? form.data.currency,
-            amount: methodAmount(p),
-            // keep notes with their own currency in JSON
+            amount: methodNativeAmount(p),
+            converted_amount: methodConvertedAmount(p, form.data.currency, eurRates),
             notes: p.method === 'Cash'
                 ? (p.notes ?? []).map((n) => ({ ...n, currency: n.currency ?? p.currency ?? form.data.currency }))
                 : null,
@@ -1412,146 +1547,292 @@ function PaymentTab({
     };
 
     return (
-        <form onSubmit={savePayment} className="space-y-5">
-            <div className="flex justify-end">
-                <a href={`/counter/converter?currency=${form.data.currency}&amount=${price}`} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+        <form onSubmit={savePayment} className="space-y-4">
+            {/* Top Bar: Title & Converter Link */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-200 p-3.5 rounded-lg bg-white">
+                <div>
+                    <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                        <CreditCard size={18} className="text-gray-800" />
+                        Process Payment
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Select main currency, enter payment notes or card details.</p>
+                </div>
+                <a 
+                    href={`/counter/converter?currency=${form.data.currency}&amount=${price}`} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 px-3.5 py-1.5 rounded-lg text-xs font-bold transition shadow-xs"
+                >
                     <span>View Rates & Converter</span>
-                    <span className="bg-indigo-800 px-2 py-0.5 rounded-full text-[11px] border border-indigo-500 shadow-inner">
+                    <span className="bg-emerald-800 text-white px-2 py-0.5 rounded text-[10px] border border-emerald-500 font-mono">
                         {form.data.currency} {price.toLocaleString()}
                     </span>
                 </a>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select label="Main Currency" value={form.data.currency}
-                    onChange={(e) => form.setData('currency', e.target.value)} options={CURRENCIES} />
-                <Field label="Total Price" type="number" value={form.data.price}
-                    onChange={(e) => form.setData('price', e.target.value)} />
-            </div>
-
-            <div className="space-y-4">
-                {payments.map((p, pi) => {
-                    const payCur = p.currency ?? form.data.currency;
-                    return (
-                        <div key={pi} className="border rounded-xl p-4 bg-gray-50 space-y-3">
-                            <div className="flex items-end gap-3">
-                                <div className="w-7 h-7 mb-1 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">
-                                    {pi + 1}
-                                </div>
-                                <div className="w-40">
-                                    <label className="label">Method</label>
-                                    <select className="input" value={p.method}
-                                        onChange={(e) => changeMethod(pi, e.target.value)}>
-                                        <option value="Cash">Cash</option>
-                                        <option value="POS">POS</option>
-                                    </select>
-                                </div>
-                                {/* <div className="w-28">
-                                    <label className="label">Currency</label>
-                                    <select className="input" value={payCur}
-                                        onChange={(e) => updatePayment(pi, 'currency', e.target.value)}>
-                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div> */}
-                                <div className="flex-1 text-right font-bold text-green-800 pb-2">
-                                    {payCur} {methodAmount(p).toLocaleString()}
-                                </div>
-                                <button type="button" disabled={payments.length === 1}
-                                    onClick={() => removePayment(pi)}
-                                    className="h-9 px-3 bg-red-600 text-white rounded disabled:bg-gray-300">
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-
-                            {p.method === 'Cash' ? (
-                                <div className="border-t pt-3 space-y-2">
-                                    <h4 className="font-semibold text-sm">Cash Notes</h4>
-                                    {p.notes.map((n, ni) => {
-                                        const noteCur = n.currency ?? payCur;
-                                        // const mismatch = noteCur !== payCur;
-                                        return (
-                                            <div key={ni} className="grid grid-cols-12 gap-2 items-end">
-                                                {/* NEW: per-note currency */}
-                                                <div className="col-span-3">
-                                                    <label className="label">Currency</label>
-                                                    <select className="input" value={noteCur}
-                                                        onChange={(e) => updateNote(pi, ni, 'currency', e.target.value)}>
-                                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="col-span-4">
-                                                    <Field label="Note Value" type="number" value={n.amount}
-                                                        onChange={(e) => updateNote(pi, ni, 'amount', e.target.value)} />
-                                                </div>
-                                                <div className="col-span-3">
-                                                    <Field label="Qty" type="number" value={n.count}
-                                                        onChange={(e) => updateNote(pi, ni, 'count', e.target.value)} />
-                                                </div>
-                                                <button type="button" disabled={p.notes.length === 1}
-                                                    onClick={() => removeNote(pi, ni)}
-                                                    className="col-span-2 h-10 bg-red-600 text-white rounded disabled:bg-gray-300">
-                                                    <Trash2 size={14} className="mx-auto" />
-                                                </button>
-
-                                                {/* {mismatch && (
-                                                    <p className="col-span-12 text-[11px] text-amber-600">
-                                                        ⚠ {noteCur} note not counted toward {payCur} total (different currency).
-                                                    </p>
-                                                )} */}
-                                            </div>
-                                        );
-                                    })}
-                                    <button type="button" onClick={() => addNote(pi)}
-                                        className="bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">+ Add Note</button>
-                                </div>
-                            ) : (
-                                <div className="border-t pt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Field label="Amount" type="number" value={p.amount}
-                                        onChange={(e) => updatePayment(pi, 'amount', e.target.value)} />
-                                    <Field label="Transaction ID" value={p.transaction_id}
-                                        onChange={(e) => updatePayment(pi, 'transaction_id', e.target.value)} />
-                                    <Field label="Card Number" value={p.card_number}
-                                        onChange={(e) => updatePayment(pi, 'card_number', e.target.value)} />
-                                </div>
-                            )}
+            {/* Side-by-Side Main Grid Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                
+                {/* LEFT COLUMN: Inputs & Breakdown (8 cols) */}
+                <div className="lg:col-span-7 space-y-4">
+                    
+                    {/* Main Currency & Price */}
+                    <div className="border-2 border-black bg-white rounded-lg p-3.5 space-y-3 shadow-xs">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-black">Billing Currency & Required Price</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <SearchableCurrencySelect 
+                                label="Main Currency" 
+                                value={form.data.currency}
+                                onChange={(newCur) => {
+                                    const oldCur = form.data.currency;
+                                    let newPrice = form.data.price;
+                                    if (oldCur !== newCur && newPrice > 0 && eurRates) {
+                                        const converted = convertCurrencyAmount(newPrice, oldCur, newCur, eurRates);
+                                        newPrice = Math.round(converted * 100) / 100;
+                                    }
+                                    form.setData({
+                                        ...form.data,
+                                        currency: newCur,
+                                        price: newPrice,
+                                    });
+                                }} 
+                                options={CURRENCIES} 
+                            />
+                            <Field 
+                                label="Total Price Required" 
+                                type="number" 
+                                value={form.data.price}
+                                onChange={(e) => form.setData('price', e.target.value)} 
+                            />
                         </div>
-                    );
-                })}
-            </div>
+                    </div>
 
-            <button type="button" onClick={addPayment}
-                className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm">+ Add Payment Method</button>
+                    {/* Payment Breakdown */}
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center px-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">Payment Methods</h4>
+                            <span className="text-xs text-gray-500">{payments.length} method(s)</span>
+                        </div>
 
-            <div className="border rounded-xl p-4 bg-gray-50 flex flex-col gap-2 font-bold">
-                <div className="flex justify-between">
-                    <span>Required: {form.data.currency} {price.toLocaleString()}</span>
-                    <span className={balanced ? 'text-green-700' : 'text-red-600'}>
-                        Entered: {form.data.currency} {grandTotal.toLocaleString()}
-                        {!balanced && <span className="ml-2 text-xs">(Balance: {(price - grandTotal).toLocaleString()})</span>}
-                    </span>
+                        {payments.map((p, pi) => {
+                            const payCur = p.currency ?? form.data.currency;
+                            const convertedAmt = methodConvertedAmount(p, form.data.currency, eurRates);
+                            const nativeAmt = methodNativeAmount(p);
+
+                            return (
+                                <div key={pi} className="border border-gray-200 rounded-lg p-3.5 bg-white space-y-3">
+                                    {/* Method Header Bar */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-gray-700">#{pi + 1}</span>
+                                            <div className="w-36">
+                                                <select 
+                                                    className="input text-xs font-semibold py-1 border-gray-300" 
+                                                    value={p.method}
+                                                    onChange={(e) => changeMethod(pi, e.target.value)}
+                                                >
+                                                    <option value="Cash">💵 Cash</option>
+                                                    <option value="POS">💳 POS (Card)</option>
+                                                </select>
+                                            </div>
+                                            {p.method === 'POS' && (
+                                                <div className="w-32">
+                                                    <SearchableCurrencySelect
+                                                        value={payCur}
+                                                        onChange={(newCur) => updatePayment(pi, 'currency', newCur)}
+                                                        options={CURRENCIES}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right">
+                                                <span className="text-[11px] text-gray-400 block leading-none">Subtotal</span>
+                                                <span className="text-xs font-bold text-gray-900">
+                                                    {form.data.currency} {convertedAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </span>
+                                                {p.method === 'POS' && payCur !== form.data.currency && (
+                                                    <span className="text-[10px] text-gray-500 block leading-none">
+                                                        ({payCur} {nativeAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                disabled={payments.length === 1}
+                                                onClick={() => removePayment(pi)}
+                                                className="p-1.5 text-gray-400 hover:text-red-600 rounded transition disabled:opacity-30"
+                                                title="Remove method"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Method Content */}
+                                    {p.method === 'Cash' ? (
+                                        <div className="space-y-2.5">
+                                            <div className="space-y-2">
+                                                {p.notes.map((n, ni) => {
+                                                    const noteCur = n.currency ?? payCur;
+                                                    const noteVal = Number(n.amount || 0) * Number(n.count || 0);
+                                                    const noteConverted = convertCurrencyAmount(noteVal, noteCur, form.data.currency, eurRates);
+
+                                                    return (
+                                                        <div key={ni} className="border border-gray-200 p-2.5 rounded bg-gray-50/50 space-y-1.5">
+                                                            <div className="grid grid-cols-12 gap-2 items-center">
+                                                                <div className="col-span-4 sm:col-span-3">
+                                                                    <SearchableCurrencySelect
+                                                                        value={noteCur}
+                                                                        onChange={(newCur) => updateNote(pi, ni, 'currency', newCur)}
+                                                                        options={CURRENCIES}
+                                                                    />
+                                                                </div>
+                                                                <div className="col-span-4 sm:col-span-4">
+                                                                    <Field 
+                                                                        placeholder="Note Value" 
+                                                                        type="number" 
+                                                                        value={n.amount}
+                                                                        onChange={(e) => updateNote(pi, ni, 'amount', e.target.value)} 
+                                                                    />
+                                                                </div>
+                                                                <div className="col-span-4 sm:col-span-5 flex items-center gap-1.5">
+                                                                    <Field 
+                                                                        placeholder="Qty" 
+                                                                        type="number" 
+                                                                        value={n.count}
+                                                                        onChange={(e) => updateNote(pi, ni, 'count', e.target.value)} 
+                                                                    />
+                                                                    <button 
+                                                                        type="button" 
+                                                                        disabled={p.notes.length === 1}
+                                                                        onClick={() => removeNote(pi, ni)}
+                                                                        className="p-2 text-gray-400 hover:text-red-600 transition disabled:opacity-30 shrink-0"
+                                                                        title="Remove note"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {noteCur !== form.data.currency && noteVal > 0 && (
+                                                                <div className="text-[11px] text-gray-600 font-medium pt-0.5">
+                                                                    ≈ {form.data.currency} {noteConverted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({noteCur} {noteVal.toLocaleString()} converted)
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <button 
+                                                type="button" 
+                                                onClick={() => addNote(pi)}
+                                                className="text-xs font-semibold text-gray-700 hover:text-black border border-gray-300 hover:bg-gray-100 px-2.5 py-1 rounded transition"
+                                            >
+                                                + Add Note
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                                            <Field 
+                                                label="POS Amount" 
+                                                type="number" 
+                                                value={p.amount}
+                                                onChange={(e) => updatePayment(pi, 'amount', e.target.value)} 
+                                            />
+                                            <Field 
+                                                label="Transaction ID" 
+                                                value={p.transaction_id}
+                                                onChange={(e) => updatePayment(pi, 'transaction_id', e.target.value)} 
+                                            />
+                                            <Field 
+                                                label="Card Number (Last 4)" 
+                                                value={p.card_number}
+                                                onChange={(e) => updatePayment(pi, 'card_number', e.target.value)} 
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        <button 
+                            type="button" 
+                            onClick={addPayment}
+                            className="w-full border-2 border-dashed border-red-500 hover:border-red-600 text-red-700 hover:bg-red-50 font-bold py-2 rounded-lg text-xs transition bg-white shadow-xs"
+                        >
+                            + Add Payment Method
+                        </button>
+                    </div>
+
                 </div>
-                <div className="flex justify-between text-sm text-gray-700 pt-2 border-t border-gray-200">
-                    <span>Petty Cash Balance: LKR {Number(pettyCash).toLocaleString()}</span>
-                    {grandTotal > price && (
-                        <span className="text-orange-600">
-                            Return to Customer: {form.data.currency} {(grandTotal - price).toLocaleString()}
-                            {(() => {
-                                const lkrVal = Math.ceil(getAmountInLkr(grandTotal - price, form.data.currency, eurRates));
-                                return lkrVal ? ` (LKR ${lkrVal.toLocaleString()})` : '';
-                            })()}
-                        </span>
-                    )}
+
+                {/* RIGHT COLUMN: Summary & Action Panel (5 cols) */}
+                <div className="lg:col-span-5 border border-gray-200 bg-white rounded-lg p-4 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 border-b border-gray-100 pb-2">
+                        Payment Summary
+                    </h4>
+
+                    <div className="space-y-3 text-xs">
+                        <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                            <span className="text-gray-600 font-medium">Required Amount:</span>
+                            <span className="font-bold text-gray-900 text-sm">
+                                {form.data.currency} {price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between items-start py-1 border-b border-gray-100">
+                            <div>
+                                <span className="text-gray-600 font-medium block">Total Received:</span>
+                                <span className={`text-[10px] font-bold ${balanced ? 'text-emerald-700' : 'text-red-600'}`}>
+                                    {balanced ? '✓ Fully Covered' : `Shortage: ${form.data.currency} ${(price - grandTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </span>
+                            </div>
+                            <span className="font-bold text-gray-900 text-sm">
+                                {form.data.currency} {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between items-start py-1 border-b border-gray-100">
+                            <div>
+                                <span className="text-gray-600 font-medium block">Change Due:</span>
+                                {grandTotal > price && (
+                                    <span className="text-[10px] font-bold text-amber-700 block">
+                                        {(() => {
+                                            const lkrVal = Math.ceil(getAmountInLkr(grandTotal - price, form.data.currency, eurRates));
+                                            return lkrVal ? `≈ LKR ${lkrVal.toLocaleString()}` : null;
+                                        })()}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="font-bold text-gray-900 text-sm">
+                                {grandTotal > price 
+                                    ? `${form.data.currency} ${(grandTotal - price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    : 'LKR 0.00'
+                                }
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between items-center py-1 text-gray-500">
+                            <span>Petty Cash Balance:</span>
+                            <span className="font-semibold text-gray-800">LKR {Number(pettyCash).toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    {form.errors.payments && <p className="text-red-600 text-xs font-bold">{form.errors.payments}</p>}
+
+                    <div className="pt-2">
+                        <button 
+                            disabled={!canSubmit}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 rounded-lg font-bold text-xs disabled:opacity-40 transition shadow-xs"
+                        >
+                            {agent.booking_type === 'Rent a Car' ? 'Confirm Payment' : 'Continue to Vehicle Selection →'}
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            {form.errors.payments && <p className="text-red-600 text-sm">{form.errors.payments}</p>}
-
-            <div className="flex justify-end">
-                <button disabled={!canSubmit}
-                    className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50 transition hover:bg-green-800">
-                    {agent.booking_type === 'Rent a Car' ? 'Confirm' : 'Continue to Vehicle'}
-                </button>
             </div>
         </form>
     );

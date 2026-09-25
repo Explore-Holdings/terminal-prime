@@ -262,20 +262,30 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                             <th className="px-5 py-3">Date & Time</th>
                                             <th className="px-5 py-3">Shift ID</th>
                                             <th className="px-5 py-3 text-right">Till Balance</th>
-                                            <th className="px-5 py-3 text-right">Requested (To 100k)</th>
-                                            <th className="px-5 py-3 text-center">Status</th>
+                                            <th className="px-5 py-3 text-right">Needed (To 100k)</th>
+                                            <th className="px-5 py-3 text-center">Status / Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y text-black">
                                         {pettyCashRequests.map((req) => (
                                             <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="px-5 py-3">
-                                                    <span className="font-semibold block">{formatDateTime(req.created_at)}</span>
+                                                <td className="px-5 py-3 text-xs">
+                                                    <div className="font-medium text-gray-900">
+                                                        {new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-500 font-medium">
+                                                        {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
                                                 </td>
                                                 <td className="px-5 py-3">
-                                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-mono font-bold">
+                                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-mono font-bold block w-fit">
                                                         {req.shift_id}
                                                     </span>
+                                                    {req.officer_name && (
+                                                        <span className="block text-[11px] font-semibold text-gray-600 mt-0.5">
+                                                            {req.officer_name}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3 text-right font-semibold text-gray-600">
                                                     LKR {Number(req.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -288,15 +298,34 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                                         <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                                                             Pending
                                                         </span>
-                                                    ) : (
-                                                        <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                                                            Approved
-                                                        </span>
-                                                    )}
-                                                    {req.approved_at && (
-                                                        <div className="text-[10px] text-gray-500 mt-1">
-                                                            {formatDateTime(req.approved_at)}
+                                                    ) : req.status === 'Approved' ? (
+                                                        <div>
+                                                            <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                                                Approved
+                                                            </span>
+                                                            {req.approved_at && (
+                                                                <div className="text-[10px] text-gray-500 mt-1">
+                                                                    {formatDateTime(req.approved_at)}
+                                                                </div>
+                                                            )}
                                                         </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => {
+                                                                if (window.confirm(`Are you sure you want to request petty cash replenishment of LKR ${Number(req.needed_amount).toLocaleString()} for ${req.shift_id}?`)) {
+                                                                    router.post('/finance/petty-cash-requests', {
+                                                                        shift_id: req.shift_id,
+                                                                        balance_amount: req.balance_amount,
+                                                                        needed_amount: req.needed_amount,
+                                                                    }, {
+                                                                        preserveScroll: true,
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition shadow-sm"
+                                                        >
+                                                            Req Needed Amount
+                                                        </button>
                                                     )}
                                                 </td>
                                             </tr>

@@ -40,7 +40,52 @@ class ManagerReportController extends Controller
                 return $log;
             });
 
-        $pettyCashRequests = \App\Models\PettyCashRequest::with('approvedBy')->latest()->get();
+        $userLogsMap = \App\Models\UserLoginLog::with('user')->whereNotNull('shift_id')->get()->keyBy('shift_id');
+        $requestsMap = \App\Models\PettyCashRequest::with(['approvedBy', 'requestedBy'])->get()->keyBy('shift_id');
+
+        $shiftLogs = \App\Models\PettyCashShiftLog::latest()->get()->map(function($log) use ($requestsMap, $userLogsMap) {
+            $req = $requestsMap->get($log->shift_id);
+            $userLog = $userLogsMap->get($log->shift_id);
+            $userFullName = $req?->requestedBy?->name ?? $userLog?->user?->name ?? 'Staff';
+            $firstName = explode(' ', trim($userFullName))[0];
+
+            return [
+                'id' => $log->id,
+                'shift_id' => $log->shift_id,
+                'officer_name' => $firstName,
+                'balance_amount' => $log->ending_balance,
+                'needed_amount' => $log->amount_spent,
+                'status' => $req ? $req->status : 'Unrequested',
+                'created_at' => $log->created_at,
+                'approved_at' => $req?->approved_at,
+                'request' => $req,
+            ];
+        });
+
+        $shiftIdsInLogs = $shiftLogs->pluck('shift_id')->toArray();
+        $standaloneRequests = \App\Models\PettyCashRequest::with(['approvedBy', 'requestedBy'])
+            ->whereNotIn('shift_id', $shiftIdsInLogs)
+            ->latest()
+            ->get()
+            ->map(function($req) use ($userLogsMap) {
+                $userLog = $userLogsMap->get($req->shift_id);
+                $userFullName = $req->requestedBy?->name ?? $userLog?->user?->name ?? 'Staff';
+                $firstName = explode(' ', trim($userFullName))[0];
+
+                return [
+                    'id' => 'req-' . $req->id,
+                    'shift_id' => $req->shift_id,
+                    'officer_name' => $firstName,
+                    'balance_amount' => $req->balance_amount,
+                    'needed_amount' => $req->needed_amount,
+                    'status' => $req->status,
+                    'created_at' => $req->created_at,
+                    'approved_at' => $req->approved_at,
+                    'request' => $req,
+                ];
+            });
+
+        $pettyCashRequests = $shiftLogs->concat($standaloneRequests)->sortByDesc('created_at')->values();
 
         return Inertia::render('Reports/ManagerReports', [
             'trips' => $data['trips'],
