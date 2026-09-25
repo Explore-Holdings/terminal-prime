@@ -2220,12 +2220,12 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
             <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 border-b border-gray-200 p-4 flex flex-col items-center relative">
                     <img
-                        src="/assets/images/logo.png"
-                        alt="Terminal Prime Logo"
+                        src="/assets/images/logo-europcar.png"
+                        alt="Europcar Logo"
                         className="h-16 w-auto object-contain mb-3"
                     />
-                    <h1 className="text-xl font-black text-black uppercase tracking-widest mb-1">Terminal Prime</h1>
-                    <h2 className="text-lg font-bold text-black uppercase tracking-wider">FINANCIAL STATEMENT</h2>
+                    <h1 className="text-xl font-black text-black uppercase tracking-widest mb-1">EUROPCAR SRI LANKA</h1>
+                    <h2 className="text-lg font-bold text-black uppercase tracking-wider">BALANCE SHEET & FINANCIAL STATEMENT</h2>
                     
                     <div className="text-sm text-black mt-3 flex flex-col items-center space-y-1">
                         <p>For the period : <span className="font-semibold text-black">{dateLabel}</span></p>
@@ -2435,9 +2435,14 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                                             <div className="text-[10px] text-gray-500">{new Date(req.created_at).toLocaleString()}</div>
                                         </td>
                                         <td className="px-6 py-4 font-medium text-gray-900">
-                                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs font-mono">
+                                            <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs font-mono block w-fit">
                                                 {req.shift_id}
                                             </span>
+                                            {req.requested_by?.name && (
+                                                <span className="block text-[11px] font-semibold text-gray-600 mt-0.5">
+                                                    {req.requested_by.name.split(' ')[0]}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-right text-gray-600 font-medium">
                                             LKR {Number(req.balance_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -2447,10 +2452,14 @@ function ReportsPanel({ trips, expenses, rateSetting, range, customStart, custom
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <button 
-                                                onClick={() => router.post(`/finance/petty-cash-requests/${req.id}/approve`, {}, {
-                                                    preserveScroll: true,
-                                                    onSuccess: () => toast.success('Petty cash request approved!')
-                                                })}
+                                                onClick={() => {
+                                                    if (window.confirm(`Are you sure you want to approve this petty cash replenishment request (LKR ${Number(req.needed_amount).toLocaleString()}) for ${req.shift_id} and replenish the till?`)) {
+                                                        router.post(`/finance/petty-cash-requests/${req.id}/approve`, {}, {
+                                                            preserveScroll: true,
+                                                            onSuccess: () => toast.success('Petty cash request approved!')
+                                                        });
+                                                    }
+                                                }}
                                                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-4 rounded shadow text-xs transition"
                                             >
                                                 Approve & Replenish

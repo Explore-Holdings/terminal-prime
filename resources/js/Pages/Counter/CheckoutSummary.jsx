@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Car, LogIn, Printer, FileText, CheckCircle, Banknote, CreditCard, Wallet } from 'lucide-react';
+import { Car, LogIn, Printer, FileText, CheckCircle, Banknote, CreditCard, Wallet, Info, Check } from 'lucide-react';
 
 export default function CheckoutSummary({ log, user, trips = [], paymentSummary = null }) {
     const { post, processing } = useForm();
+    const [pdfDownloaded, setPdfDownloaded] = useState(false);
 
     const handlePrint = () => {
         window.print();
@@ -14,6 +16,8 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
             preserveScroll: true,
         });
     };
+
+    const canExit = Boolean(log.handed_over_at) && pdfDownloaded;
 
     // Format dates
     const loginTime = new Date(log.login_at);
@@ -105,67 +109,101 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 relative z-10 print:hidden">
-                            {/* Handover to Manager Option */}
-                            {log.handed_over_at ? (
-                                <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-4 py-2.5 rounded-xl text-sm font-semibold">
-                                    <CheckCircle size={16} />
-                                    Handed Over to Manager
-                                </span>
-                            ) : (
+                        <div className="flex flex-col md:items-end gap-3 relative z-10 print:hidden">
+                            <div className="flex flex-wrap gap-2">
+                                {/* Handover to Manager Option */}
+                                {log.handed_over_at ? (
+                                    <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-4 py-2.5 rounded-xl text-sm font-semibold">
+                                        <CheckCircle size={16} />
+                                        Handed Over to Manager
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={handleHandover}
+                                        disabled={processing}
+                                        className="inline-flex items-center justify-center gap-2 bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-blue-800 transition disabled:opacity-50 text-sm"
+                                    >
+                                        Handover to Manager
+                                    </button>
+                                )}
+
+                                {/* Print Summary */}
                                 <button
-                                    onClick={handleHandover}
-                                    disabled={processing}
-                                    className="inline-flex items-center justify-center gap-2 bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-blue-800 transition disabled:opacity-50 text-sm"
+                                    onClick={handlePrint}
+                                    className="inline-flex items-center justify-center gap-2 bg-slate-100 text-slate-800 border border-slate-200 font-bold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm"
                                 >
-                                    Handover to Manager
+                                    <Printer size={16} />
+                                    Print
                                 </button>
-                            )}
 
-                            {/* Print Summary */}
-                            <button
-                                onClick={handlePrint}
-                                className="inline-flex items-center justify-center gap-2 bg-slate-100 text-slate-800 border border-slate-200 font-bold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm"
-                            >
-                                <Printer size={16} />
-                                Print
-                            </button>
-
-                            {/* Download PDF */}
-                            <a
-                                href={`/checkout-summary/${log.id}/pdf`}
-                                className="inline-flex items-center justify-center gap-2 bg-slate-100 text-slate-800 border border-slate-200 font-bold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm"
-                            >
-                                <FileText size={16} />
-                                Download PDF
-                            </a>
-
-                            {/* <Link
-                                href="/dashboard"
-                                className="inline-flex items-center justify-center gap-2 bg-slate-100 text-slate-800 border border-slate-200 font-bold px-4 py-2.5 rounded-xl hover:bg-slate-200 transition text-sm"
-                            >
-                                Dashboard
-                            </Link> */}
-
-                            {!log.handed_over_at ? (
-                                <button
-                                    disabled
-                                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm opacity-50 cursor-not-allowed"
+                                {/* Download PDF */}
+                                <a
+                                    href={`/checkout-summary/${log.id}/pdf`}
+                                    onClick={() => setPdfDownloaded(true)}
+                                    className={`inline-flex items-center justify-center gap-2 border font-bold px-4 py-2.5 rounded-xl transition text-sm ${
+                                        pdfDownloaded
+                                            ? 'bg-green-50 text-green-800 border-green-300 hover:bg-green-100'
+                                            : 'bg-slate-100 text-slate-800 border-slate-200 hover:bg-slate-200'
+                                    }`}
                                 >
-                                    <LogIn size={16} />
-                                    Exit to Login
-                                </button>
-                            ) : (
-                                <Link
-                                    href="/logout"
-                                    method="post"
-                                    as="button"
-                                    className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-slate-800 transition text-sm"
-                                >
-                                    <LogIn size={16} />
-                                    Exit to Login
-                                </Link>
-                            )}
+                                    <FileText size={16} />
+                                    Download PDF {pdfDownloaded && <Check size={14} className="text-green-600" />}
+                                </a>
+
+                                {/* Exit to Login */}
+                                {!canExit ? (
+                                    <button
+                                        disabled
+                                        title="Please handover to manager and download PDF report first"
+                                        className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl transition text-sm opacity-50 cursor-not-allowed"
+                                    >
+                                        <LogIn size={16} />
+                                        Exit to Login
+                                    </button>
+                                ) : (
+                                    <Link
+                                        href="/logout"
+                                        method="post"
+                                        as="button"
+                                        className="inline-flex items-center justify-center gap-2 bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl hover:bg-slate-800 transition text-sm shadow-md"
+                                    >
+                                        <LogIn size={16} />
+                                        Exit to Login
+                                    </Link>
+                                )}
+                            </div>
+
+                            {/* Small Note */}
+                            <div className={`p-2.5 px-3.5 rounded-xl text-xs flex items-center gap-2 border w-full md:w-auto ${
+                                canExit 
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                            }`}>
+                                <Info size={15} className={`shrink-0 ${canExit ? 'text-emerald-600' : 'text-amber-600'}`} />
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="font-semibold">Note:</span>
+                                    <span>
+                                        {canExit 
+                                            ? 'Requirements met. You can now Exit to Login.' 
+                                            : 'Exit to Login is disabled until you complete both:'}
+                                    </span>
+                                    {!canExit && (
+                                        <div className="flex items-center gap-1.5 font-medium">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${
+                                                log.handed_over_at ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-900 font-bold'
+                                            }`}>
+                                                {log.handed_over_at ? '✓ Handover' : '1. Handover to Manager'}
+                                            </span>
+                                            <span>&</span>
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${
+                                                pdfDownloaded ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-900 font-bold'
+                                            }`}>
+                                                {pdfDownloaded ? '✓ PDF Downloaded' : '2. Download PDF'}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

@@ -107,12 +107,18 @@ export default function ReportModal({ isOpen, onClose, config }) {
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0 print:hidden shadow-sm">
                 <div className="flex items-center gap-4">
+                    <img
+                        src="/assets/images/logo-europcar.png"
+                        alt="Europcar Logo"
+                        className="h-9 w-auto object-contain"
+                    />
+                    <div className="w-px h-8 bg-gray-200"></div>
                     <div className={`p-3 rounded-xl bg-gradient-to-br ${config.color} text-white shadow-md`}>
                         <config.icon className="w-6 h-6" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-[#0f1d45] tracking-tight">
-                            {selectedCategory ? `${config.title} - ${selectedCategory}` : config.title}
+                        <h2 className="text-xl font-black text-[#0f1d45] tracking-tight flex items-center gap-2">
+                            <span>{selectedCategory ? `${config.title} - ${selectedCategory}` : config.title}</span>
                         </h2>
                         <p className="text-sm text-gray-500 font-medium">{config.description}</p>
                     </div>
@@ -235,7 +241,18 @@ export default function ReportModal({ isOpen, onClose, config }) {
                         
                         {/* Print Only Header */}
                         <div className="hidden print:block mb-8 border-b-2 border-gray-800 pb-4">
-                            <h1 className="text-3xl font-black text-gray-900">{config.title}</h1>
+                            <div className="flex items-center justify-between mb-4">
+                                <img
+                                    src="/assets/images/logo-europcar.png"
+                                    alt="Europcar Logo"
+                                    className="h-12 w-auto object-contain"
+                                />
+                                <div className="text-right">
+                                    <span className="text-xs font-black text-gray-800 uppercase tracking-widest block">Europcar Sri Lanka</span>
+                                    <span className="text-xs text-gray-500 block">Airport Counter Operations</span>
+                                </div>
+                            </div>
+                            <h1 className="text-3xl font-black text-gray-900">{selectedCategory ? `${config.title} - ${selectedCategory}` : config.title}</h1>
                             <p className="text-gray-600 mt-2 font-medium">Generated on {new Date().toLocaleString()}</p>
                             <p className="text-gray-600 font-medium capitalize">Date Range: {range === 'custom' ? `${customFrom} to ${customTo}` : range}</p>
                         </div>

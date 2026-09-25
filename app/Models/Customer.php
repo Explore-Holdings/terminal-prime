@@ -42,4 +42,14 @@ class Customer extends Model
     {
         return $this->belongsTo(Agent::class);
     }
+
+    public function trips()
+    {
+        return $this->hasMany(Trip::class);
+    }
+
+    public function latestTrip()
+    {
+        return $this->hasOne(Trip::class)->latestOfMany();
+    }
 }
