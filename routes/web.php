@@ -93,6 +93,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('attendance-requests.approve');
 
     Route::post('/finance/petty-cash-requests/{id}/approve', [FinanceController::class, 'approvePettyCashRequest'])->name('finance.petty-cash.approve');
+    Route::post('/finance/petty-cash-requests', [FinanceController::class, 'storePettyCashRequest'])->name('finance.petty-cash.store');
 
     Route::post('/dashboard/attendance-requests/{id}/reject', function(Request $request, $id) {
         DB::table('agent_checkin_requests')->where('id', $id)->update([

@@ -500,4 +500,28 @@ class FinanceController extends Controller
 
         return back()->with('success', 'Petty cash request approved and till replenished.');
     }
+
+    public function storePettyCashRequest(Request $request)
+    {
+        $request->validate([
+            'shift_id' => 'required|string',
+            'balance_amount' => 'required|numeric',
+            'needed_amount' => 'required|numeric',
+        ]);
+
+        $existing = PettyCashRequest::where('shift_id', $request->shift_id)->first();
+        if ($existing) {
+            return back()->with('info', 'Replenishment request already submitted for this shift.');
+        }
+
+        PettyCashRequest::create([
+            'shift_id' => $request->shift_id,
+            'balance_amount' => $request->balance_amount,
+            'needed_amount' => $request->needed_amount,
+            'status' => 'Pending',
+            'requested_by' => Auth::id(),
+        ]);
+
+        return back()->with('success', 'Petty cash replenishment request submitted to Finance.');
+    }
 }
