@@ -1,11 +1,93 @@
 import { Head, Link } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Calculator, Trash2, Plus, ArrowRightLeft } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { ArrowLeft, Calculator, Trash2, Plus, ArrowRightLeft, ChevronDown, Search, Check } from 'lucide-react';
 
-const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+function SearchableCurrencySelect({ label, value, onChange, options = [], className = '' }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!search.trim()) return options;
+        const q = search.toLowerCase();
+        return options.filter(c => c.toLowerCase().includes(q));
+    }, [options, search]);
+
+    return (
+        <div className={`relative ${isOpen ? 'z-[100]' : 'z-10'} ${className}`} ref={containerRef}>
+            {label && <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label>}
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full text-left flex justify-between items-center bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+                <span className="truncate">{value || 'Select'}</span>
+                <ChevronDown size={14} className={`transition-transform text-slate-500 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-[100] left-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 space-y-2 max-h-60 overflow-hidden flex flex-col">
+                    <div className="relative shrink-0">
+                        <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
+                        <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full text-xs border border-slate-200 rounded-md pl-8 pr-2 py-1.5 focus:outline-none focus:border-indigo-500 font-bold text-slate-800"
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 space-y-0.5 max-h-44 pr-1">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((c) => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => {
+                                        onChange(c);
+                                        setIsOpen(false);
+                                        setSearch('');
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition flex items-center justify-between ${
+                                        c === value ? 'bg-indigo-50 text-indigo-700 font-black' : 'hover:bg-slate-100 text-slate-700'
+                                    }`}
+                                >
+                                    <span>{c}</span>
+                                    {c === value && <Check size={13} className="text-indigo-700 shrink-0" />}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="p-2 text-center text-xs text-slate-400 font-medium">
+                                No currency found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }) {
     const [eurRates, setEurRates] = useState(null);
+
+    const CURRENCIES = useMemo(() => {
+        const defaultCurrencies = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+        if (!eurRates) return defaultCurrencies;
+        const apiKeys = Object.keys(eurRates).map(c => c.toUpperCase()).sort();
+        return Array.from(new Set([...defaultCurrencies, ...apiKeys]));
+    }, [eurRates]);
     const [baseCurrency, setBaseCurrency] = useState(initialCurrency || 'USD');
     const [targetAmount, setTargetAmount] = useState(Number(initialAmount || 0));
     const [payments, setPayments] = useState([{ id: Date.now(), currency: 'EUR', amount: 0 }]);
@@ -107,18 +189,16 @@ export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }
                             
                             <div className="flex flex-col lg:flex-row gap-6 items-start">
                                 {/* Left Side: Interactive Area */}
-                                <div className="w-full lg:w-7/12 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="w-full lg:w-7/12 bg-white rounded-2xl shadow-sm border border-slate-200">
                                     {/* Target Section (Header-like) */}
                                     <div className="bg-slate-50 p-5 border-b border-slate-200 flex items-center justify-between gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Target Currency</label>
-                                            <select 
-                                                className="w-full sm:w-32 border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold bg-white"
+                                        <div className="w-36">
+                                            <SearchableCurrencySelect 
+                                                label="Target Currency"
                                                 value={baseCurrency}
-                                                onChange={(e) => setBaseCurrency(e.target.value)}
-                                            >
-                                                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
+                                                onChange={(newCur) => setBaseCurrency(newCur)}
+                                                options={CURRENCIES}
+                                            />
                                         </div>
                                         <div className="flex-2 text-right">
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Target Amount Needed</label>
@@ -151,14 +231,12 @@ export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }
                                                         {i + 1}
                                                     </div>
                                                     
-                                                    <div className="w-24 shrink-0">
-                                                        <select 
-                                                            className="w-full border-slate-200 rounded-lg text-sm font-bold bg-white focus:ring-2 focus:ring-indigo-500 py-1.5"
+                                                    <div className="w-28 shrink-0">
+                                                        <SearchableCurrencySelect 
                                                             value={p.currency}
-                                                            onChange={(e) => updatePayment(p.id, 'currency', e.target.value)}
-                                                        >
-                                                            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                                        </select>
+                                                            onChange={(newCur) => updatePayment(p.id, 'currency', newCur)}
+                                                            options={CURRENCIES}
+                                                        />
                                                     </div>
                                                     
                                                     <div className="flex-1">

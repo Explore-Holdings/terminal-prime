@@ -1,7 +1,84 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useEffect, useState, useMemo } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock } from 'lucide-react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check } from 'lucide-react';
 import DataTable from 'react-data-table-component';
+
+function SearchableCurrencySelect({ label, value, onChange, options = [], className = '' }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        if (!search.trim()) return options;
+        const q = search.toLowerCase();
+        return options.filter(c => c.toLowerCase().includes(q));
+    }, [options, search]);
+
+    return (
+        <div className={`relative ${className}`} ref={containerRef}>
+            {label && <label className="label">{label}</label>}
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="input text-left flex justify-between items-center bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            >
+                <span>{value || 'Select'}</span>
+                <ChevronDown size={14} className={`transition-transform text-gray-500 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute z-[100] left-0 mt-1 w-full min-w-[140px] bg-white border border-gray-200 rounded-xl shadow-2xl p-2 space-y-2 max-h-60 overflow-hidden flex flex-col">
+                    <div className="relative shrink-0">
+                        <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
+                        <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full text-xs border border-gray-200 rounded-md pl-8 pr-2 py-1.5 focus:outline-none focus:border-blue-500 font-semibold"
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 space-y-0.5 max-h-44 pr-1">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((c) => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => {
+                                        onChange(c);
+                                        setIsOpen(false);
+                                        setSearch('');
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition flex items-center justify-between ${
+                                        c === value ? 'bg-blue-50 text-blue-700 font-extrabold' : 'hover:bg-gray-100 text-gray-700'
+                                    }`}
+                                >
+                                    <span>{c}</span>
+                                    {c === value && <Check size={13} className="text-blue-700 shrink-0" />}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="p-2 text-center text-xs text-gray-400 font-medium">
+                                No currency found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const convertCurrencyAmount = (amount, fromCur, toCur, rates) => {
     const amt = Number(amount || 0);
@@ -1298,7 +1375,13 @@ function PaymentTab({
     agent, customerId, form, invoicePath,
     setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose, pettyCash = 0, eurRates
 }) {
-    const CURRENCIES = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+    const CURRENCIES = useMemo(() => {
+        const defaultCurrencies = ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'INR', 'AED', 'CNY', 'JPY'];
+        if (!eurRates) return defaultCurrencies;
+        const apiKeys = Object.keys(eurRates).map(c => c.toUpperCase()).sort();
+        return Array.from(new Set([...defaultCurrencies, ...apiKeys]));
+    }, [eurRates]);
+
     const payments = form.data.payments ?? [];
 
     const methodNativeAmount = (p) => {
@@ -1436,11 +1519,10 @@ function PaymentTab({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Select 
+                <SearchableCurrencySelect 
                     label="Main Currency" 
                     value={form.data.currency}
-                    onChange={(e) => {
-                        const newCur = e.target.value;
+                    onChange={(newCur) => {
                         const oldCur = form.data.currency;
                         let newPrice = form.data.price;
                         if (oldCur !== newCur && newPrice > 0 && eurRates) {
@@ -1468,7 +1550,7 @@ function PaymentTab({
                     return (
                         <div key={pi} className="border rounded-xl p-4 bg-gray-50 space-y-3">
                             <div className="flex items-end gap-3">
-                                <div className="w-7 h-7 mb-1 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">
+                                <div className="w-7 h-7 mb-1 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center shrink-0">
                                     {pi + 1}
                                 </div>
                                 <div className="w-40">
@@ -1480,12 +1562,13 @@ function PaymentTab({
                                     </select>
                                 </div>
                                 {p.method === 'POS' && (
-                                    <div className="w-28">
-                                        <label className="label">Currency</label>
-                                        <select className="input" value={payCur}
-                                            onChange={(e) => updatePayment(pi, 'currency', e.target.value)}>
-                                            {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                        </select>
+                                    <div className="w-36">
+                                        <SearchableCurrencySelect
+                                            label="Currency"
+                                            value={payCur}
+                                            onChange={(newCur) => updatePayment(pi, 'currency', newCur)}
+                                            options={CURRENCIES}
+                                        />
                                     </div>
                                 )}
                                 <div className="flex-1 text-right font-bold text-green-800 pb-2">
@@ -1500,7 +1583,7 @@ function PaymentTab({
                                 </div>
                                 <button type="button" disabled={payments.length === 1}
                                     onClick={() => removePayment(pi)}
-                                    className="h-9 px-3 bg-red-600 text-white rounded disabled:bg-gray-300">
+                                    className="h-9 px-3 bg-red-600 text-white rounded disabled:bg-gray-300 shrink-0">
                                     <Trash2 size={14} />
                                 </button>
                             </div>
@@ -1515,12 +1598,13 @@ function PaymentTab({
 
                                         return (
                                             <div key={ni} className="grid grid-cols-12 gap-2 items-end">
-                                                <div className="col-span-3">
-                                                    <label className="label">Currency</label>
-                                                    <select className="input" value={noteCur}
-                                                        onChange={(e) => updateNote(pi, ni, 'currency', e.target.value)}>
-                                                        {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                                                    </select>
+                                                <div className="col-span-4 sm:col-span-3">
+                                                    <SearchableCurrencySelect
+                                                        label="Currency"
+                                                        value={noteCur}
+                                                        onChange={(newCur) => updateNote(pi, ni, 'currency', newCur)}
+                                                        options={CURRENCIES}
+                                                    />
                                                 </div>
                                                 <div className="col-span-4">
                                                     <Field label="Note Value" type="number" value={n.amount}
