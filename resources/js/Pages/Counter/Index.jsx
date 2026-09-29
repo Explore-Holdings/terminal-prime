@@ -2619,9 +2619,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             {/* Rate mode radio buttons */}
                             <div>
                                 <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {/* Standard Rate */}
-                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {/* Standard Rate - commented out */}
+                                    {/* <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
                                         <input
                                             type="radio"
                                             name="rateMode"
@@ -2633,7 +2633,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         <span className={`text-lg ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-400'}`}>📊</span>
                                         <span className={`text-[11px] font-semibold ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-600'}`}>Standard Rate</span>
                                         <span className="text-[9px] text-gray-400">Based on % rates</span>
-                                    </label>
+                                    </label> */}
 
                                     {/* Custom Rate */}
                                     <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'custom' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -2650,8 +2650,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         <span className="text-[9px] text-gray-400">City-based pricing</span>
                                     </label>
 
-                                    {/* Per KM Rate */}
-                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                    {/* Per KM Rate - commented out */}
+                                    {/* <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
                                         <input
                                             type="radio"
                                             name="rateMode"
@@ -2663,12 +2663,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         <span className={`text-lg ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-400'}`}>📍</span>
                                         <span className={`text-[11px] font-semibold ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-600'}`}>Per KM Rate</span>
                                         <span className="text-[9px] text-gray-400">Distance-based pricing</span>
-                                    </label>
+                                    </label> */}
                                 </div>
                             </div>
 
-                            {/* Panel: Standard Rate */}
-                            {rateMode === 'standard' && (
+                            {/* Panel: Standard Rate - commented out */}
+                            {/* {rateMode === 'standard' && (
                                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex justify-between items-center text-xs">
                                     <span className="text-blue-600 font-semibold uppercase tracking-wide">Driver Rate ({defaultDriverRate}%)</span>
                                     <div className="text-right">
@@ -2685,7 +2685,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         })()}
                                     </div>
                                 </div>
-                            )}
+                            )} */}
 
                             {/* Panel: Custom Rate — city picker */}
                             {rateMode === 'custom' && (
@@ -2772,8 +2772,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 </div>
                             )}
 
-                            {/* Panel: Per KM Rate details */}
-                            {rateMode === 'per_km' && (
+                            {/* Panel: Per KM Rate details - commented out */}
+                            {/* {rateMode === 'per_km' && (
                                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-2.5 space-y-1.5 text-xs">
                                     <div className="flex justify-between items-center">
                                         <span className="text-purple-700 font-medium">Distance</span>
@@ -2783,10 +2783,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         <span className="text-purple-700 font-medium">Rate per KM for {confirmModal.vehicle.vehicle_type}</span>
                                         <span className="font-bold text-purple-900">LKR {vehicleRateValue.toLocaleString()}</span>
                                     </div>
-                                    {/* <div className="flex justify-between items-center">
-                                        <span className="text-purple-700 font-medium">Multiplier</span>
-                                        <span className="font-bold text-purple-900">1.5x</span>
-                                    </div> */}
                                     <div className="border-t border-purple-200 pt-1.5 flex justify-between items-center">
                                         <span className="font-bold text-purple-800">Driver : </span>
                                         <div className="text-right">
@@ -2804,7 +2800,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            )} */}
                         </div>
 
                         {/* Footer */}
