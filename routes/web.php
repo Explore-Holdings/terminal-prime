@@ -24,6 +24,7 @@ use App\Http\Controllers\PricingDataController;
 use App\Http\Controllers\AccountantController;
 use App\Http\Controllers\AgentDriverInsightsController;
 use App\Http\Controllers\CustomerChatController;
+use App\Http\Controllers\CustomerInquiryController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -182,6 +183,12 @@ Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
 
 Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
     ->name('survey.store');
+
+// Public Customer QR Inquiry Form (Agent business card QR scan)
+Route::get('/inquiry', [CustomerInquiryController::class, 'show'])
+    ->name('inquiry.show');
+Route::post('/inquiry', [CustomerInquiryController::class, 'store'])
+    ->name('inquiry.store');
 
 Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
     ->name('customer-surveys.index');
