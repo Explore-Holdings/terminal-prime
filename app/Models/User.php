@@ -70,4 +70,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserLoginLog::class);
     }
+
+    public function customerChats()
+    {
+        return $this->hasMany(CustomerChat::class, 'agent_id');
+    }
 }

@@ -23,6 +23,7 @@ use App\Http\Controllers\CustomerSurveyAdminController;
 use App\Http\Controllers\PricingDataController;
 use App\Http\Controllers\AccountantController;
 use App\Http\Controllers\AgentDriverInsightsController;
+use App\Http\Controllers\CustomerChatController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -199,6 +200,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/accountant/approve/{tripFinance}', [AccountantController::class, 'approve'])->name('accountant.approve');
     Route::post('/accountant/slips/{slip}/status', [AccountantController::class, 'updateSlipStatus'])->name('accountant.slips.status');
     Route::post('/accountant/trip-finances/{tripFinance}/slips/status', [AccountantController::class, 'updateAllSlipsStatus'])->name('accountant.trip-finances.slips.status');
+    
+    // Customer Chats routes
+    Route::get('/chats', [CustomerChatController::class, 'index'])->name('chats.index');
+    Route::get('/chats/{chat}/messages', [CustomerChatController::class, 'messages'])->name('chats.messages');
+    Route::post('/chats/{chat}/messages', [CustomerChatController::class, 'storeMessage'])->name('chats.messages.store');
+    Route::patch('/chats/{chat}/status', [CustomerChatController::class, 'updateStatus'])->name('chats.update-status');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
