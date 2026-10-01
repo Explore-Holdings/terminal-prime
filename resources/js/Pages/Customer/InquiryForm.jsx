@@ -18,7 +18,6 @@ import {
     Paperclip,
     ShieldCheck,
     MessageSquare,
-    ArrowRight,
     Clock,
     ChevronDown,
     ChevronUp,
@@ -45,6 +44,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
 
     const messagesEndRef = useRef(null);
     const pollTimerRef = useRef(null);
+    const verificationRequestRef = useRef(0);
 
     // Auto-scroll chat to bottom
     const scrollToBottom = (behavior = 'smooth') => {
@@ -58,6 +58,18 @@ export default function InquiryForm({ initialInvoice = '' }) {
             scrollToBottom('auto');
         }
     }, [verified, messages]);
+
+    const handleInvoiceNumberChange = (value) => {
+        setInvoiceNumber(value);
+        setVerifyError(null);
+        setIsVerifying(false);
+        verificationRequestRef.current += 1;
+        setVerified(false);
+        setCustomer(null);
+        setChatId(null);
+        setMessages([]);
+        setMessageText('');
+    };
 
     // Polling for incoming agent messages when a chat session is active
     useEffect(() => {
@@ -86,15 +98,14 @@ export default function InquiryForm({ initialInvoice = '' }) {
     }, [verified, chatId, chatStatus]);
 
     // Handle Invoice Verification (Does NOT save to DB)
-    const handleVerifyInvoice = async (e) => {
-        if (e) e.preventDefault();
-        const cleanedNum = invoiceNumber.trim().replace(/^INV-?/i, '');
+    const handleVerifyInvoice = async (value) => {
+        const cleanedNum = value.trim().replace(/^INV-?/i, '');
         if (!cleanedNum) {
-            setVerifyError('Please enter your invoice number digits (e.g. 00001).');
             return;
         }
 
         const fullInvoice = 'INV-' + cleanedNum;
+        const requestId = ++verificationRequestRef.current;
         setIsVerifying(true);
         setVerifyError(null);
 
@@ -102,6 +113,8 @@ export default function InquiryForm({ initialInvoice = '' }) {
             const res = await axios.post('/customer-portal/verify-invoice', {
                 invoice_number: fullInvoice,
             });
+
+            if (requestId !== verificationRequestRef.current) return;
 
             if (res.data?.success && res.data.customer) {
                 setCustomer(res.data.customer);
@@ -121,24 +134,25 @@ export default function InquiryForm({ initialInvoice = '' }) {
                 setVerifyError('Could not verify this invoice. Please check and try again.');
             }
         } catch (err) {
+            if (requestId !== verificationRequestRef.current) return;
             const errorMsg =
                 err.response?.data?.message ||
                 `Invoice "INV-${cleanedNum}" was not found in our records. Please verify the invoice number (e.g. INV-00001, INV-00002).`;
             setVerifyError(errorMsg);
         } finally {
-            setIsVerifying(false);
+            if (requestId === verificationRequestRef.current) {
+                setIsVerifying(false);
+            }
         }
     };
 
-    // Auto-verify if initial invoice provided via query param
     useEffect(() => {
-        if (cleanInitial.length > 0) {
-            const timer = setTimeout(() => {
-                handleVerifyInvoice();
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, []);
+        const value = invoiceNumber.trim();
+        if (!value) return;
+
+        const timer = setTimeout(() => handleVerifyInvoice(value), 600);
+        return () => clearTimeout(timer);
+    }, [invoiceNumber]);
 
     // Reset back to invoice entry
     const handleReset = () => {
@@ -146,6 +160,9 @@ export default function InquiryForm({ initialInvoice = '' }) {
             clearInterval(pollTimerRef.current);
             pollTimerRef.current = null;
         }
+        verificationRequestRef.current += 1;
+        setInvoiceNumber('');
+        setIsVerifying(false);
         setVerified(false);
         setCustomer(null);
         setShowCustomerDetails(false);
@@ -159,7 +176,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
     const handleSendMessage = async (e) => {
         if (e) e.preventDefault();
         const text = messageText.trim();
-        if (!text || isSending || !customer) return;
+        if (!text || isSending || !verified || !customer) return;
 
         setIsSending(true);
 
@@ -240,7 +257,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
                     STEP 1: INVOICE ENTRY ONLY (Customer enters ONLY Invoice Number)
                    ═══════════════════════════════════════════════════════════════════ */}
                 {!verified && (
-                    <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/60 overflow-hidden transition-all duration-300 max-w-lg mx-auto">
+                <div className="w-full max-w-2xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/60 overflow-hidden transition-all duration-300 mb-3">
                         {/* Header Banner */}
                         <div className="bg-gradient-to-r from-[#00853f] via-[#009b49] to-[#016832] px-5 py-4 sm:px-6 sm:py-5 text-white text-center relative overflow-hidden">
                             <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
@@ -272,7 +289,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
 
                         {/* Invoice Verification Form */}
                         <div className="p-5 sm:p-6">
-                            <form onSubmit={handleVerifyInvoice} className="space-y-3.5">
+                            <div className="space-y-3.5">
                                 <div>
                                     <label
                                         htmlFor="invoice_number_input"
@@ -296,18 +313,17 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                                 onChange={(e) => {
                                                     // Automatically strip 'INV-' or 'INV' if pasted or typed
                                                     const val = e.target.value.toUpperCase().replace(/^INV-?/i, '').replace(/[^0-9A-Z]/g, '');
-                                                    setInvoiceNumber(val);
-                                                    setVerifyError(null);
+                                                    handleInvoiceNumberChange(val);
                                                 }}
                                                 placeholder="00001"
                                                 autoFocus
                                                 autoComplete="off"
-                                                className="w-full text-lg sm:text-xl font-mono font-bold tracking-widest px-4 py-2.5 sm:py-3 text-neutral-900 placeholder:text-neutral-300 outline-none bg-transparent"
+                                                className="w-full text-lg sm:text-xl font-mono font-bold tracking-widest px-4 py-1.5 sm:py-2 text-neutral-900 placeholder:text-neutral-300 outline-none bg-transparent"
                                             />
                                             {invoiceNumber && (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setInvoiceNumber('')}
+                                                    onClick={() => handleInvoiceNumberChange('')}
                                                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 w-6 h-6 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors font-bold text-sm cursor-pointer"
                                                     title="Clear"
                                                 >
@@ -329,25 +345,10 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                     </div>
                                 )}
 
-                                {/* Submit button */}
-                                <button
-                                    type="submit"
-                                    disabled={isVerifying || !invoiceNumber.trim()}
-                                    className="w-full py-3 px-5 rounded-2xl bg-[#00853f] hover:bg-[#006f34] active:bg-[#005a2a] text-white font-bold text-sm sm:text-base tracking-wide shadow-md shadow-[#00853f]/30 hover:shadow-lg hover:shadow-[#00853f]/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group cursor-pointer"
-                                >
-                                    {isVerifying ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                            <span>Verifying Invoice Details...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>Verify & Open Live Chat</span>
-                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </>
-                                    )}
-                                </button>
-                            </form>
+                                <p className="text-xs text-neutral-500" aria-live="polite">
+                                    {isVerifying ? 'Verifying invoice...' : 'Chat unlocks automatically when your invoice is verified.'}
+                                </p>
+                            </div>
 
                             {/* Trust badges footer */}
                             <div className="mt-4 pt-3.5 border-t border-neutral-100 flex items-center justify-center gap-5 text-[11px] text-neutral-400 font-medium">
@@ -365,7 +366,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                 </span>
                             </div>
                         </div>
-                    </div>
+                </div>
                 )}
 
 
@@ -373,9 +374,6 @@ export default function InquiryForm({ initialInvoice = '' }) {
                     STEP 2: WHATSAPP UI CHAT BOX + VERIFIED DETAILS BADGE
                    ═══════════════════════════════════════════════════════════════════ */}
                 {verified && customer && (
-                    <div className="flex flex-col gap-2.5">
-
-                        {/* VERIFIED CUSTOMER DETAILS CARD (Read-only summary, hidden by default) */}
                         <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 p-3 sm:p-3.5 text-neutral-800 transition-all">
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -460,9 +458,10 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                 </div>
                             )}
                         </div>
+                )}
 
                         {/* ─── WHATSAPP UI CHAT CONTAINER ─── */}
-                        <div className="bg-[#efeae2] rounded-3xl shadow-2xl border border-white/60 overflow-hidden flex flex-col h-[560px] sm:h-[620px] transition-all relative">
+                        <div className={`bg-[#efeae2] rounded-3xl shadow-2xl border border-white/60 overflow-hidden flex flex-col h-[560px] sm:h-[620px] transition-all relative ${verified ? '' : 'opacity-80'}`}>
 
                             {/* 1. WHATSAPP HEADER */}
                             <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between shadow-md z-10">
@@ -486,15 +485,15 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                             </span>
                                         </div>
                                         <p className="text-[11px] text-emerald-100/90 flex items-center gap-1 font-medium">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] inline-block animate-ping" />
-                                            <span>Online • Replying in minutes</span>
+                                            <span className={`w-1.5 h-1.5 rounded-full inline-block ${verified ? 'bg-[#25D366] animate-ping' : 'bg-neutral-300'}`} />
+                                            <span>{verified ? 'Online • Replying in minutes' : 'Verify your invoice to unlock chat'}</span>
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="text-right">
                                     <span className="text-[10px] text-emerald-200 block font-mono font-bold">
-                                        {customer.invoice_number}
+                                        {customer?.invoice_number || 'Invoice required'}
                                     </span>
                                     <span className="text-[9px] text-emerald-200/75 block">
                                         Terminal 1 Desk
@@ -523,7 +522,9 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                     <div className="bg-[#ffeecd] text-[#54656f] text-[10.5px] px-3.5 py-1.5 rounded-xl shadow-xs border border-[#ffdf9e] max-w-sm text-center flex items-center gap-1.5 font-medium">
                                         <ShieldCheck className="w-3.5 h-3.5 text-[#00853f] shrink-0" />
                                         <span>
-                                            Verified session for <strong>{customer.name}</strong> ({customer.invoice_number}). Messages route directly to counter staff.
+                                            {verified && customer
+                                                ? <>Verified session for <strong>{customer.name}</strong> ({customer.invoice_number}). Messages route directly to counter staff.</>
+                                                : 'Enter your invoice number above. This chat will unlock automatically after verification.'}
                                         </span>
                                     </div>
                                 </div>
@@ -532,14 +533,16 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                 <div className="flex justify-start animate-fadeIn">
                                     <div className="bg-white text-neutral-800 rounded-2xl rounded-tl-xs px-3.5 py-2.5 max-w-[85%] sm:max-w-[75%] shadow-sm border border-neutral-200/70 text-xs sm:text-sm space-y-1">
                                         <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#075E54]">
-                                            <span>Europcar Airport Counter</span>
+                                            <span>{customer?.agent_name || 'Europcar Airport Counter'}</span>
                                             <span className="text-[10px] text-neutral-400 font-normal">• Verified Desk</span>
                                         </div>
                                         <p className="leading-relaxed">
-                                            Hello <strong>{customer.name}</strong>! 👋 Welcome to Europcar Airport Counter Support.
+                                            Hello <strong>{customer?.name || 'there'}</strong>! Welcome to Europcar Airport Counter Support.
                                         </p>
                                         <p className="leading-relaxed text-neutral-600 text-xs">
-                                            We have confirmed your invoice <strong>#{customer.invoice_number}</strong>. How may our airport counter team assist you today?
+                                            {verified && customer
+                                                ? <>We have confirmed your invoice <strong>#{customer.invoice_number}</strong>. How may our airport counter team assist you today?</>
+                                                : 'Verify your invoice to start a conversation with our airport counter team.'}
                                         </p>
                                         <div className="flex justify-end pt-0.5">
                                             <span className="text-[10px] text-neutral-400">Desk Assistant</span>
@@ -600,7 +603,8 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                         key={prompt}
                                         type="button"
                                         onClick={() => handleQuickPrompt(prompt)}
-                                        className="px-2.5 py-1 bg-white hover:bg-neutral-100 active:scale-95 text-neutral-700 text-[11px] font-medium rounded-full shadow-2xs border border-neutral-300 shrink-0 transition-all cursor-pointer"
+                                        disabled={!verified}
+                                        className="px-2.5 py-1 bg-white hover:bg-neutral-100 active:scale-95 text-neutral-700 text-[11px] font-medium rounded-full shadow-2xs border border-neutral-300 shrink-0 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {prompt}
                                     </button>
@@ -618,14 +622,14 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                         value={messageText}
                                         onChange={(e) => setMessageText(e.target.value)}
                                         placeholder="Type a message..."
-                                        disabled={isSending}
-                                        className="w-full bg-white text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm px-4 py-2.5 rounded-full border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#00853f]/30 focus:border-[#00853f] transition-all shadow-inner"
+                                        disabled={!verified || isSending}
+                                        className="w-full bg-white text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm px-4 py-2.5 rounded-full border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#00853f]/30 focus:border-[#00853f] transition-all shadow-inner disabled:bg-neutral-100 disabled:cursor-not-allowed"
                                     />
                                 </div>
 
                                 <button
                                     type="submit"
-                                    disabled={!messageText.trim() || isSending}
+                                    disabled={!verified || !messageText.trim() || isSending}
                                     className="w-10 h-10 rounded-full bg-[#00853f] hover:bg-[#007035] active:bg-[#005a2a] text-white flex items-center justify-center shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 cursor-pointer"
                                     title="Send Message"
                                 >
@@ -637,8 +641,6 @@ export default function InquiryForm({ initialInvoice = '' }) {
                                 </button>
                             </form>
                         </div>
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -71,7 +71,7 @@ class CustomerInquiryController extends Controller
                     $q->orWhereRaw('LOWER(invoice_number) = ?', [strtolower($cand)]);
                 }
             })
-            ->with(['agent'])
+            ->with(['agent.user'])
             ->first();
 
         if (!$customer) {
@@ -113,6 +113,7 @@ class CustomerInquiryController extends Controller
                 'invoice_number' => $customer->invoice_number,
                 'dropoff_location' => $customer->dropoff_location,
                 'agent_id' => $agentUserId,
+                'agent_name' => $customer->agent?->user?->name ?: 'Europcar Airport Counter',
             ],
             'existing_chat' => $existingChat,
         ]);
