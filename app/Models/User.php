@@ -120,8 +120,8 @@ class User extends Authenticatable
         return $this->hasMany(UserLoginLog::class);
     }
 
-    public function customerChats()
+    public function chatMessages()
     {
-        return $this->hasMany(CustomerChat::class, 'agent_id');
+        return $this->hasOne(CustomerChatMessage::class, 'agent_id', 'agent_id');
     }
 }

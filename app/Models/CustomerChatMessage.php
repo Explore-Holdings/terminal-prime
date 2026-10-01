@@ -12,28 +12,28 @@ class CustomerChatMessage extends Model
 
     protected $table = 'customer_chat_messages';
 
-    // The table only has created_at
-    const UPDATED_AT = null;
+    public $timestamps = true;
 
     protected $fillable = [
-        'chat_id',
-        'sender',
-        'sender_name',
+        'agent_id',
+        'status',
         'message',
-        'created_at',
     ];
 
-    protected $casts = [
-        'created_at' => 'datetime',
+    protected $attributes = [
+        'status' => 'ongoing',
     ];
 
-    public function chat(): BelongsTo
+    /**
+     * Relationship to User via agent_id
+     */
+    public function agent(): BelongsTo
     {
-        return $this->belongsTo(CustomerChat::class, 'chat_id');
+        return $this->belongsTo(User::class, 'agent_id', 'agent_id');
     }
 
     /**
-     * Decode the JSON stored in `message` text column into an array of message objects.
+     * Decode the JSON stored in `message` column into an array of message objects.
      */
     public function getDecodedMessagesAttribute(): array
     {
@@ -46,67 +46,78 @@ class CustomerChatMessage extends Model
         }
 
         $decoded = json_decode($this->message, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-
-        return [[
-            'id' => 1,
-            'sender' => $this->sender,
-            'sender_name' => $this->sender_name,
-            'message' => $this->message,
-            'created_at' => $this->created_at ? $this->created_at->toISOString() : now()->toISOString(),
-        ]];
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
-     * Append a message to the single record for the given chat_id.
-     * Records all messages for this chat in the same record as a JSON text array.
+     * Append a message to a specific chat, or create a brand new chat record if none exists / finished.
+     * Prevents different customers from seeing each other's chat history.
      */
-    public static function appendMessage(int $chatId, string $sender, string $senderName, string $text): array
+    public static function appendToChat(string $agentId, string $sender, string $text, ?int $chatId = null): array
     {
-        $record = self::where('chat_id', $chatId)->first();
+        $record = null;
 
-        $nowStr = now()->toIso8601String();
-        $newMessage = [
-            'id' => 1,
-            'sender' => $sender,
-            'sender_name' => $senderName,
-            'message' => $text,
-            'created_at' => $nowStr,
-        ];
+        if ($chatId) {
+            $record = self::where('id', $chatId)
+                ->where('agent_id', $agentId)
+                ->first();
+        }
 
-        if (!$record) {
-            $messages = [$newMessage];
-            self::create([
-                'chat_id' => $chatId,
-                'sender' => $sender,
-                'sender_name' => $senderName,
-                'message' => json_encode($messages, JSON_UNESCAPED_UNICODE),
-                'created_at' => now(),
+        // If no existing chat specified or found, or if previous chat was finished, start a new chat row
+        if (!$record || $record->status === 'finished') {
+            $record = self::create([
+                'agent_id' => $agentId,
+                'status' => 'ongoing',
+                'message' => json_encode([]),
             ]);
-            return $newMessage;
         }
 
         $messages = $record->decoded_messages;
-        $newMessage['id'] = count($messages) + 1;
+        $nextId = count($messages) + 1;
+
+        $newMessage = [
+            'id' => $nextId,
+            'sender' => $sender, // 'customer' or 'agent'
+            'message' => $text,
+            'created_at' => now()->toIso8601String(),
+        ];
+
         $messages[] = $newMessage;
 
         $record->update([
-            'sender' => $sender,
-            'sender_name' => $senderName,
             'message' => json_encode($messages, JSON_UNESCAPED_UNICODE),
         ]);
 
-        return $newMessage;
+        return [
+            'chat_id' => $record->id,
+            'message' => $newMessage,
+            'messages' => $messages,
+            'status' => $record->status,
+        ];
     }
 
     /**
-     * Get all messages for a given chat_id as an array.
+     * Backward-compatible helper method.
      */
-    public static function getChatMessages(int $chatId): array
+    public static function appendMessage(string $agentId, string $sender, string $text, ?int $chatId = null): array
     {
-        $record = self::where('chat_id', $chatId)->first();
+        $res = self::appendToChat($agentId, $sender, $text, $chatId);
+        return $res['message'];
+    }
+
+    /**
+     * Get all messages for a specific chat ID.
+     */
+    public static function getChatMessages(?int $chatId, string $agentId): array
+    {
+        if (!$chatId) {
+            return [];
+        }
+
+        $record = self::where('id', $chatId)
+            ->where('agent_id', $agentId)
+            ->first();
+
         return $record ? $record->decoded_messages : [];
     }
 }

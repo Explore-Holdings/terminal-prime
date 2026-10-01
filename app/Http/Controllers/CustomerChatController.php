@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\CustomerChat;
 use App\Models\CustomerChatMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,66 +13,73 @@ class CustomerChatController extends Controller
     {
         $status = $request->query('status', 'all');
         $search = $request->query('search');
-        $agentId = $request->query('agent_id', 'all');
-        $dateFilter = $request->query('date_filter', 'all');
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+        $agentFilter = $request->query('agent_id', 'all');
         $selectedId = $request->query('chat_id');
 
-        $query = CustomerChat::query()
-            ->with(['agent:id,name,email', 'messageRecord']);
+        // Query existing chat records from customer_chat_messages
+        $query = CustomerChatMessage::query()->with('agent');
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
-        if ($agentId && $agentId !== 'all') {
-            $query->where('agent_id', $agentId);
+        if ($agentFilter && $agentFilter !== 'all') {
+            $query->where('agent_id', $agentFilter);
         }
 
-        if ($dateFilter === 'today') {
-            $query->whereDate('created_at', today());
-        } elseif ($dateFilter === 'yesterday') {
-            $query->whereDate('created_at', today()->subDay());
-        } elseif ($dateFilter === 'this_month') {
-            $query->whereMonth('created_at', now()->month)
-                  ->whereYear('created_at', now()->year);
-        } elseif ($dateFilter === 'custom' && $startDate && $endDate) {
-            $query->whereDate('created_at', '>=', $startDate)
-                  ->whereDate('created_at', '<=', $endDate);
-        }
+        $records = $query->orderBy('updated_at', 'desc')->get();
+
+        $chats = $records->map(function ($rec) {
+            $decoded = $rec->decoded_messages;
+            $lastMsg = !empty($decoded) ? end($decoded) : null;
+            $agent = $rec->agent;
+
+            return [
+                'id' => $rec->id,
+                'agent_id' => $rec->agent_id,
+                'customer_name' => 'Chat #' . $rec->id . ' (' . $rec->agent_id . ')',
+                'customer_phone' => null,
+                'country' => 'Counter Desk',
+                'country_code' => 'LK',
+                'country_flag' => '🇱🇰',
+                'topic' => 'Inquiry - ' . $rec->agent_id,
+                'status' => $rec->status, // 'ongoing' or 'finished'
+                'agent' => [
+                    'id' => $agent ? $agent->id : null,
+                    'name' => $agent ? $agent->name : $rec->agent_id,
+                    'email' => $agent ? $agent->email : null,
+                    'agent_id' => $rec->agent_id,
+                ],
+                'messages' => $decoded,
+                'messages_count' => count($decoded),
+                'last_message' => $lastMsg ? $lastMsg['message'] : 'No messages yet',
+                'created_at' => $rec->created_at ? $rec->created_at->toISOString() : null,
+                'updated_at' => $rec->updated_at ? $rec->updated_at->toISOString() : null,
+            ];
+        });
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_phone', 'like', "%{$search}%")
-                  ->orWhere('country', 'like', "%{$search}%")
-                  ->orWhere('topic', 'like', "%{$search}%")
-                  ->orWhereHas('agent', function ($agentQuery) use ($search) {
-                      $agentQuery->where('name', 'like', "%{$search}%");
-                  });
-            });
+            $chats = $chats->filter(function ($c) use ($search) {
+                $q = strtolower($search);
+                return str_contains(strtolower($c['customer_name']), $q)
+                    || str_contains(strtolower($c['agent_id']), $q)
+                    || collect($c['messages'])->contains(fn($m) => str_contains(strtolower($m['message'] ?? ''), $q));
+            })->values();
         }
 
-        $chats = $query->orderBy('updated_at', 'desc')->get();
+        $agents = User::whereNotNull('agent_id')
+            ->orderBy('agent_id')
+            ->get(['id', 'name', 'email', 'agent_id']);
 
-        // Agents list for filter dropdown
-        $agents = User::whereHas('role', function ($q) {
-            $q->where('name', 'agent');
-        })->orWhereIn('id', CustomerChat::distinct()->pluck('agent_id'))
-          ->orderBy('name')
-          ->get(['id', 'name', 'email']);
-
-        // Stats summary - count total individual messages across JSON message records
         $totalMessages = 0;
-        foreach (CustomerChatMessage::select('message')->cursor() as $rec) {
+        foreach ($records as $rec) {
             $totalMessages += count($rec->decoded_messages);
         }
 
         $stats = [
-            'total' => CustomerChat::count(),
-            'continuing' => CustomerChat::where('status', 'continuing')->count(),
-            'finished' => CustomerChat::where('status', 'finished')->count(),
+            'total' => CustomerChatMessage::count(),
+            'ongoing' => CustomerChatMessage::where('status', 'ongoing')->count(),
+            'finished' => CustomerChatMessage::where('status', 'finished')->count(),
             'totalMessages' => $totalMessages,
         ];
 
@@ -83,72 +89,124 @@ class CustomerChatController extends Controller
             'filters' => [
                 'status' => $status,
                 'search' => $search,
-                'agent_id' => $agentId,
-                'date_filter' => $dateFilter,
-                'start_date' => $startDate,
-                'end_date' => $endDate,
+                'agent_id' => $agentFilter,
                 'chat_id' => $selectedId ? (int)$selectedId : null,
             ],
             'stats' => $stats,
         ]);
     }
 
-    public function messages(CustomerChat $chat)
+    public function messages($chatId)
     {
+        $chat = CustomerChatMessage::with('agent')->find($chatId);
+
+        if (!$chat) {
+            // Also check by agent_id
+            $chat = CustomerChatMessage::with('agent')
+                ->where('agent_id', $chatId)
+                ->latest('id')
+                ->first();
+        }
+
+        if (!$chat) {
+            return response()->json(['error' => 'Chat record not found'], 404);
+        }
+
+        $agent = $chat->agent;
+        $chatData = [
+            'id' => $chat->id,
+            'agent_id' => $chat->agent_id,
+            'customer_name' => 'Chat #' . $chat->id . ' (' . $chat->agent_id . ')',
+            'topic' => 'Inquiry - ' . $chat->agent_id,
+            'status' => $chat->status,
+            'agent' => [
+                'id' => $agent ? $agent->id : null,
+                'name' => $agent ? $agent->name : $chat->agent_id,
+                'email' => $agent ? $agent->email : null,
+                'agent_id' => $chat->agent_id,
+            ],
+            'messages' => $chat->decoded_messages,
+        ];
+
         return response()->json([
-            'chat' => $chat->load('agent:id,name,email'),
-            'messages' => $chat->messages,
+            'chat' => $chatData,
+            'messages' => $chat->decoded_messages,
             'status' => $chat->status,
         ]);
     }
 
-    public function storeMessage(Request $request, CustomerChat $chat)
+    public function storeMessage(Request $request, $chatId)
     {
         $validated = $request->validate([
             'message' => 'required|string|max:5000',
         ]);
 
-        $user = $request->user();
-        $senderName = $user ? $user->name : 'Agent';
+        $chat = CustomerChatMessage::with('agent')->find($chatId);
+        if (!$chat) {
+            $chat = CustomerChatMessage::with('agent')
+                ->where('agent_id', $chatId)
+                ->where('status', 'ongoing')
+                ->latest('id')
+                ->first();
+        }
 
-        $message = CustomerChatMessage::appendMessage(
-            $chat->id,
+        if (!$chat) {
+            return response()->json(['error' => 'Chat record not found'], 404);
+        }
+
+        $newMessage = CustomerChatMessage::appendMessage(
+            $chat->agent_id,
             'agent',
-            $senderName,
             $validated['message']
         );
 
-        $chat->touch(); // updates updated_at
+        $chat->refresh();
 
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'messages' => $chat->messages,
-                'chat' => $chat->fresh()->load('agent:id,name,email'),
-            ]);
-        }
+        $agent = $chat->agent;
+        $chatData = [
+            'id' => $chat->id,
+            'agent_id' => $chat->agent_id,
+            'customer_name' => 'Chat #' . $chat->id . ' (' . $chat->agent_id . ')',
+            'topic' => 'Inquiry - ' . $chat->agent_id,
+            'status' => $chat->status,
+            'agent' => [
+                'id' => $agent ? $agent->id : null,
+                'name' => $agent ? $agent->name : $chat->agent_id,
+                'email' => $agent ? $agent->email : null,
+                'agent_id' => $chat->agent_id,
+            ],
+            'messages' => $chat->decoded_messages,
+        ];
 
-        return redirect()->back()->with('success', 'Message sent successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => $newMessage,
+            'messages' => $chat->decoded_messages,
+            'chat' => $chatData,
+        ]);
     }
 
-    public function updateStatus(Request $request, CustomerChat $chat)
+    public function updateStatus(Request $request, $chatId)
     {
         $validated = $request->validate([
-            'status' => 'required|in:continuing,finished',
+            'status' => 'required|in:ongoing,finished',
         ]);
 
-        $chat->update([
-            'status' => $validated['status'],
-        ]);
-
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'chat' => $chat,
-            ]);
+        $chat = CustomerChatMessage::find($chatId);
+        if (!$chat) {
+            $chat = CustomerChatMessage::where('agent_id', $chatId)
+                ->where('status', 'ongoing')
+                ->latest('id')
+                ->first();
         }
 
-        return redirect()->back()->with('success', 'Chat status updated.');
+        if ($chat) {
+            $chat->update(['status' => $validated['status']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'chat' => $chat,
+        ]);
     }
 }
