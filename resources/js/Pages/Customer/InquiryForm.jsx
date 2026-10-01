@@ -8,17 +8,66 @@ import {
     Sparkles,
     PlusCircle,
     RotateCcw,
+    UserX,
 } from 'lucide-react';
 
-export default function InquiryForm({ agent = {}, initialMessages = [], initialChatId = null, status = 'ongoing' }) {
+export default function InquiryForm({
+    agent = null,
+    agentNotFound = false,
+    requestedAgentId = '',
+    initialMessages = [],
+    initialChatId = null,
+    status = 'continuing',
+}) {
+    // If agent was not found, show clean Agent Not Found notice (do not fallback to a default agent)
+    if (agentNotFound || !agent) {
+        return (
+            <div
+                className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col items-center justify-center p-3 sm:p-4 font-sans selection:bg-[#00853f] selection:text-white relative"
+                style={{
+                    backgroundImage: "url('/assets/images/inquiry-bg.jpg')",
+                }}
+            >
+                <Head title="Agent Not Found - Europcar Airport Counter" />
+
+                <div className="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/60 p-6 sm:p-8 text-center text-neutral-800 animate-fadeIn">
+                    <div className="w-16 h-16 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-200 shadow-inner">
+                        <UserX className="w-8 h-8" />
+                    </div>
+
+                    <span className="text-[11px] font-mono font-bold tracking-widest uppercase bg-red-100/70 text-red-700 px-3 py-1 rounded-full inline-block mb-3">
+                        {requestedAgentId || 'Invalid Agent'}
+                    </span>
+
+                    <h1 className="text-xl sm:text-2xl font-black text-neutral-900 mb-2">
+                        Agent Not Found
+                    </h1>
+
+                    <p className="text-sm text-neutral-600 leading-relaxed mb-6">
+                        No airport counter desk agent was found with ID <strong>{requestedAgentId}</strong>. Please check your QR code or agent link and try again.
+                    </p>
+
+                    <a
+                        href="/customerPortal"
+                        className="inline-flex items-center justify-center gap-2 w-full py-3 px-5 bg-[#00853f] hover:bg-[#007035] active:scale-95 text-white font-bold text-sm rounded-xl shadow-md transition-all cursor-pointer"
+                    >
+                        <Building2 className="w-4 h-4" />
+                        <span>Go to Airport Counter Desk</span>
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     const agentId = agent?.agent_id || 'AGNT-1';
+    const agentFk = agent?.id;
     const agentName = agent?.name || 'Counter Agent';
 
     // Per-customer chat ID: each customer has their own chat ID stored in localStorage & session
     const [chatId, setChatId] = useState(() => {
         if (initialChatId) return initialChatId;
         try {
-            const stored = localStorage.getItem(`customer_chat_${agentId}`);
+            const stored = localStorage.getItem(`customer_chat_${agentFk || agentId}`);
             return stored ? parseInt(stored, 10) : null;
         } catch {
             return null;
@@ -27,7 +76,7 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
 
     const [messages, setMessages] = useState(initialMessages || []);
     const [messageText, setMessageText] = useState('');
-    const [chatStatus, setChatStatus] = useState(status || 'ongoing');
+    const [chatStatus, setChatStatus] = useState(status || 'continuing');
     const [isSending, setIsSending] = useState(false);
 
     const messagesEndRef = useRef(null);
@@ -44,7 +93,7 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
         scrollToBottom('auto');
     }, [messages]);
 
-    // On initial mount: if customer has a stored chatId from earlier, load their ongoing messages
+    // On initial mount: if customer has a stored chatId from earlier, load their continuing messages
     useEffect(() => {
         if (chatId && (!initialMessages || initialMessages.length === 0)) {
             axios.get(`/customer-portal/messages/${agentId}?chat_id=${chatId}`)
@@ -91,11 +140,11 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
             pollTimerRef.current = null;
         }
         try {
-            localStorage.removeItem(`customer_chat_${agentId}`);
+            localStorage.removeItem(`customer_chat_${agentFk || agentId}`);
         } catch {}
         setChatId(null);
         setMessages([]);
-        setChatStatus('ongoing');
+        setChatStatus('continuing');
         setMessageText('');
     };
 
@@ -120,7 +169,7 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
 
         try {
             const res = await axios.post('/customer-portal/send-message', {
-                agent_id: agentId,
+                agent_id: agentFk || agentId,
                 chat_id: chatId,
                 message: text,
             });
@@ -129,7 +178,7 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
                 if (res.data.chat_id) {
                     setChatId(res.data.chat_id);
                     try {
-                        localStorage.setItem(`customer_chat_${agentId}`, res.data.chat_id);
+                        localStorage.setItem(`customer_chat_${agentFk || agentId}`, res.data.chat_id);
                     } catch {}
                 }
                 if (res.data.status) {
