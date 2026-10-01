@@ -31,12 +31,16 @@ class UserController extends Controller
             'signature' => 'nullable|image|max:10240',
         ]);
 
+        $role = Role::find($request->role_id);
+        $isAgent = $role && strtolower(trim($role->name)) === 'agent';
+
         $data = [
             'role_id' => $request->role_id,
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'designation' => $request->designation,
+            'agent_id' => $isAgent ? User::generateNextAgentId() : null,
         ];
 
         if ($request->hasFile('signature')) {
@@ -61,11 +65,15 @@ class UserController extends Controller
             'signature' => 'nullable|image|max:10240',
         ]);
 
+        $role = Role::find($request->role_id);
+        $isAgent = $role && strtolower(trim($role->name)) === 'agent';
+
         $data = [
             'role_id' => $request->role_id,
             'name' => $request->name,
             'email' => $request->email,
             'designation' => $request->designation,
+            'agent_id' => $isAgent ? ($user->agent_id ?: User::generateNextAgentId()) : null,
         ];
 
         if ($request->filled('password')) {
