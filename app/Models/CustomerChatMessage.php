@@ -20,16 +20,20 @@ class CustomerChatMessage extends Model
         'message',
     ];
 
+    protected $casts = [
+        'agent_id' => 'integer',
+    ];
+
     protected $attributes = [
-        'status' => 'ongoing',
+        'status' => 'continuing',
     ];
 
     /**
-     * Relationship to User via agent_id
+     * Relationship to User via foreign key agent_id -> users.id
      */
     public function agent(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'agent_id', 'agent_id');
+        return $this->belongsTo(User::class, 'agent_id', 'id');
     }
 
     /**
@@ -51,23 +55,23 @@ class CustomerChatMessage extends Model
 
     /**
      * Append a message to a specific chat, or create a brand new chat record if none exists / finished.
-     * Prevents different customers from seeing each other's chat history.
+     * Uses agent_id as an unsigned big integer foreign key to users.id.
      */
-    public static function appendToChat(string $agentId, string $sender, string $text, ?int $chatId = null): array
+    public static function appendToChat(int $agentFkId, string $sender, string $text, ?int $chatId = null): array
     {
         $record = null;
 
         if ($chatId) {
             $record = self::where('id', $chatId)
-                ->where('agent_id', $agentId)
+                ->where('agent_id', $agentFkId)
                 ->first();
         }
 
         // If no existing chat specified or found, or if previous chat was finished, start a new chat row
         if (!$record || $record->status === 'finished') {
             $record = self::create([
-                'agent_id' => $agentId,
-                'status' => 'ongoing',
+                'agent_id' => $agentFkId,
+                'status' => 'continuing',
                 'message' => json_encode([]),
             ]);
         }
@@ -99,23 +103,23 @@ class CustomerChatMessage extends Model
     /**
      * Backward-compatible helper method.
      */
-    public static function appendMessage(string $agentId, string $sender, string $text, ?int $chatId = null): array
+    public static function appendMessage(int $agentFkId, string $sender, string $text, ?int $chatId = null): array
     {
-        $res = self::appendToChat($agentId, $sender, $text, $chatId);
+        $res = self::appendToChat($agentFkId, $sender, $text, $chatId);
         return $res['message'];
     }
 
     /**
      * Get all messages for a specific chat ID.
      */
-    public static function getChatMessages(?int $chatId, string $agentId): array
+    public static function getChatMessages(?int $chatId, int $agentFkId): array
     {
         if (!$chatId) {
             return [];
         }
 
         $record = self::where('id', $chatId)
-            ->where('agent_id', $agentId)
+            ->where('agent_id', $agentFkId)
             ->first();
 
         return $record ? $record->decoded_messages : [];

@@ -43,7 +43,7 @@ class CustomerChatController extends Controller
                 'country_code' => 'LK',
                 'country_flag' => '🇱🇰',
                 'topic' => 'Inquiry - ' . $rec->agent_id,
-                'status' => $rec->status, // 'ongoing' or 'finished'
+                'status' => $rec->status, // 'continuing' or 'finished'
                 'agent' => [
                     'id' => $agent ? $agent->id : null,
                     'name' => $agent ? $agent->name : $rec->agent_id,
@@ -78,7 +78,7 @@ class CustomerChatController extends Controller
 
         $stats = [
             'total' => CustomerChatMessage::count(),
-            'ongoing' => CustomerChatMessage::where('status', 'ongoing')->count(),
+            'continuing' => CustomerChatMessage::where('status', 'continuing')->count(),
             'finished' => CustomerChatMessage::where('status', 'finished')->count(),
             'totalMessages' => $totalMessages,
         ];
@@ -145,7 +145,7 @@ class CustomerChatController extends Controller
         if (!$chat) {
             $chat = CustomerChatMessage::with('agent')
                 ->where('agent_id', $chatId)
-                ->where('status', 'ongoing')
+                ->where('status', 'continuing')
                 ->latest('id')
                 ->first();
         }
@@ -157,7 +157,8 @@ class CustomerChatController extends Controller
         $newMessage = CustomerChatMessage::appendMessage(
             $chat->agent_id,
             'agent',
-            $validated['message']
+            $validated['message'],
+            $chat->id
         );
 
         $chat->refresh();
@@ -166,14 +167,14 @@ class CustomerChatController extends Controller
         $chatData = [
             'id' => $chat->id,
             'agent_id' => $chat->agent_id,
-            'customer_name' => 'Chat #' . $chat->id . ' (' . $chat->agent_id . ')',
-            'topic' => 'Inquiry - ' . $chat->agent_id,
+            'customer_name' => 'Chat #' . $chat->id . ' (' . ($agent?->agent_id ?? 'Agent') . ')',
+            'topic' => 'Inquiry - ' . ($agent?->agent_id ?? 'Counter Desk'),
             'status' => $chat->status,
             'agent' => [
                 'id' => $agent ? $agent->id : null,
-                'name' => $agent ? $agent->name : $chat->agent_id,
+                'name' => $agent ? $agent->name : 'Agent',
                 'email' => $agent ? $agent->email : null,
-                'agent_id' => $chat->agent_id,
+                'agent_id' => $agent?->agent_id,
             ],
             'messages' => $chat->decoded_messages,
         ];
@@ -189,13 +190,13 @@ class CustomerChatController extends Controller
     public function updateStatus(Request $request, $chatId)
     {
         $validated = $request->validate([
-            'status' => 'required|in:ongoing,finished',
+            'status' => 'required|in:continuing,finished',
         ]);
 
         $chat = CustomerChatMessage::find($chatId);
         if (!$chat) {
             $chat = CustomerChatMessage::where('agent_id', $chatId)
-                ->where('status', 'ongoing')
+                ->where('status', 'continuing')
                 ->latest('id')
                 ->first();
         }
