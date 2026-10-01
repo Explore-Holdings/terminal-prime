@@ -120,9 +120,14 @@ export default function Index({ users = [], roles = [] }) {
                         <p className="font-semibold text-gray-800">
                             {row.name ?? '-'}
                         </p>
-                        <p className="text-xs text-gray-400">
-                            ID: {row.id}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-gray-400">ID: {row.id}</span>
+                            {row.agent_id && (
+                                <span className="bg-amber-50 text-amber-800 font-mono font-bold px-1.5 py-0.5 rounded text-[10px] border border-amber-300">
+                                    {row.agent_id}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             ),
@@ -314,6 +319,26 @@ export default function Index({ users = [], roles = [] }) {
                                     {userForm.errors.role_id}
                                 </p>
                             )}
+
+                            {(() => {
+                                const selectedRole = roles.find(r => String(r.id) === String(userForm.data.role_id));
+                                const isAgentRole = selectedRole && selectedRole.name?.toLowerCase() === 'agent';
+                                if (editingUser?.agent_id && isAgentRole) {
+                                    return (
+                                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                                            Assigned Agent ID: <strong className="font-mono font-bold">{editingUser.agent_id}</strong>
+                                        </p>
+                                    );
+                                }
+                                if (isAgentRole) {
+                                    return (
+                                        <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 mt-2">
+                                            ⚡ An Agent ID (e.g. <strong>AGNT-1</strong>) will be automatically generated upon creation.
+                                        </p>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
