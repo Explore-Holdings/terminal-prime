@@ -67,7 +67,7 @@ class CustomerChatMessage extends Model
     {
         $record = self::where('chat_id', $chatId)->first();
 
-        $nowStr = now()->format('Y-m-d H:i:s');
+        $nowStr = now()->toIso8601String();
         $newMessage = [
             'id' => 1,
             'sender' => $sender,

@@ -15,6 +15,8 @@ import {
     XMarkIcon,
     GlobeAltIcon,
     FunnelIcon,
+    PaperAirplaneIcon,
+    CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Index({ chats: initialChats = [], agents = [], filters = {}, stats = {} }) {
@@ -29,6 +31,9 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
         filters.chat_id || (initialChats.length > 0 ? initialChats[0].id : null)
     );
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [replyText, setReplyText] = useState('');
+    const [isSendingReply, setIsSendingReply] = useState(false);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Sync state if initialChats changes
@@ -137,7 +142,38 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
         }
     }, [activeChat?.id, activeChat?.messages?.length]);
 
-    // Refresh active chat messages from backend
+    // Background auto-polling active chat so incoming customer messages show up in real-time
+    useEffect(() => {
+        if (!selectedChatId) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const res = await axios.get(`/chats/${selectedChatId}/messages`);
+                if (res.data?.chat) {
+                    setChats((prev) =>
+                        prev.map((c) => {
+                            if (c.id === selectedChatId) {
+                                return {
+                                    ...c,
+                                    ...res.data.chat,
+                                    status: res.data.status || res.data.chat.status || c.status,
+                                    messages: res.data.messages || [],
+                                    messages_count: (res.data.messages || []).length,
+                                };
+                            }
+                            return c;
+                        })
+                    );
+                }
+            } catch (err) {
+                // Background poll failure silently handled
+            }
+        }, 3500);
+
+        return () => clearInterval(interval);
+    }, [selectedChatId]);
+
+    // Manual refresh active chat messages from backend
     const refreshActiveChat = async (chatId) => {
         if (!chatId) return;
         setIsRefreshing(true);
@@ -150,6 +186,7 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
                             return {
                                 ...c,
                                 ...res.data.chat,
+                                status: res.data.status || res.data.chat.status || c.status,
                                 messages: res.data.messages || [],
                                 messages_count: (res.data.messages || []).length,
                             };
@@ -165,19 +202,134 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
         }
     };
 
-    // Date/time formatters
+    // Send Agent Reply to Customer
+    const handleSendReply = async (e) => {
+        if (e) e.preventDefault();
+        const text = replyText.trim();
+        if (!text || isSendingReply || !activeChat) return;
+
+        setIsSendingReply(true);
+
+        const tempMsg = {
+            id: 'temp-agent-' + Date.now(),
+            sender: 'agent',
+            sender_name: 'You (Agent)',
+            message: text,
+            created_at: new Date().toISOString(),
+            isPending: true,
+        };
+
+        // Optimistically append reply
+        setChats((prev) =>
+            prev.map((c) => {
+                if (c.id === activeChat.id) {
+                    const nextMsgs = [...(c.messages || []), tempMsg];
+                    return {
+                        ...c,
+                        messages: nextMsgs,
+                        messages_count: nextMsgs.length,
+                        latestMessage: tempMsg,
+                    };
+                }
+                return c;
+            })
+        );
+        setReplyText('');
+
+        try {
+            const res = await axios.post(`/chats/${activeChat.id}/messages`, {
+                message: text,
+            });
+
+            if (res.data?.success) {
+                setChats((prev) =>
+                    prev.map((c) => {
+                        if (c.id === activeChat.id) {
+                            const newMessages = res.data.messages || (c.messages || []).map((m) => (m.id === tempMsg.id ? res.data.message : m));
+                            return {
+                                ...c,
+                                ...(res.data.chat || {}),
+                                messages: newMessages,
+                                messages_count: newMessages.length,
+                                latestMessage: res.data.message || tempMsg,
+                            };
+                        }
+                        return c;
+                    })
+                );
+            }
+        } catch (err) {
+            console.error('Failed to send agent reply:', err);
+            // Revert on failure
+            setChats((prev) =>
+                prev.map((c) => {
+                    if (c.id === activeChat.id) {
+                        const reverted = (c.messages || []).filter((m) => m.id !== tempMsg.id);
+                        return {
+                            ...c,
+                            messages: reverted,
+                            messages_count: reverted.length,
+                        };
+                    }
+                    return c;
+                })
+            );
+            setReplyText(text);
+            alert('Failed to send reply. Please check your connection and try again.');
+        } finally {
+            setIsSendingReply(false);
+        }
+    };
+
+    // Toggle Chat Status between continuing and finished
+    const handleToggleStatus = async () => {
+        if (!activeChat || isUpdatingStatus) return;
+        const newStatus = activeChat.status === 'finished' ? 'continuing' : 'finished';
+        setIsUpdatingStatus(true);
+
+        try {
+            const res = await axios.patch(`/chats/${activeChat.id}/status`, {
+                status: newStatus,
+            });
+
+            if (res.data?.success || res.status === 200) {
+                setChats((prev) =>
+                    prev.map((c) => (c.id === activeChat.id ? { ...c, status: newStatus } : c))
+                );
+            }
+        } catch (err) {
+            console.error('Failed to toggle status:', err);
+            alert('Failed to update inquiry status.');
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    // Date/time formatters (handles ISO string and MySQL space-separated format)
     const formatTime = (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '';
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        try {
+            const raw = String(dateStr);
+            const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            const d = new Date(normalized);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } catch {
+            return '';
+        }
     };
 
     const formatFullDateTime = (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '';
-        return `${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        try {
+            const raw = String(dateStr);
+            const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            const d = new Date(normalized);
+            if (isNaN(d.getTime())) return raw;
+            return `${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        } catch {
+            return String(dateStr);
+        }
     };
 
     const clearFilters = () => {
@@ -614,15 +766,95 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
                                     <div ref={messagesEndRef} />
                                 </div>
 
-                                {/* Read-Only Footer */}
-                                <div className="h-11 px-5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between text-xs font-bold text-black shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                        <span>Read-Only View: Customer and Assigned Agent Transcript</span>
+                                {/* Interactive Agent Reply & Controls Footer */}
+                                <div className="border-t border-neutral-200 bg-white p-3 sm:p-4 shrink-0 shadow-lg space-y-2.5">
+                                    {/* Quick reply templates & status toggle bar */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                        {/* Quick Response Chips */}
+                                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full sm:max-w-[70%]">
+                                            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                                Quick:
+                                            </span>
+                                            {[
+                                                'Hello! How can I assist you with your booking?',
+                                                'Your vehicle is ready at the counter.',
+                                                'Please visit Terminal 1 Europcar desk.',
+                                                'Everything has been resolved. Have a safe journey!',
+                                            ].map((tmpl, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => setReplyText(tmpl)}
+                                                    className="text-[11px] font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 hover:text-black px-2.5 py-1 rounded-full border border-neutral-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                                                >
+                                                    {tmpl}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Status Toggle Button */}
+                                        <div className="flex items-center gap-2 ml-auto shrink-0">
+                                            <span
+                                                className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                                                    activeChat.status === 'continuing'
+                                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                                        : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                                }`}
+                                            >
+                                                {activeChat.status === 'continuing' ? 'Active' : 'Finished'}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleToggleStatus}
+                                                disabled={isUpdatingStatus}
+                                                className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1 cursor-pointer ${
+                                                    activeChat.status === 'continuing'
+                                                        ? 'bg-neutral-100 hover:bg-emerald-50 text-neutral-800 hover:text-emerald-700 border-neutral-300 hover:border-emerald-300'
+                                                        : 'bg-neutral-100 hover:bg-amber-50 text-neutral-800 hover:text-amber-800 border-neutral-300 hover:border-amber-300'
+                                                }`}
+                                            >
+                                                {isUpdatingStatus ? (
+                                                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>{activeChat.status === 'continuing' ? 'Mark Finished' : 'Reopen Chat'}</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="text-neutral-700">
-                                        Status: <span className="text-black font-black uppercase">{activeChat.status}</span>
-                                    </div>
+
+                                    {/* Reply Form */}
+                                    <form onSubmit={handleSendReply} className="flex items-end gap-2.5">
+                                        <div className="flex-1 relative">
+                                            <textarea
+                                                value={replyText}
+                                                onChange={(e) => setReplyText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        handleSendReply(e);
+                                                    }
+                                                }}
+                                                rows={2}
+                                                placeholder={`Type a reply to ${activeChat.customer_name || 'Customer'} as Agent... (Enter to send, Shift+Enter for new line)`}
+                                                className="w-full text-sm rounded-xl border border-neutral-300 px-3.5 py-2.5 bg-neutral-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00853f] focus:border-[#00853f] resize-none text-black placeholder:text-neutral-400 font-medium transition-all"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={!replyText.trim() || isSendingReply}
+                                            className="h-[46px] px-5 bg-[#00853f] hover:bg-[#007034] disabled:opacity-40 disabled:hover:bg-[#00853f] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                                        >
+                                            {isSendingReply ? (
+                                                <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <span>Send Reply</span>
+                                                    <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
+                                                </>
+                                            )}
+                                        </button>
+                                    </form>
                                 </div>
                             </>
                         ) : (
