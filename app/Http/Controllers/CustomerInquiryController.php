@@ -98,6 +98,8 @@ class CustomerInquiryController extends Controller
             ->latest('updated_at')
             ->first();
 
+        $countryInfo = self::resolveCountryFlag($customer->country);
+
         return response()->json([
             'success' => true,
             'customer' => [
@@ -105,7 +107,9 @@ class CustomerInquiryController extends Controller
                 'name' => $customer->name,
                 'email' => $customer->email ?: 'Not Provided',
                 'phone' => $customer->whatsapp_number ?: ($customer->mobile_number ?: 'Not Provided'),
-                'country' => $customer->country ?: 'Global',
+                'country' => $countryInfo['country'],
+                'country_code' => $countryInfo['country_code'],
+                'country_flag' => $countryInfo['country_flag'],
                 'invoice_number' => $customer->invoice_number,
                 'dropoff_location' => $customer->dropoff_location,
                 'agent_id' => $agentUserId,
@@ -159,13 +163,15 @@ class CustomerInquiryController extends Controller
             $agentId = User::whereHas('role', fn($q) => $q->where('name', 'agent'))->value('id') ?? 1;
         }
 
+        $countryInfo = self::resolveCountryFlag($validated['country'] ?? null);
+
         $chat = CustomerChat::create([
             'agent_id' => $agentId,
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'] ?? null,
-            'country' => $validated['country'] ?? 'Global',
-            'country_code' => null,
-            'country_flag' => '🌐',
+            'country' => $countryInfo['country'],
+            'country_code' => $countryInfo['country_code'],
+            'country_flag' => $countryInfo['country_flag'],
             'topic' => 'Invoice #' . $invoice,
             'status' => 'continuing',
         ]);
@@ -182,6 +188,47 @@ class CustomerInquiryController extends Controller
             'chat_id' => $chat->id,
             'message' => $msg,
         ]);
+    }
+
+    /**
+     * Resolve ISO 2-letter country code and Unicode country flag emoji from a country name or code.
+     */
+    public static function resolveCountryFlag(?string $countryName): array
+    {
+        $name = trim($countryName ?? '');
+        if (empty($name) || strtolower($name) === 'global') {
+            return [
+                'country' => 'Global',
+                'country_code' => null,
+                'country_flag' => '🌐',
+            ];
+        }
+
+        $countryRec = Country::where('country_name', 'like', $name)
+            ->orWhere('country_code', strtoupper($name))
+            ->first();
+
+        $code = null;
+        $cleanName = $name;
+
+        if ($countryRec) {
+            $cleanName = $countryRec->country_name;
+            $code = strtoupper(trim($countryRec->country_code));
+        } elseif (strlen($name) === 2 && ctype_alpha($name)) {
+            $code = strtoupper($name);
+        }
+
+        $flag = '🌐';
+        if ($code && strlen($code) === 2 && ctype_alpha($code)) {
+            $flag = mb_chr(0x1F1E6 + ord($code[0]) - ord('A'))
+                  . mb_chr(0x1F1E6 + ord($code[1]) - ord('A'));
+        }
+
+        return [
+            'country' => $cleanName,
+            'country_code' => $code,
+            'country_flag' => $flag,
+        ];
     }
 
     /**
