@@ -273,10 +273,7 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
                                     <span className="text-[10px] text-neutral-400 font-normal">• {agentId}</span>
                                 </div>
                                 <p className="leading-relaxed">
-                                    Hello! Welcome to Europcar Airport Counter Support.
-                                </p>
-                                <p className="leading-relaxed text-neutral-600 text-xs">
-                                    How may I assist you with your booking, vehicle rental, or airport transfer today?
+                                    Hello, how can I assist you today?
                                 </p>
                                 <div className="flex justify-end pt-0.5">
                                     <span className="text-[10px] text-neutral-400">{agentName}</span>
@@ -365,10 +362,11 @@ export default function InquiryForm({ agent = {}, initialMessages = [], initialC
                                     Quick:
                                 </span>
                                 {[
-                                    '📍 Where is the counter desk?',
-                                    '🕒 Flight delayed / arriving late',
-                                    '📄 Need rental agreement copy',
-                                    '🧳 Luggage assistance at gate',
+                                    '🗺️ Need to plan a tour in Sri Lanka',
+                                    '📋 Need a customized tour itinerary',
+                                    '🚗 Vehicles available for rent in Sri Lanka',
+                                    '🚐 Private van & driver for island tour',
+                                    '🏖️ Popular tourist attractions & day trips',
                                 ].map((prompt) => (
                                     <button
                                         key={prompt}
