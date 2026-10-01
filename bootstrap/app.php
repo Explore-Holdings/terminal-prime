@@ -17,9 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ExecutiveStaffReadOnly::class,
         ]);
 
-        // Exempt 2FA pre-login credential check from CSRF verification
+        // Exempt 2FA pre-login credential check and customer portal endpoints from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'check-credentials',
+            'customer-portal/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
