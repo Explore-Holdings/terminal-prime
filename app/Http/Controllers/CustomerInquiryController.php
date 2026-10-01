@@ -71,7 +71,7 @@ class CustomerInquiryController extends Controller
             'created_at' => now(),
         ]);
 
-        return redirect()->route('inquiry.show', [
+        return redirect()->route('customer-portal.show', [
             'success' => 1,
             'chat_id' => $chat->id,
         ])->with('success', 'Your inquiry has been submitted successfully to the counter agent.');
