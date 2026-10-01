@@ -212,7 +212,10 @@ export default function InquiryForm({ initialInvoice = '' }) {
     const formatTime = (isoString) => {
         if (!isoString) return '';
         try {
-            const date = new Date(isoString);
+            const raw = String(isoString);
+            const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            const date = new Date(normalized);
+            if (isNaN(date.getTime())) return '';
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch {
             return '';

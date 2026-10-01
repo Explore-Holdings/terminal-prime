@@ -52,9 +52,7 @@ class CustomerChat extends Model
      */
     public function getMessagesAttribute(): array
     {
-        $record = $this->relationLoaded('messageRecord')
-            ? $this->messageRecord
-            : CustomerChatMessage::where('chat_id', $this->id)->first();
+        $record = CustomerChatMessage::where('chat_id', $this->id)->first();
 
         return $record ? $record->decoded_messages : [];
     }

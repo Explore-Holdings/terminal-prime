@@ -96,8 +96,9 @@ class CustomerChatController extends Controller
     public function messages(CustomerChat $chat)
     {
         return response()->json([
-            'chat' => $chat->load('agent:id,name,email', 'messageRecord'),
+            'chat' => $chat->load('agent:id,name,email'),
             'messages' => $chat->messages,
+            'status' => $chat->status,
         ]);
     }
 
@@ -123,6 +124,8 @@ class CustomerChatController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
+                'messages' => $chat->messages,
+                'chat' => $chat->fresh()->load('agent:id,name,email'),
             ]);
         }
 
