@@ -177,7 +177,6 @@ Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroy
 Route::get('/finance/export', [FinanceController::class, 'exportProfitLoss'])->name('finance.export');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 
-
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
     ->name('survey.show');
 
@@ -185,14 +184,20 @@ Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
     ->name('survey.store');
 
 // Public Customer QR Customer Portal / Inquiry Form (Agent business card QR scan)
-Route::get('/customerPortal', [CustomerInquiryController::class, 'show'])
+Route::get('/customer-portal', [CustomerInquiryController::class, 'show'])
     ->name('customer-portal.show');
-Route::post('/customerPortal', [CustomerInquiryController::class, 'store'])
+Route::get('/customerPortal', [CustomerInquiryController::class, 'show']);
+Route::post('/customer-portal/verify-invoice', [CustomerInquiryController::class, 'verifyInvoice'])
+    ->name('customer-portal.verify');
+Route::post('/customer-portal/send-message', [CustomerInquiryController::class, 'sendMessage'])
+    ->name('customer-portal.send-message');
+Route::get('/customer-portal/chat-messages/{chat}', [CustomerInquiryController::class, 'getMessages'])
+    ->name('customer-portal.messages');
+Route::post('/customer-portal', [CustomerInquiryController::class, 'store'])
     ->name('customer-portal.store');
 
-// Backward compatibility redirects to /customerPortal
-Route::redirect('/customer-portal', '/customerPortal', 301);
-Route::redirect('/inquiry', '/customerPortal', 301);
+// Backward compatibility redirect from /inquiry to /customer-portal
+Route::redirect('/inquiry', '/customer-portal', 301);
 
 Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
     ->name('customer-surveys.index');

@@ -21,8 +21,7 @@ class CustomerChatController extends Controller
         $selectedId = $request->query('chat_id');
 
         $query = CustomerChat::query()
-            ->with(['agent:id,name,email', 'latestMessage', 'messages'])
-            ->withCount('messages');
+            ->with(['agent:id,name,email', 'messageRecord']);
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
@@ -65,12 +64,17 @@ class CustomerChatController extends Controller
           ->orderBy('name')
           ->get(['id', 'name', 'email']);
 
-        // Stats summary
+        // Stats summary - count total individual messages across JSON message records
+        $totalMessages = 0;
+        foreach (CustomerChatMessage::select('message')->cursor() as $rec) {
+            $totalMessages += count($rec->decoded_messages);
+        }
+
         $stats = [
             'total' => CustomerChat::count(),
             'continuing' => CustomerChat::where('status', 'continuing')->count(),
             'finished' => CustomerChat::where('status', 'finished')->count(),
-            'totalMessages' => CustomerChatMessage::count(),
+            'totalMessages' => $totalMessages,
         ];
 
         return Inertia::render('Chats/Index', [
@@ -92,8 +96,8 @@ class CustomerChatController extends Controller
     public function messages(CustomerChat $chat)
     {
         return response()->json([
-            'chat' => $chat->load('agent:id,name,email'),
-            'messages' => $chat->messages()->orderBy('created_at', 'asc')->get(),
+            'chat' => $chat->load('agent:id,name,email', 'messageRecord'),
+            'messages' => $chat->messages,
         ]);
     }
 
@@ -106,12 +110,12 @@ class CustomerChatController extends Controller
         $user = $request->user();
         $senderName = $user ? $user->name : 'Agent';
 
-        $message = $chat->messages()->create([
-            'sender' => 'agent',
-            'sender_name' => $senderName,
-            'message' => $validated['message'],
-            'created_at' => now(),
-        ]);
+        $message = CustomerChatMessage::appendMessage(
+            $chat->id,
+            'agent',
+            $senderName,
+            $validated['message']
+        );
 
         $chat->touch(); // updates updated_at
 
