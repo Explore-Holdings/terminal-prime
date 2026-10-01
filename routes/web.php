@@ -134,6 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter', [CounterController::class, 'index'])->name('counter.index');
     Route::post('/counter/checkout', [CounterController::class, 'checkout'])->name('counter.checkout');
     Route::post('/counter/reorder-session', [CounterController::class, 'reorderSession'])->name('counter.reorder-session');
+    Route::post('/counter/drivers/{driver}/checkin', [CounterController::class, 'driverCheckin'])->name('counter.driver-checkin');
     Route::post('/counter/lock-customer', [CounterController::class, 'lockCustomer'])->name('counter.lock-customer');
     Route::post('/counter/unlock-customer', [CounterController::class, 'unlockCustomer'])->name('counter.unlock-customer');
     Route::get('/counter/converter', [CounterController::class, 'converter'])->name('counter.converter');

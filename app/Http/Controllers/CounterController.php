@@ -306,6 +306,120 @@ class CounterController extends Controller
         return back()->with('success', 'Session reordered successfully.');
     }
 
+    public function driverCheckin(Request $request, Driver $driver)
+    {
+        DB::transaction(function () use ($driver) {
+            // Find active trip for this driver, or their most recent trip if none active
+            $activeTrip = Trip::where('driver_id', $driver->id)
+                ->whereNotIn('status', ['Completed', 'Cancelled'])
+                ->latest()
+                ->first();
+
+            $tripToCheck = $activeTrip ?: Trip::where('driver_id', $driver->id)
+                ->where('status', '!=', 'Cancelled')
+                ->latest()
+                ->first();
+
+            $baseSessionId = Driver::whereNotNull('session_id')->min('session_id') ?? 1;
+
+            if ($activeTrip) {
+                // Complete active trip
+                $activeTrip->update([
+                    'status' => 'Completed',
+                    'trip_ended_at' => now(),
+                ]);
+            }
+
+            if ($tripToCheck) {
+                $isShortTrip = (bool) $tripToCheck->is_short_trip;
+
+                if ($isShortTrip) {
+                    // Extract driver's slot number
+                    $driverSlot = null;
+                    if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
+                        $driverSlot = (int) $m[0];
+                    }
+
+                    $driverSession = $driver->session_id ?? $baseSessionId;
+
+                    // If the current base session has already advanced past driver's session:
+                    if ($driverSession < $baseSessionId) {
+                        $driver->update(['session_id' => $baseSessionId + 1]);
+                    } else {
+                        // Check if any in-turn trip was assigned after this trip with slot > driverSlot
+                        // or in a subsequent queue
+                        $refTime = $tripToCheck->trip_assigned_at ?? $tripToCheck->created_at;
+                        $laterInTurnTrips = Trip::with('driver')
+                            ->where('status', '!=', 'Cancelled')
+                            ->whereNull('selection_reason')
+                            ->where('id', '!=', $tripToCheck->id)
+                            ->where(function ($q) use ($refTime) {
+                                if ($refTime) {
+                                    $q->where('trip_assigned_at', '>', $refTime)
+                                      ->orWhere('created_at', '>', $refTime);
+                                }
+                            })
+                            ->get();
+
+                        $passedByLaterTrip = false;
+                        foreach ($laterInTurnTrips as $lt) {
+                            if (!$lt->driver) continue;
+                            if (preg_match('/\d+/', $lt->driver->registration_number ?? '', $m)) {
+                                $slot = (int) $m[0];
+                                if ($driverSlot !== null && $slot > $driverSlot) {
+                                    $passedByLaterTrip = true;
+                                    break;
+                                }
+                            }
+                            if (($lt->driver->session_id ?? 0) > $driverSession + 1) {
+                                $passedByLaterTrip = true;
+                                break;
+                            }
+                        }
+
+                        // Also check latest in-turn trip assigned today
+                        $lastTripToday = Trip::with('driver')
+                            ->where('status', '!=', 'Cancelled')
+                            ->whereNull('selection_reason')
+                            ->where('id', '!=', $tripToCheck->id)
+                            ->where('created_at', '>=', now()->startOfDay())
+                            ->latest('trip_assigned_at')
+                            ->first();
+
+                        $lastAssignedSlotToday = 0;
+                        if ($lastTripToday && $lastTripToday->driver) {
+                            if (preg_match('/\d+/', $lastTripToday->driver->registration_number ?? '', $m)) {
+                                $lastAssignedSlotToday = (int) $m[0];
+                            }
+                        }
+
+                        // If the queue has advanced past the driver's slot number:
+                        if ($passedByLaterTrip || ($driverSlot !== null && $lastAssignedSlotToday > $driverSlot)) {
+                            // Driver's number has passed -> go to next queue
+                            $driver->update(['session_id' => $driverSession + 1]);
+                        } else {
+                            // Driver's number has NOT passed -> stay in the same queue
+                            $driver->update(['session_id' => $driverSession]);
+                        }
+                    }
+                } else {
+                    // Normal trip: ensure driver moves to next session
+                    if ($driver->session_id !== null && $driver->session_id <= $baseSessionId) {
+                        $driver->update(['session_id' => $driver->session_id + 1]);
+                    }
+                }
+            }
+
+            // Mark driver on duty and record check in time
+            $driver->update([
+                'duty_status' => 'on_duty',
+                'checked_in_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', "Driver {$driver->first_name} checked in successfully.");
+    }
+
     public function lockCustomer(Request $request)
     {
         $request->validate(['agent_id' => 'required|integer']);

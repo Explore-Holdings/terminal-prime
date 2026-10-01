@@ -18,6 +18,7 @@ class Trip extends Model
         'selection_reason',
         'selection_reason_by',
         'status',
+        'is_short_trip',
         'survey_sent_at',
         'cash_received',
     ];
@@ -26,6 +27,7 @@ class Trip extends Model
         'trip_assigned_at' => 'datetime',
         'trip_started_at' => 'datetime',
         'trip_ended_at' => 'datetime',
+        'is_short_trip' => 'boolean',
     ];
 
     protected $appends = ['shift_id'];

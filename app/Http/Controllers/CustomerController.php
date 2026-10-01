@@ -245,6 +245,7 @@ class CustomerController extends Controller
             'agent_share'    => 'nullable|numeric|min:0',
             'balance'        => 'nullable|numeric',
             'selection_reason' => 'nullable|string',
+            'is_short_trip'  => 'nullable|boolean',
         ]);
 
         $trip = null;
@@ -262,6 +263,7 @@ class CustomerController extends Controller
             }
 
             $selectionReason = !empty($data['selection_reason']) ? trim($data['selection_reason']) : null;
+            $isShortTrip = filter_var($data['is_short_trip'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
             // ── Bump skipped drivers to next session ──
             // Extract slot number from assigned driver's registration_number.
@@ -340,9 +342,15 @@ class CustomerController extends Controller
                 }
             }
 
-            // Move the assigned driver to the waiting queue immediately
-            if ($driver->session_id !== null) {
-                $driver->update(['session_id' => $driver->session_id + 1]);
+            // If normal trip: move the assigned driver to the waiting queue immediately.
+            // If short trip: keep driver in the current session; session transition is evaluated on check-in.
+            if (!$isShortTrip && $driver->session_id !== null) {
+                $driver->update([
+                    'session_id' => $driver->session_id + 1,
+                    'duty_status' => 'on_trip',
+                ]);
+            } else {
+                $driver->update(['duty_status' => 'on_trip']);
             }
 
             $trip = Trip::create([
@@ -354,6 +362,7 @@ class CustomerController extends Controller
                 'selection_reason' => $selectionReason,
                 'selection_reason_by' => $selectionReason ? auth()->id() : null,
                 'remarks'          => $data['remarks'] ?? null,
+                'is_short_trip'    => $isShortTrip,
                 'status'           => 'Assigned',
             ]);
 
