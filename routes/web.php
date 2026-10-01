@@ -184,11 +184,14 @@ Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
 Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
     ->name('survey.store');
 
-// Public Customer QR Inquiry Form (Agent business card QR scan)
-Route::get('/inquiry', [CustomerInquiryController::class, 'show'])
-    ->name('inquiry.show');
-Route::post('/inquiry', [CustomerInquiryController::class, 'store'])
-    ->name('inquiry.store');
+// Public Customer QR Customer Portal / Inquiry Form (Agent business card QR scan)
+Route::get('/customer-portal', [CustomerInquiryController::class, 'show'])
+    ->name('customer-portal.show');
+Route::post('/customer-portal', [CustomerInquiryController::class, 'store'])
+    ->name('customer-portal.store');
+
+// Backward compatibility redirect from /inquiry to /customer-portal
+Route::redirect('/inquiry', '/customer-portal', 301);
 
 Route::get('/customer-surveys', [CustomerSurveyAdminController::class, 'index'])
     ->name('customer-surveys.index');

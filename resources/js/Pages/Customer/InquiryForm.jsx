@@ -127,7 +127,7 @@ export default function InquiryForm({
             if (el) el.scrollIntoView({ behavior: 'smooth' });
             return;
         }
-        form.post('/inquiry', {
+        form.post('/customer-portal', {
             preserveScroll: true,
         });
     };
@@ -222,7 +222,7 @@ export default function InquiryForm({
                     </p>
 
                     <a
-                        href="/inquiry"
+                        href="/customer-portal"
                         style={{ backgroundColor: '#00853f', color: '#ffffff' }}
                         className="mt-3.5 inline-block w-full py-2.5 px-4 font-black text-xs sm:text-sm rounded-xl transition-all shadow-md text-center hover:opacity-90"
                     >
