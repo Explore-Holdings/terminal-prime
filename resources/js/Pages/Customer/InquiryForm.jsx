@@ -41,7 +41,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
     const [messages, setMessages] = useState([]);
     const [messageText, setMessageText] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const [showCustomerDetails, setShowCustomerDetails] = useState(true);
+    const [showCustomerDetails, setShowCustomerDetails] = useState(false);
 
     const messagesEndRef = useRef(null);
     const pollTimerRef = useRef(null);
@@ -106,6 +106,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
             if (res.data?.success && res.data.customer) {
                 setCustomer(res.data.customer);
                 setVerified(true);
+                setShowCustomerDetails(false); // Hide customer details by default
 
                 // If this invoice already had a continuing chat, load it
                 if (res.data.existing_chat) {
@@ -147,6 +148,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
         }
         setVerified(false);
         setCustomer(null);
+        setShowCustomerDetails(false);
         setChatId(null);
         setMessages([]);
         setMessageText('');
@@ -212,7 +214,10 @@ export default function InquiryForm({ initialInvoice = '' }) {
     const formatTime = (isoString) => {
         if (!isoString) return '';
         try {
-            const date = new Date(isoString);
+            const raw = String(isoString);
+            const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            const date = new Date(normalized);
+            if (isNaN(date.getTime())) return '';
             return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch {
             return '';
@@ -370,33 +375,36 @@ export default function InquiryForm({ initialInvoice = '' }) {
                 {verified && customer && (
                     <div className="flex flex-col gap-2.5">
 
-                        {/* VERIFIED CUSTOMER DETAILS CARD (Read-only summary) */}
-                        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 p-3.5 sm:p-4 text-neutral-800 transition-all">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                        Verified Customer Details
+                        {/* VERIFIED CUSTOMER DETAILS CARD (Read-only summary, hidden by default) */}
+                        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 p-3 sm:p-3.5 text-neutral-800 transition-all">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                                        Verified
                                     </span>
-                                    <span className="text-[11px] font-bold text-neutral-500 font-mono">
+                                    <span className="text-xs font-bold text-neutral-800 truncate">
+                                        {customer.name}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-neutral-500 font-mono shrink-0">
                                         #{customer.invoice_number}
                                     </span>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         type="button"
                                         onClick={() => setShowCustomerDetails(!showCustomerDetails)}
-                                        className="text-[11px] text-neutral-500 hover:text-neutral-800 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                        className="text-[11px] text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1 rounded-lg border border-neutral-200 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                                     >
                                         {showCustomerDetails ? (
                                             <>
-                                                <span>Hide</span>
+                                                <span>Hide Details</span>
                                                 <ChevronUp className="w-3.5 h-3.5" />
                                             </>
                                         ) : (
                                             <>
-                                                <span>Show</span>
+                                                <span>Customer Details</span>
                                                 <ChevronDown className="w-3.5 h-3.5" />
                                             </>
                                         )}
