@@ -15,8 +15,6 @@ import {
     XMarkIcon,
     GlobeAltIcon,
     FunnelIcon,
-    PaperAirplaneIcon,
-    CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Index({ chats: initialChats = [], agents = [], filters = {}, stats = {} }) {
@@ -31,9 +29,6 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
         filters.chat_id || (initialChats.length > 0 ? initialChats[0].id : null)
     );
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [replyText, setReplyText] = useState('');
-    const [isSendingReply, setIsSendingReply] = useState(false);
-    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Sync state if initialChats changes
@@ -199,109 +194,6 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
             console.error('Failed to refresh messages', error);
         } finally {
             setIsRefreshing(false);
-        }
-    };
-
-    // Send Agent Reply to Customer
-    const handleSendReply = async (e) => {
-        if (e) e.preventDefault();
-        const text = replyText.trim();
-        if (!text || isSendingReply || !activeChat) return;
-
-        setIsSendingReply(true);
-
-        const tempMsg = {
-            id: 'temp-agent-' + Date.now(),
-            sender: 'agent',
-            sender_name: 'You (Agent)',
-            message: text,
-            created_at: new Date().toISOString(),
-            isPending: true,
-        };
-
-        // Optimistically append reply
-        setChats((prev) =>
-            prev.map((c) => {
-                if (c.id === activeChat.id) {
-                    const nextMsgs = [...(c.messages || []), tempMsg];
-                    return {
-                        ...c,
-                        messages: nextMsgs,
-                        messages_count: nextMsgs.length,
-                        latestMessage: tempMsg,
-                    };
-                }
-                return c;
-            })
-        );
-        setReplyText('');
-
-        try {
-            const res = await axios.post(`/chats/${activeChat.id}/messages`, {
-                message: text,
-            });
-
-            if (res.data?.success) {
-                setChats((prev) =>
-                    prev.map((c) => {
-                        if (c.id === activeChat.id) {
-                            const newMessages = res.data.messages || (c.messages || []).map((m) => (m.id === tempMsg.id ? res.data.message : m));
-                            return {
-                                ...c,
-                                ...(res.data.chat || {}),
-                                messages: newMessages,
-                                messages_count: newMessages.length,
-                                latestMessage: res.data.message || tempMsg,
-                            };
-                        }
-                        return c;
-                    })
-                );
-            }
-        } catch (err) {
-            console.error('Failed to send agent reply:', err);
-            // Revert on failure
-            setChats((prev) =>
-                prev.map((c) => {
-                    if (c.id === activeChat.id) {
-                        const reverted = (c.messages || []).filter((m) => m.id !== tempMsg.id);
-                        return {
-                            ...c,
-                            messages: reverted,
-                            messages_count: reverted.length,
-                        };
-                    }
-                    return c;
-                })
-            );
-            setReplyText(text);
-            alert('Failed to send reply. Please check your connection and try again.');
-        } finally {
-            setIsSendingReply(false);
-        }
-    };
-
-    // Toggle Chat Status between continuing and finished
-    const handleToggleStatus = async () => {
-        if (!activeChat || isUpdatingStatus) return;
-        const newStatus = activeChat.status === 'finished' ? 'continuing' : 'finished';
-        setIsUpdatingStatus(true);
-
-        try {
-            const res = await axios.patch(`/chats/${activeChat.id}/status`, {
-                status: newStatus,
-            });
-
-            if (res.data?.success || res.status === 200) {
-                setChats((prev) =>
-                    prev.map((c) => (c.id === activeChat.id ? { ...c, status: newStatus } : c))
-                );
-            }
-        } catch (err) {
-            console.error('Failed to toggle status:', err);
-            alert('Failed to update inquiry status.');
-        } finally {
-            setIsUpdatingStatus(false);
         }
     };
 
@@ -766,95 +658,28 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
                                     <div ref={messagesEndRef} />
                                 </div>
 
-                                {/* Interactive Agent Reply & Controls Footer */}
-                                <div className="border-t border-neutral-200 bg-white p-3 sm:p-4 shrink-0 shadow-lg space-y-2.5">
-                                    {/* Quick reply templates & status toggle bar */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                        {/* Quick Response Chips */}
-                                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full sm:max-w-[70%]">
-                                            <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-                                                Quick:
-                                            </span>
-                                            {[
-                                                'Hello! How can I assist you with your booking?',
-                                                'Your vehicle is ready at the counter.',
-                                                'Please visit Terminal 1 Europcar desk.',
-                                                'Everything has been resolved. Have a safe journey!',
-                                            ].map((tmpl, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => setReplyText(tmpl)}
-                                                    className="text-[11px] font-medium text-neutral-700 bg-neutral-100 hover:bg-neutral-200 hover:text-black px-2.5 py-1 rounded-full border border-neutral-200 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                                                >
-                                                    {tmpl}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* Status Toggle Button */}
-                                        <div className="flex items-center gap-2 ml-auto shrink-0">
-                                            <span
-                                                className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                                                    activeChat.status === 'continuing'
-                                                        ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                                        : 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                                }`}
-                                            >
-                                                {activeChat.status === 'continuing' ? 'Active' : 'Finished'}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={handleToggleStatus}
-                                                disabled={isUpdatingStatus}
-                                                className={`text-xs font-bold px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1 cursor-pointer ${
-                                                    activeChat.status === 'continuing'
-                                                        ? 'bg-neutral-100 hover:bg-emerald-50 text-neutral-800 hover:text-emerald-700 border-neutral-300 hover:border-emerald-300'
-                                                        : 'bg-neutral-100 hover:bg-amber-50 text-neutral-800 hover:text-amber-800 border-neutral-300 hover:border-amber-300'
-                                                }`}
-                                            >
-                                                {isUpdatingStatus ? (
-                                                    <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                                                )}
-                                                <span>{activeChat.status === 'continuing' ? 'Mark Finished' : 'Reopen Chat'}</span>
-                                            </button>
-                                        </div>
+                                {/* Read-Only Transcript Viewer Footer */}
+                                <div className="h-12 px-5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between text-xs font-medium text-neutral-600 shrink-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`w-2.5 h-2.5 rounded-full ${activeChat.status === 'continuing' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                                        <span className="font-bold text-neutral-800">
+                                            Read-Only Transcript Viewer
+                                        </span>
+                                        <span className="text-neutral-300">|</span>
+                                        <span className="text-neutral-500">Customer & Support Desk Conversation History</span>
                                     </div>
-
-                                    {/* Reply Form */}
-                                    <form onSubmit={handleSendReply} className="flex items-end gap-2.5">
-                                        <div className="flex-1 relative">
-                                            <textarea
-                                                value={replyText}
-                                                onChange={(e) => setReplyText(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        handleSendReply(e);
-                                                    }
-                                                }}
-                                                rows={2}
-                                                placeholder={`Type a reply to ${activeChat.customer_name || 'Customer'} as Agent... (Enter to send, Shift+Enter for new line)`}
-                                                className="w-full text-sm rounded-xl border border-neutral-300 px-3.5 py-2.5 bg-neutral-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#00853f] focus:border-[#00853f] resize-none text-black placeholder:text-neutral-400 font-medium transition-all"
-                                            />
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            disabled={!replyText.trim() || isSendingReply}
-                                            className="h-[46px] px-5 bg-[#00853f] hover:bg-[#007034] disabled:opacity-40 disabled:hover:bg-[#00853f] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Status:</span>
+                                        <span
+                                            className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                                                activeChat.status === 'continuing'
+                                                    ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                                    : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                            }`}
                                         >
-                                            {isSendingReply ? (
-                                                <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <span>Send Reply</span>
-                                                    <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
-                                                </>
-                                            )}
-                                        </button>
-                                    </form>
+                                            {activeChat.status === 'continuing' ? 'Continuing' : 'Finished'}
+                                        </span>
+                                    </div>
                                 </div>
                             </>
                         ) : (
