@@ -183,18 +183,17 @@ Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])
 Route::post('/survey/{trip}', [CustomerSurveyController::class, 'store'])
     ->name('survey.store');
 
-// Public Customer QR Customer Portal / Inquiry Form (Agent business card QR scan)
-Route::get('/customer-portal', [CustomerInquiryController::class, 'show'])
+// Public Customer QR Customer Portal (WhatsApp Chat UI by Agent ID e.g. /customerPortal/AGNT-1)
+Route::get('/customerPortal/{agentId?}', [CustomerInquiryController::class, 'show'])
+    ->name('customer-portal.portal');
+Route::get('/customer-portal/{agentId?}', [CustomerInquiryController::class, 'show'])
     ->name('customer-portal.show');
-Route::get('/customerPortal', [CustomerInquiryController::class, 'show']);
-Route::post('/customer-portal/verify-invoice', [CustomerInquiryController::class, 'verifyInvoice'])
-    ->name('customer-portal.verify');
 Route::post('/customer-portal/send-message', [CustomerInquiryController::class, 'sendMessage'])
     ->name('customer-portal.send-message');
-Route::get('/customer-portal/chat-messages/{chat}', [CustomerInquiryController::class, 'getMessages'])
+Route::post('/customerPortal/send-message', [CustomerInquiryController::class, 'sendMessage']);
+Route::get('/customer-portal/messages/{agentId}/{chatId?}', [CustomerInquiryController::class, 'getMessages'])
     ->name('customer-portal.messages');
-Route::post('/customer-portal', [CustomerInquiryController::class, 'store'])
-    ->name('customer-portal.store');
+Route::get('/customerPortal/messages/{agentId}/{chatId?}', [CustomerInquiryController::class, 'getMessages']);
 
 // Backward compatibility redirect from /inquiry to /customer-portal
 Route::redirect('/inquiry', '/customer-portal', 301);

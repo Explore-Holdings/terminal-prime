@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Country;
-use App\Models\Customer;
-use App\Models\CustomerChat;
 use App\Models\CustomerChatMessage;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,275 +9,137 @@ use Inertia\Inertia;
 
 class CustomerInquiryController extends Controller
 {
-    public function show(Request $request)
+    /**
+     * Show public WhatsApp chat portal for a specific agent (e.g. /customerPortal/AGNT-1).
+     * No invoice numbers required - directly displays WhatsApp UI.
+     * Isolates chats so another customer visiting will not see old chats from other customers.
+     */
+    public function show(Request $request, $agentId = null)
     {
-        $agentQuery = $request->query('agent');
-        $invoiceQuery = $request->query('invoice');
+        // If agentId not specified in route, redirect to first agent
+        if (empty($agentId)) {
+            $defaultAgent = User::whereNotNull('agent_id')->orderBy('agent_id')->first();
+            if ($defaultAgent && $defaultAgent->agent_id) {
+                return redirect()->to('/customerPortal/' . $defaultAgent->agent_id);
+            }
+        }
 
-        // Fetch agents list
-        $agents = User::whereHas('role', function ($q) {
-            $q->where('name', 'agent');
-        })->orderBy('name')
-          ->get(['id', 'name', 'designation']);
+        $cleanAgentId = strtoupper(trim((string)$agentId));
 
-        // Fetch country list
-        $countries = Country::orderBy('country_name')->get(['id', 'country_name', 'country_code']);
+        // Find agent by agent_id (e.g. AGNT-1)
+        $agent = User::where('agent_id', $cleanAgentId)->first();
+
+        // Fallback: check if numeric user id was passed
+        if (!$agent && is_numeric($cleanAgentId)) {
+            $agent = User::where('id', (int)$cleanAgentId)->whereNotNull('agent_id')->first();
+        }
+
+        // Fallback: get first available agent
+        if (!$agent) {
+            $agent = User::whereNotNull('agent_id')->orderBy('agent_id')->first();
+        }
+
+        if (!$agent) {
+            abort(404, 'No counter agent found.');
+        }
+
+        $assignedAgentId = $agent->agent_id;
+
+        // Check if this specific customer already has an active ongoing chat ID in this session/query
+        $activeChatId = $request->query('chat_id') ?: $request->session()->get("customer_chat_{$assignedAgentId}");
+
+        $chatRecord = null;
+        if ($activeChatId) {
+            $chatRecord = CustomerChatMessage::where('id', (int)$activeChatId)
+                ->where('agent_id', $assignedAgentId)
+                ->first();
+        }
+
+        $messages = $chatRecord ? $chatRecord->decoded_messages : [];
 
         return Inertia::render('Customer/InquiryForm', [
-            'agents' => $agents,
-            'countries' => $countries,
-            'preselectedAgentId' => $agentQuery ? (int)$agentQuery : null,
-            'initialInvoice' => $invoiceQuery ? trim($invoiceQuery) : '',
-        ]);
-    }
-
-    /**
-     * Verify customer invoice from `customers` table.
-     * Does NOT save anything into the database at this step.
-     */
-    public function verifyInvoice(Request $request)
-    {
-        $request->validate([
-            'invoice_number' => 'required|string|max:50',
-        ]);
-
-        $raw = trim($request->input('invoice_number'));
-        $upper = strtoupper($raw);
-
-        // Build potential variants (e.g. 00001, INV-00001, 1, INV-1)
-        $candidates = [$raw, $upper];
-        if (!str_starts_with($upper, 'INV-')) {
-            $numOnly = ltrim($upper, 'INV-');
-            $candidates[] = 'INV-' . $numOnly;
-            if (is_numeric($numOnly)) {
-                $candidates[] = 'INV-' . str_pad($numOnly, 5, '0', STR_PAD_LEFT);
-            }
-        } else {
-            $numPart = substr($upper, 4);
-            if (is_numeric($numPart)) {
-                $candidates[] = 'INV-' . str_pad($numPart, 5, '0', STR_PAD_LEFT);
-                $candidates[] = 'INV-' . (int)$numPart;
-            }
-        }
-        $candidates = array_values(array_unique($candidates));
-
-        // Query customer by invoice_number (case-insensitive)
-        $customer = Customer::whereIn('invoice_number', $candidates)
-            ->orWhere(function ($q) use ($candidates) {
-                foreach ($candidates as $cand) {
-                    $q->orWhereRaw('LOWER(invoice_number) = ?', [strtolower($cand)]);
-                }
-            })
-            ->with(['agent.user'])
-            ->first();
-
-        if (!$customer) {
-            $displayInv = str_starts_with($upper, 'INV-') ? $upper : 'INV-' . $upper;
-            return response()->json([
-                'success' => false,
-                'message' => "Invoice '{$displayInv}' was not found. Please verify your invoice number (e.g. INV-00001, INV-00002).",
-            ], 404);
-        }
-
-        // Determine counter agent user ID
-        $agentUserId = null;
-        if ($customer->agent && $customer->agent->user_id) {
-            $agentUserId = $customer->agent->user_id;
-        }
-        if (!$agentUserId) {
-            $agentUserId = User::whereHas('role', fn($q) => $q->where('name', 'agent'))->value('id') ?? 1;
-        }
-
-        // Look for any existing continuing chat for this invoice (read-only lookup)
-        $existingChat = CustomerChat::where('topic', 'like', "%{$customer->invoice_number}%")
-            ->where('status', 'continuing')
-            ->with(['messageRecord'])
-            ->latest('updated_at')
-            ->first();
-
-        $countryInfo = self::resolveCountryFlag($customer->country);
-
-        return response()->json([
-            'success' => true,
-            'customer' => [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'email' => $customer->email ?: 'Not Provided',
-                'phone' => $customer->whatsapp_number ?: ($customer->mobile_number ?: 'Not Provided'),
-                'country' => $countryInfo['country'],
-                'country_code' => $countryInfo['country_code'],
-                'country_flag' => $countryInfo['country_flag'],
-                'invoice_number' => $customer->invoice_number,
-                'dropoff_location' => $customer->dropoff_location,
-                'agent_id' => $agentUserId,
-                'agent_name' => $customer->agent?->user?->name ?: 'Europcar Airport Counter',
+            'agent' => [
+                'id' => $agent->id,
+                'name' => $agent->name,
+                'agent_id' => $agent->agent_id,
+                'designation' => $agent->designation ?: 'Airport Counter Agent',
+                'email' => $agent->email,
             ],
-            'existing_chat' => $existingChat,
+            'initialChatId' => $chatRecord ? $chatRecord->id : null,
+            'initialMessages' => $messages,
+            'status' => $chatRecord ? $chatRecord->status : 'ongoing',
         ]);
     }
 
     /**
-     * Send a message from the customer portal WhatsApp UI.
-     * Saves the chat and message to the database only when the message is sent.
+     * Send a customer message from the WhatsApp UI.
+     * If chat_id is provided, appends to that specific customer's chat.
+     * If no chat_id or chat was finished, creates a new chat record in customer_chat_messages.
      */
     public function sendMessage(Request $request)
     {
         $validated = $request->validate([
-            'chat_id' => 'nullable|exists:customer_chats,id',
-            'invoice_number' => 'required|string|max:50',
-            'customer_name' => 'required|string|max:150',
-            'customer_phone' => 'nullable|string|max:50',
-            'country' => 'nullable|string|max:100',
-            'agent_id' => 'nullable|integer',
-            'message' => 'required|string|max:3000',
+            'agent_id' => 'required|string|max:50',
+            'chat_id' => 'nullable|integer',
+            'message' => 'required|string|max:5000',
         ]);
 
-        if (!empty($validated['chat_id'])) {
-            $chat = CustomerChat::findOrFail($validated['chat_id']);
+        $agentId = strtoupper(trim($validated['agent_id']));
+        $chatId = !empty($validated['chat_id']) ? (int)$validated['chat_id'] : null;
+        $text = trim($validated['message']);
 
-            $msg = CustomerChatMessage::appendMessage(
-                $chat->id,
-                'customer',
-                $validated['customer_name'],
-                $validated['message']
-            );
+        if (empty($text)) {
+            return response()->json(['success' => false, 'message' => 'Message cannot be empty'], 422);
+        }
 
-            $chat->touch();
+        $result = CustomerChatMessage::appendToChat(
+            $agentId,
+            'customer',
+            $text,
+            $chatId
+        );
 
+        // Store this customer's active chat id in their session
+        $request->session()->put("customer_chat_{$agentId}", $result['chat_id']);
+
+        return response()->json([
+            'success' => true,
+            'chat_id' => $result['chat_id'],
+            'message' => $result['message'],
+            'status' => $result['status'],
+            'messages' => $result['messages'],
+        ]);
+    }
+
+    /**
+     * Poll latest chat messages for a specific chat ID.
+     * Ensures each customer only receives updates for their own chat session.
+     */
+    public function getMessages(Request $request, string $agentId, ?int $chatId = null)
+    {
+        $cleanId = strtoupper(trim($agentId));
+        $resolvedChatId = $chatId ?: $request->query('chat_id') ?: $request->session()->get("customer_chat_{$cleanId}");
+
+        if (!$resolvedChatId) {
             return response()->json([
                 'success' => true,
-                'chat_id' => $chat->id,
-                'message' => $msg,
+                'agent_id' => $cleanId,
+                'chat_id' => null,
+                'status' => 'ongoing',
+                'messages' => [],
             ]);
         }
 
-        // First message: Create CustomerChat record in DB now
-        $invoice = strtoupper(trim($validated['invoice_number']));
-        if (!str_starts_with($invoice, 'INV-')) {
-            $invoice = 'INV-' . $invoice;
-        }
-        $agentId = $validated['agent_id'] ?? null;
-        if (!$agentId) {
-            $agentId = User::whereHas('role', fn($q) => $q->where('name', 'agent'))->value('id') ?? 1;
-        }
-
-        $countryInfo = self::resolveCountryFlag($validated['country'] ?? null);
-
-        $chat = CustomerChat::create([
-            'agent_id' => $agentId,
-            'customer_name' => $validated['customer_name'],
-            'customer_phone' => $validated['customer_phone'] ?? null,
-            'country' => $countryInfo['country'],
-            'country_code' => $countryInfo['country_code'],
-            'country_flag' => $countryInfo['country_flag'],
-            'topic' => 'Invoice #' . $invoice,
-            'status' => 'continuing',
-        ]);
-
-        $msg = CustomerChatMessage::appendMessage(
-            $chat->id,
-            'customer',
-            $validated['customer_name'],
-            $validated['message']
-        );
-
-        return response()->json([
-            'success' => true,
-            'chat_id' => $chat->id,
-            'message' => $msg,
-        ]);
-    }
-
-    /**
-     * Resolve ISO 2-letter country code and Unicode country flag emoji from a country name or code.
-     */
-    public static function resolveCountryFlag(?string $countryName): array
-    {
-        $name = trim($countryName ?? '');
-        if (empty($name) || strtolower($name) === 'global') {
-            return [
-                'country' => 'Global',
-                'country_code' => null,
-                'country_flag' => '🌐',
-            ];
-        }
-
-        $countryRec = Country::where('country_name', 'like', $name)
-            ->orWhere('country_code', strtoupper($name))
+        $chat = CustomerChatMessage::where('id', (int)$resolvedChatId)
+            ->where('agent_id', $cleanId)
             ->first();
 
-        $code = null;
-        $cleanName = $name;
-
-        if ($countryRec) {
-            $cleanName = $countryRec->country_name;
-            $code = strtoupper(trim($countryRec->country_code));
-        } elseif (strlen($name) === 2 && ctype_alpha($name)) {
-            $code = strtoupper($name);
-        }
-
-        $flag = '🌐';
-        if ($code && strlen($code) === 2 && ctype_alpha($code)) {
-            $flag = mb_chr(0x1F1E6 + ord($code[0]) - ord('A'))
-                  . mb_chr(0x1F1E6 + ord($code[1]) - ord('A'));
-        }
-
-        return [
-            'country' => $cleanName,
-            'country_code' => $code,
-            'country_flag' => $flag,
-        ];
-    }
-
-    /**
-     * Poll latest chat messages for real-time response inside WhatsApp UI.
-     */
-    public function getMessages(CustomerChat $chat)
-    {
         return response()->json([
             'success' => true,
-            'status' => $chat->status,
-            'messages' => $chat->messages,
+            'agent_id' => $cleanId,
+            'chat_id' => $chat ? $chat->id : null,
+            'status' => $chat ? $chat->status : 'ongoing',
+            'messages' => $chat ? $chat->decoded_messages : [],
         ]);
-    }
-
-    /**
-     * Legacy store method for standard form posts
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'agent_id' => 'required|exists:users,id',
-            'customer_name' => 'required|string|max:150',
-            'customer_phone' => 'nullable|string|max:50',
-            'country' => 'required|string|max:100',
-            'country_code' => 'nullable|string|max:10',
-            'country_flag' => 'nullable|string|max:10',
-            'topic' => 'required|string|max:255',
-            'message' => 'required|string|max:3000',
-        ]);
-
-        $chat = CustomerChat::create([
-            'agent_id' => $validated['agent_id'],
-            'customer_name' => $validated['customer_name'],
-            'customer_phone' => $validated['customer_phone'] ?? null,
-            'country' => $validated['country'],
-            'country_code' => $validated['country_code'] ?? null,
-            'country_flag' => $validated['country_flag'] ?? '🌐',
-            'topic' => $validated['topic'],
-            'status' => 'continuing',
-        ]);
-
-        CustomerChatMessage::appendMessage(
-            $chat->id,
-            'customer',
-            $validated['customer_name'],
-            $validated['message']
-        );
-
-        return redirect()->route('customer-portal.show', [
-            'success' => 1,
-            'chat_id' => $chat->id,
-        ])->with('success', 'Your inquiry has been submitted successfully to the counter agent.');
     }
 }
