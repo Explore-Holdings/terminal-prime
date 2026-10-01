@@ -461,7 +461,7 @@ export default function InquiryForm({ initialInvoice = '' }) {
                 )}
 
                         {/* ─── WHATSAPP UI CHAT CONTAINER ─── */}
-                        <div className={`bg-[#efeae2] rounded-3xl shadow-2xl border border-white/60 overflow-hidden flex flex-col h-[560px] sm:h-[620px] transition-all relative ${verified ? '' : 'opacity-80'}`}>
+                        <div className={`bg-[#efeae2] rounded-3xl shadow-2xl border border-white/60 overflow-hidden flex flex-col transition-all duration-300 relative ${verified ? 'h-[560px] sm:h-[620px]' : 'h-[230px] sm:h-[250px] opacity-80'}`}>
 
                             {/* 1. WHATSAPP HEADER */}
                             <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between shadow-md z-10">
@@ -588,28 +588,29 @@ export default function InquiryForm({ initialInvoice = '' }) {
                             </div>
 
                             {/* 3. QUICK CHIPS / SUGGESTION PILLS */}
-                            <div className="bg-[#f0f2f5] border-t border-neutral-200/80 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 shrink-0 flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3 text-[#00853f]" />
-                                    Quick:
-                                </span>
-                                {[
-                                    '📍 Where is the counter desk?',
-                                    '🕒 Flight delayed / arriving late',
-                                    '📄 Need rental agreement copy',
-                                    '🧳 Luggage assistance at gate',
-                                ].map((prompt) => (
-                                    <button
-                                        key={prompt}
-                                        type="button"
-                                        onClick={() => handleQuickPrompt(prompt)}
-                                        disabled={!verified}
-                                        className="px-2.5 py-1 bg-white hover:bg-neutral-100 active:scale-95 text-neutral-700 text-[11px] font-medium rounded-full shadow-2xs border border-neutral-300 shrink-0 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {prompt}
-                                    </button>
-                                ))}
-                            </div>
+                            {verified && (
+                                <div className="bg-[#f0f2f5] border-t border-neutral-200/80 px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 shrink-0 flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3 text-[#00853f]" />
+                                        Quick:
+                                    </span>
+                                    {[
+                                        '📍 Where is the counter desk?',
+                                        '🕒 Flight delayed / arriving late',
+                                        '📄 Need rental agreement copy',
+                                        '🧳 Luggage assistance at gate',
+                                    ].map((prompt) => (
+                                        <button
+                                            key={prompt}
+                                            type="button"
+                                            onClick={() => handleQuickPrompt(prompt)}
+                                            className="px-2.5 py-1 bg-white hover:bg-neutral-100 active:scale-95 text-neutral-700 text-[11px] font-medium rounded-full shadow-2xs border border-neutral-300 shrink-0 transition-all cursor-pointer"
+                                        >
+                                            {prompt}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* 4. WHATSAPP BOTTOM INPUT BAR */}
                             <form
