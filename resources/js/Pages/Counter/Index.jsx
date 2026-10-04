@@ -277,7 +277,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0 }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [] }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -295,6 +295,8 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [reorderSaving, setReorderSaving] = useState(false);
     const [reorderInput, setReorderInput] = useState('');
     const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+    const [showShortTripsModal, setShowShortTripsModal] = useState(false);
 
     const [searchMyTrips, setSearchMyTrips] = useState('');
 
@@ -539,6 +541,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                 Refresh
                             </button>
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowShortTripsModal(true)}
+                            className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-900 px-3.5 py-2 rounded-lg hover:bg-amber-100 font-semibold text-xs transition shadow-sm"
+                            title="View all Short Tours and who gave them"
+                        >
+                            <span>⚡ Short Tours</span>
+                            <span className="bg-amber-500 text-white font-black text-[10px] px-1.5 py-0.2 rounded-full">
+                                {shortTrips.length}
+                            </span>
+                        </button>
                         <style>{`@keyframes blink-checkout { 0%, 100% { outline: 2px solid #dc2626; outline-offset: 2px; } 50% { outline: 2px solid transparent; outline-offset: 2px; } }`}</style>
                         <button
                             type="button"
@@ -937,8 +950,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                                         name: 'Trip #',
                                         selector: row => row.id,
                                         sortable: true,
-                                        width: '90px',
-                                        cell: row => <span className="font-bold text-slate-900">#{row.id}</span>,
+                                        width: '100px',
+                                        cell: row => (
+                                            <div className="py-1">
+                                                <span className="font-bold text-slate-900">#{row.id}</span>
+                                                {row.is_short_trip ? (
+                                                    <span className="block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 text-center leading-tight">
+                                                        ⚡ Short
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        ),
                                     },
                                     {
                                         name: 'Driver',
@@ -1055,7 +1077,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} />
             )}
 
             {showCheckoutConfirm && (
@@ -1170,6 +1192,134 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
                 </div>
             )}
+
+
+
+            {/* Short Trips Audit Log Modal */}
+            {showShortTripsModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+                        <div className="p-5 bg-gradient-to-r from-amber-600 to-orange-600 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <span className="text-2xl">⚡</span>
+                                <div>
+                                    <h3 className="font-bold text-lg leading-tight">Short Tours Log & Queue Audit</h3>
+                                    <p className="text-xs text-white/80">
+                                        Track authorized short tours, assignees, and queue placement outcomes
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowShortTripsModal(false)}
+                                className="text-white/80 hover:text-white hover:bg-white/10 rounded-full w-8 h-8 flex items-center justify-center text-lg transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-5 flex-1 overflow-y-auto">
+                            {shortTrips && shortTrips.length > 0 ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase tracking-wider font-semibold text-[10px]">
+                                            <tr>
+                                                <th className="py-2.5 px-3">Tour #</th>
+                                                <th className="py-2.5 px-3">Driver & Vehicle</th>
+                                                <th className="py-2.5 px-3">Orig Queue</th>
+                                                <th className="py-2.5 px-3">Assigned By</th>
+                                                <th className="py-2.5 px-3">Assigned At</th>
+                                                <th className="py-2.5 px-3">Status</th>
+                                                <th className="py-2.5 px-3">Queue Result</th>
+                                                <th className="py-2.5 px-3">Checked In By</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {shortTrips.map((st) => {
+                                                const driverName = st.driver ? `${st.driver.first_name || ''} ${st.driver.last_name || ''}`.trim() : '-';
+                                                const assignedByName = st.assigned_by?.name ?? `User #${st.assigned_by_id ?? '-'}`;
+                                                const checkedInByName = st.checked_in_by?.name ?? (st.checked_in_by_id ? `User #${st.checked_in_by_id}` : '-');
+                                                
+                                                return (
+                                                    <tr key={st.id} className="hover:bg-slate-50/80 transition">
+                                                        <td className="py-2.5 px-3 font-bold text-slate-900">
+                                                            #{st.trip_id}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            <div className="font-semibold text-slate-800">{driverName}</div>
+                                                            <div className="font-mono text-[10px] text-slate-500">
+                                                                {st.driver?.vehicle?.registration_number ?? '-'}
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-slate-700">
+                                                            <span className="font-medium">Session #{st.session_id}</span>
+                                                            <span className="block text-[10px] text-slate-400">Slot {st.slot_number ?? '-'}</span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-slate-700">
+                                                            <span className="font-medium">{assignedByName}</span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap text-[11px]">
+                                                            {st.assigned_at ? new Date(st.assigned_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : '-'}
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                                st.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                                                                st.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                                                                'bg-amber-100 text-amber-800'
+                                                            }`}>
+                                                                {st.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-2.5 px-3">
+                                                            {st.queue_result === 'same_queue' ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                                    <span>✓</span> Same Queue
+                                                                </span>
+                                                            ) : st.queue_result === 'next_queue' ? (
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                                                                    <span>→</span> Next Queue
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-400 italic text-[11px]">Pending Return</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-2.5 px-3 text-slate-700">
+                                                            <div>{checkedInByName}</div>
+                                                            {st.checked_in_at && (
+                                                                <div className="text-[10px] text-slate-400 whitespace-nowrap">
+                                                                    {new Date(st.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 text-slate-400">
+                                    <span className="text-4xl block mb-2">⚡</span>
+                                    <p className="font-semibold text-slate-600">No short tours recorded yet</p>
+                                    <p className="text-xs text-slate-400 mt-1">Short tours assigned at the counter will appear here with full audit history.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                            <span className="text-xs text-slate-500">
+                                Showing recent short tours (Max 1 short tour per driver per session)
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setShowShortTripsModal(false)}
+                                className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
@@ -1245,6 +1395,7 @@ function Modal({
     dbLanguages = [],
     lastReorderedAt = null,
     pettyCash = 0,
+    shortTrips = [],
 }) {
     const effectiveCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id || null;
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
@@ -1292,7 +1443,7 @@ function Modal({
 
                     {agent.booking_type !== 'Rent a Car' ? (
                         <div className={activeTab === 'vehicle' ? '' : 'hidden'}>
-                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} />
+                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} shortTrips={shortTrips} />
                         </div>
                     ) : (
                         <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
@@ -1527,7 +1678,8 @@ function PaymentTab({
 
         let returnedLkr = 0;
         if (grandTotal > price) {
-            returnedLkr = Math.ceil(getAmountInLkr(grandTotal - price, form.data.currency, eurRates));
+            const rawLkr = getAmountInLkr(grandTotal - price, form.data.currency, eurRates);
+            returnedLkr = Math.floor(rawLkr / 10) * 10;
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal, returned_lkr: returnedLkr }));
@@ -1801,7 +1953,8 @@ function PaymentTab({
                                 {grandTotal > price && (
                                     <span className="text-[10px] font-bold text-amber-700 block">
                                         {(() => {
-                                            const lkrVal = Math.ceil(getAmountInLkr(grandTotal - price, form.data.currency, eurRates));
+                                            const rawLkr = getAmountInLkr(grandTotal - price, form.data.currency, eurRates);
+                                            const lkrVal = Math.floor(rawLkr / 10) * 10;
                                             return lkrVal ? `≈ LKR ${lkrVal.toLocaleString()}` : null;
                                         })()}
                                     </span>
@@ -1809,7 +1962,9 @@ function PaymentTab({
                             </div>
                             <span className="font-bold text-gray-900 text-sm">
                                 {grandTotal > price 
-                                    ? `${form.data.currency} ${(grandTotal - price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                    ? (form.data.currency === 'LKR'
+                                        ? `LKR ${(Math.floor((grandTotal - price) / 10) * 10).toLocaleString()}`
+                                        : `${form.data.currency} ${(grandTotal - price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
                                     : 'LKR 0.00'
                                 }
                             </span>
@@ -1838,7 +1993,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [] }) {
     const { auth } = usePage().props;
     const [confirmModal, setConfirmModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(() => {
@@ -1851,7 +2006,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     });
     const [selectionReason, setSelectionReason] = useState('');
     const [reasonModal, setReasonModal] = useState(null); // { vehicle, slotNumber, isWaitingQueue, reason: '' }
-    const [rateMode, setRateMode] = useState('standard');
+    const [rateMode, setRateMode] = useState('custom');
     const [selectedServiceCategoryFilter, setSelectedServiceCategoryFilter] = useState(null);
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -1861,6 +2016,17 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
     const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+    const [isShortTrip, setIsShortTrip] = useState(false);
+
+    const driverHasShortTripInCurrentSession = useMemo(() => {
+        const vehicle = confirmModal?.vehicle || selectedVehicle;
+        if (!vehicle?.driver) return false;
+        const currentSession = vehicle.driver.session_id || 1;
+        return (shortTrips || []).some(st => 
+            st.driver_id === vehicle.driver.id && 
+            Number(st.session_id) === Number(currentSession)
+        );
+    }, [confirmModal, selectedVehicle, shortTrips]);
 
     const activeSessions = vehicles.map(v => v.driver?.session_id).filter(s => s !== null && s !== undefined && s > 0);
     const baseSessionId = activeSessions.length > 0 ? Math.min(...activeSessions) : 1;
@@ -1939,6 +2105,17 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             ? 0
             : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
 
+    const isRateAssigned = Boolean(
+        driverShare > 0 &&
+        (
+            rateMode === 'custom'
+                ? (selectedCity && selectedCity.price !== null && Number(selectedCity.price) > 0)
+                : rateMode === 'per_km'
+                    ? (Number(agent?.distance_km || 0) > 0 && vehicleRateValue > 0)
+                    : (defaultDriverRate > 0 && totalAmountInLkr > 0)
+        )
+    );
+
     const isOutOfTurnVehicle = (v) => {
         if (!v) return false;
         if (v.driver?.session_id > baseSessionId) return true;
@@ -1981,11 +2158,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             });
             return;
         }
-        setRateMode('standard');
+        setRateMode('custom');
         setCustomDriverShare('');
         setCustomAgentShare('');
         setSelectedCityId('');
         setCitySearch('');
+        setIsShortTrip(false);
         setConfirmModal({ vehicle });
     };
 
@@ -2013,6 +2191,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
         if (!customerId) { alert('Customer not found.'); return; }
         if (!driverId) { alert('Driver not found for this vehicle.'); return; }
+        if (!isRateAssigned) { alert('Please select a destination rate before assigning.'); return; }
 
         // Snapshot shares
         const finalDriverShare = isPerKmRate
@@ -2046,6 +2225,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 agent_id: agent.id,
                 remarks: '',
                 selection_reason: isOutOfTurnVehicle(vehicle) ? (selectionReason.trim() || null) : null,
+                is_short_trip: isShortTrip,
                 driver_rate: finalDriverRate,
                 agent_rate: finalAgentRate,
                 is_custom_rate: useCustomRate,
@@ -2530,21 +2710,29 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             </div>
 
                             {/* Action Footer */}
-                            <div className="p-3 pt-0 bg-white shrink-0">
-                                <button 
-                                    type="button" 
-                                    disabled={selectedVehicle.driver?.duty_status !== 'on_duty' || (selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0)}
-                                    onClick={() => openConfirm(selectedVehicle)} 
-                                    className="w-full py-2 bg-blue-700 text-white rounded-lg text-[12px] font-bold hover:bg-blue-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                                >
-                                    {selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0 ? (
-                                        <>On a Trip</>
-                                    ) : selectedVehicle.driver?.duty_status !== 'on_duty' ? (
-                                        <>Off Duty</>
-                                    ) : (
-                                        <>Assign Tour</>
-                                    )}
-                                </button>
+                            <div className="p-3 pt-0 bg-white shrink-0 space-y-2">
+                                {selectedVehicle.driver?.trips && selectedVehicle.driver.trips.length > 0 ? (
+                                    <button 
+                                        type="button" 
+                                        disabled 
+                                        className="w-full py-2 bg-gray-100 text-gray-400 rounded-lg text-[12px] font-bold cursor-not-allowed flex items-center justify-center gap-1.5 border"
+                                    >
+                                        🚗 Currently on a Tour
+                                    </button>
+                                ) : (
+                                    <button 
+                                        type="button" 
+                                        disabled={selectedVehicle.driver?.duty_status !== 'on_duty'}
+                                        onClick={() => openConfirm(selectedVehicle)} 
+                                        className="w-full py-2 bg-blue-700 text-white rounded-lg text-[12px] font-bold hover:bg-blue-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                                    >
+                                        {selectedVehicle.driver?.duty_status !== 'on_duty' ? (
+                                            <>Off Duty</>
+                                        ) : (
+                                            <>Assign Tour</>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -2614,6 +2802,37 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         ) : null;
                                     })()}
                                 </div>
+                            </div>
+
+                            {/* Short Trip Checkbox */}
+                            <div className={`p-3 rounded-lg border transition ${isShortTrip ? 'bg-amber-50 border-amber-300 ring-1 ring-amber-300' : 'bg-gray-50 border-gray-200'}`}>
+                                <label className={`flex items-start gap-2.5 ${driverHasShortTripInCurrentSession ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isShortTrip}
+                                        disabled={driverHasShortTripInCurrentSession}
+                                        onChange={(e) => setIsShortTrip(e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-gray-300 cursor-pointer disabled:cursor-not-allowed"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-1.5 font-bold text-xs text-gray-800">
+                                            <span>⚡ Short Trip</span>
+                                            {isShortTrip && (
+                                                <span className="text-[10px] bg-amber-200 text-amber-900 font-semibold px-1.5 py-0.2 rounded-full">
+                                                    Queue Protection Active
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                                            If the driver returns before their queue turn has passed, they will return to the current queue. Only 1 short trip permitted per driver in this session.
+                                        </p>
+                                        {driverHasShortTripInCurrentSession && (
+                                            <p className="text-[11px] text-red-600 font-semibold mt-1">
+                                                ⚠️ This driver has already received a short trip in this session (Max 1 short trip per session).
+                                            </p>
+                                        )}
+                                    </div>
+                                </label>
                             </div>
 
                             {/* Rate mode radio buttons */}
@@ -2803,6 +3022,15 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             )} */}
                         </div>
 
+                        {/* Rate Warning if not assigned */}
+                        {!isRateAssigned && (
+                            <div className="px-4 pb-2">
+                                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 text-center font-medium">
+                                    ⚠️ Please select a destination city with a valid rate to enable assignment.
+                                </p>
+                            </div>
+                        )}
+
                         {/* Footer */}
                         <div className="flex gap-2 px-4 pb-4">
                             <button
@@ -2814,9 +3042,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             </button>
                             <button
                                 type="button"
-                                disabled={submitting || (rateMode === 'custom' && (!selectedCity || selectedCity.price === null)) || (rateMode === 'per_km' && (Number(agent?.distance_km || 0) <= 0 || vehicleRateValue <= 0))}
+                                disabled={submitting || !isRateAssigned}
                                 onClick={() => setShowFinalConfirm(true)}
-                                className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 transition"
+                                className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                title={!isRateAssigned ? "Please select a destination city with a valid rate" : ""}
                             >
                                 {submitting ? 'Assigning...' : 'Confirm & Assign'}
                             </button>
@@ -2844,11 +3073,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             </button>
                             <button
                                 type="button"
+                                disabled={submitting || !isRateAssigned}
                                 onClick={() => {
                                     setShowFinalConfirm(false);
                                     confirmAssign();
                                 }}
-                                className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-bold hover:bg-blue-800 transition shadow-sm"
+                                className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-bold hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
                             >
                                 Yes, Proceed
                             </button>
@@ -2994,100 +3224,117 @@ function TripCard({ trip }) {
 
     return (
         <div
-            className={`border-l-4 rounded-lg shadow-sm p-2 ${cardColor[status] ?? 'bg-gray-50 border-gray-300'
+            className={`border-l-4 rounded-lg shadow-sm p-2 flex flex-col justify-between ${cardColor[status] ?? 'bg-gray-50 border-gray-300'
                 }`}
         >
-            <div className="flex items-start justify-between mb-2">
-                <div className="min-w-0">
-                    <h3 className="font-semibold text-xs truncate">
-                        {(trip.driver?.first_name || trip.driver?.last_name) ? `${trip.driver?.first_name ?? ''} ${trip.driver?.last_name ?? ''}`.trim() : 'Driver'}
-                    </h3>
+            <div>
+                <div className="flex items-start justify-between mb-2">
+                    <div className="min-w-0">
+                        <h3 className="font-semibold text-xs truncate">
+                            {(trip.driver?.first_name || trip.driver?.last_name) ? `${trip.driver?.first_name ?? ''} ${trip.driver?.last_name ?? ''}`.trim() : 'Driver'}
+                        </h3>
 
-                    <p className="text-[10px] text-black-800 truncate">
-                        {trip.driver?.mobile_number ?? '-'} | {trip.driver?.vehicle?.registration_number ?? '-'}
-                    </p>
-                </div>
+                        <p className="text-[10px] text-black-800 truncate">
+                            {trip.driver?.mobile_number ?? '-'} | {trip.driver?.vehicle?.registration_number ?? '-'}
+                        </p>
+                    </div>
 
-                <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${badgeColor[status] ??
-                        'bg-gray-500 text-white'
-                        }`}
-                >
-                    {status}
-                </span>
-            </div>
-
-            <div className="space-y-1 text-[11px] text-gray-700">
-                <div className="truncate">
-                    <span className="font-semibold">Customer :</span>{' '}
-                    {trip.customer?.name ?? '-'}
-                </div>
-
-                <div className="truncate">
-                    <span className="font-semibold">Agent :</span>{' '}
-                    {trip.agent?.user?.name ??
-                        trip.agent?.name ??
-                        '-'}
-                </div>
-
-                <div>
-                    <span className="font-semibold">Assigned :</span>
-                    {/* <br /> */}
-                    <span className="text-[10px]">
-                        {trip.trip_assigned_at
-                            ? new Date(
-                                trip.trip_assigned_at
-                            ).toLocaleDateString()
-                            : '-'}
+                    <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${badgeColor[status] ??
+                            'bg-gray-500 text-white'
+                            }`}
+                    >
+                        {status}
                     </span>
                 </div>
 
-                {trip.trip_started_at && (
+                <div className="space-y-1 text-[11px] text-gray-700">
+                    <div className="truncate">
+                        <span className="font-semibold">Customer :</span>{' '}
+                        {trip.customer?.name ?? '-'}
+                    </div>
+
+                    <div className="truncate">
+                        <span className="font-semibold">Agent :</span>{' '}
+                        {trip.agent?.user?.name ??
+                            trip.agent?.name ??
+                            '-'}
+                    </div>
+
                     <div>
-                        <span className="font-semibold">
-                            Started:
-                        </span>{' '}
-                        <span className="text-[10px]">
-                            {new Date(
-                                trip.trip_started_at
-                            ).toLocaleDateString()}
+                        <span className="font-semibold">Assigned :</span>
+                        <span className="text-[10px] ml-1">
+                            {trip.trip_assigned_at
+                                ? new Date(
+                                    trip.trip_assigned_at
+                                ).toLocaleDateString()
+                                : '-'}
                         </span>
                     </div>
-                )}
 
-                {trip.trip_ended_at && (
-                    <div>
-                        <span className="font-semibold">
-                            Ended:
-                        </span>{' '}
-                        <span className="text-[10px]">
-                            {new Date(
-                                trip.trip_ended_at
-                            ).toLocaleDateString()}
-                        </span>
-                    </div>
-                )}
-
-                {trip.remarks && (
-                    <div className="text-[10px] text-gray-600 truncate">
-                        <span className="font-semibold">
-                            Notes:
-                        </span>{' '}
-                        {trip.remarks}
-                    </div>
-                )}
-
-                {trip.selection_reason && (
-                    <div className="text-[10px] bg-amber-50 text-amber-900 border border-amber-200 rounded p-1.5 mt-1">
-                        <span className="font-bold">⚠️ Out of Queue:</span> {trip.selection_reason}
-                        {trip.selection_reason_by && (
-                            <span className="text-gray-500 block text-[9px] mt-0.5">
-                                Logged by: {trip.selection_reason_by?.name ?? trip.assigned_by?.name ?? 'Staff'}
+                    {trip.trip_started_at && (
+                        <div>
+                            <span className="font-semibold">
+                                Started:
+                            </span>{' '}
+                            <span className="text-[10px]">
+                                {new Date(
+                                    trip.trip_started_at
+                                ).toLocaleDateString()}
                             </span>
-                        )}
-                    </div>
-                )}
+                        </div>
+                    )}
 
+                    {trip.trip_ended_at && (
+                        <div>
+                            <span className="font-semibold">
+                                Ended:
+                            </span>{' '}
+                            <span className="text-[10px]">
+                                {new Date(
+                                    trip.trip_ended_at
+                                ).toLocaleDateString()}
+                            </span>
+                        </div>
+                    )}
+
+                    {trip.remarks && (
+                        <div className="text-[10px] text-gray-600 truncate">
+                            <span className="font-semibold">
+                                Notes:
+                            </span>{' '}
+                            {trip.remarks}
+                        </div>
+                    )}
+
+                    {trip.is_short_trip && (
+                        <div className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 rounded p-1.5 mt-1">
+                            <div className="flex items-center justify-between font-bold">
+                                <span>⚡ Short Tour</span>
+                                {trip.original_session_id && (
+                                    <span className="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-semibold">Queue {trip.original_session_id}</span>
+                                )}
+                            </div>
+                            {trip.short_trip_by && (
+                                <span className="text-amber-800 block text-[9px] mt-0.5">
+                                    Given by: {trip.short_trip_by?.name ?? 'Staff'}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {trip.selection_reason && (
+                        <div className="text-[10px] bg-amber-50 text-amber-900 border border-amber-200 rounded p-1.5 mt-1">
+                            <span className="font-bold">⚠️ Out of Queue:</span> {trip.selection_reason}
+                            {trip.selection_reason_by && (
+                                <span className="text-gray-500 block text-[9px] mt-0.5">
+                                    Logged by: {trip.selection_reason_by?.name ?? trip.assigned_by?.name ?? 'Staff'}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                </div>
             </div>
         </div>
     );

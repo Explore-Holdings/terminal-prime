@@ -124,7 +124,7 @@ class CounterController extends Controller
             ->orderBy('drivers.checked_in_at', 'asc')
             ->get();
 
-        $ongoingTrips = Trip::with(['driver.vehicle', 'customer', 'agent.user'])
+        $ongoingTrips = Trip::with(['driver.vehicle', 'customer', 'agent.user', 'shortTripBy'])
             ->where('status', '!=', 'Completed')
             ->latest()
             ->get();
@@ -181,7 +181,7 @@ class CounterController extends Controller
                 ->latest()
                 ->get(),
 
-            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy'])
+            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy', 'shortTripBy'])
                 ->where('status', '!=', 'Completed')
                 ->latest()
                 ->get(),
@@ -222,9 +222,14 @@ class CounterController extends Controller
                 ->orderBy('language_name')
                 ->pluck('language_name'),
 
-            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance', 'selectionReasonBy'])
+            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance', 'selectionReasonBy', 'shortTripBy'])
                 ->where('trip_assigned_by', Auth::id())
                 ->latest('trip_assigned_at')
+                ->get(),
+
+            'shortTrips' => \App\Models\ShortTrip::with(['trip.customer', 'driver.vehicle', 'assignedBy', 'checkedInBy'])
+                ->latest('assigned_at')
+                ->take(50)
                 ->get(),
 
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),

@@ -358,8 +358,19 @@ export default function Converter({ initialCurrency = 'USD', initialAmount = 0 }
                                                     'text-rose-700'
                                                 }`}>
                                                     <span className="text-base opacity-70 mr-1.5">{baseCurrency}</span>
-                                                    {Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    {(() => {
+                                                        const rawVal = Math.abs(balance);
+                                                        if (isOverpaid && baseCurrency === 'LKR') {
+                                                            return (Math.floor(rawVal / 10) * 10).toLocaleString();
+                                                        }
+                                                        return rawVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                    })()}
                                                 </div>
+                                                {isOverpaid && baseCurrency === 'LKR' && Math.abs(balance) % 10 !== 0 && (
+                                                    <div className="text-[10px] text-amber-700 font-semibold text-right mt-0.5">
+                                                        (Exact: LKR {Math.abs(balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → Handover: LKR {(Math.floor(Math.abs(balance) / 10) * 10).toLocaleString()})
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
