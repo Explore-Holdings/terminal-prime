@@ -30,12 +30,16 @@ class CustomerInvoiceMail extends Mailable implements ShouldQueue
         $currency = $this->customer->agent->new_currency ?? 'LKR';
         $price = $this->customer->agent->new_price ?? 0;
 
+        $pettyCashReturn = \App\Models\PettyCashReturn::where('customer_id', $this->customer->id)->first();
+        $returnedLkr = $pettyCashReturn ? $pettyCashReturn->amount_lkr : 0;
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.customer-invoice', [
-            'customer'   => $this->customer,
-            'currency'   => $currency,
-            'price'      => $price,
-            'paidAmount' => $this->customer->paid_amount,
-            'payments'   => collect($payments),
+            'customer'    => $this->customer,
+            'currency'    => $currency,
+            'price'       => $price,
+            'paidAmount'  => $this->customer->paid_amount,
+            'payments'    => collect($payments),
+            'returnedLkr' => $returnedLkr,
         ]);
 
         return $this->subject('Customer Invoice - ' . $this->invoiceNumber)
