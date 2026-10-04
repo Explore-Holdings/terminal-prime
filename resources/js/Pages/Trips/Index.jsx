@@ -42,7 +42,36 @@ export default function Index({ trips = [] }) {
             selector: row => row.id,
             sortable: true,
             width: '110px',
-            cell: row => <strong>#{row.id}</strong>,
+            cell: row => (
+                <div className="py-1">
+                    <strong>#{row.id}</strong>
+                    {row.is_short_trip && (
+                        <span className="block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 text-center leading-tight">
+                            ⚡ Short
+                        </span>
+                    )}
+                </div>
+            ),
+        },
+        {
+            name: 'Type',
+            selector: row => row.is_short_trip ? 'Short' : 'Standard',
+            sortable: true,
+            width: '120px',
+            cell: row => row.is_short_trip ? (
+                <div>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        ⚡ Short Tour
+                    </span>
+                    {row.short_trip_by?.name && (
+                        <span className="block text-[10px] text-gray-500 mt-0.5 truncate" title={`Assigned by ${row.short_trip_by.name}`}>
+                            By: {row.short_trip_by.name}
+                        </span>
+                    )}
+                </div>
+            ) : (
+                <span className="text-gray-400 text-xs">Standard</span>
+            ),
         },
         {
             name: 'Customer',

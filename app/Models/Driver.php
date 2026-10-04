@@ -125,4 +125,9 @@ class Driver extends Model
         return $this->hasMany(Payout::class);
     }
 
+    public function shortTrips()
+    {
+        return $this->hasMany(ShortTrip::class);
+    }
+
 }

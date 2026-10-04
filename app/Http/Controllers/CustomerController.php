@@ -181,6 +181,7 @@ class CustomerController extends Controller
         $customer->update(['invoice_number' => $invoiceNumber]);
 
         if (!empty($data['returned_lkr']) && $data['returned_lkr'] > 0) {
+            $returnedAmount = floor($data['returned_lkr'] / 10) * 10;
             $shiftId = null;
             $userId = auth()->id();
             if ($userId) {
@@ -195,10 +196,10 @@ class CustomerController extends Controller
 
             \App\Models\PettyCashReturn::create([
                 'customer_id' => $customer->id,
-                'amount_lkr'  => $data['returned_lkr'],
+                'amount_lkr'  => $returnedAmount,
                 'shift_id'    => $shiftId
             ]);
-            \Illuminate\Support\Facades\DB::table('petty_cash')->decrement('amount', $data['returned_lkr']);
+            \Illuminate\Support\Facades\DB::table('petty_cash')->decrement('amount', $returnedAmount);
         }
 
         return redirect()
@@ -245,6 +246,7 @@ class CustomerController extends Controller
             'agent_share'    => 'nullable|numeric|min:0',
             'balance'        => 'nullable|numeric',
             'selection_reason' => 'nullable|string',
+            'is_short_trip'  => 'nullable|boolean',
         ]);
 
         $trip = null;
@@ -261,6 +263,29 @@ class CustomerController extends Controller
                 $driver->refresh();
             }
 
+            $isShortTrip = !empty($data['is_short_trip']);
+
+            // One short trip per driver per session validation
+            if ($isShortTrip) {
+                $alreadyHadShortTrip = \App\Models\ShortTrip::where('driver_id', $driver->id)
+                    ->where('session_id', $driver->session_id)
+                    ->exists();
+
+                if (!$alreadyHadShortTrip) {
+                    $alreadyHadShortTrip = Trip::where('driver_id', $driver->id)
+                        ->where('original_session_id', $driver->session_id)
+                        ->where('is_short_trip', true)
+                        ->whereNotIn('status', ['Cancelled'])
+                        ->exists();
+                }
+
+                if ($alreadyHadShortTrip) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'is_short_trip' => "Driver {$driver->first_name} {$driver->last_name} has already received a short trip in Session {$driver->session_id}. A driver cannot be assigned more than one short trip per session.",
+                    ]);
+                }
+            }
+
             $selectionReason = !empty($data['selection_reason']) ? trim($data['selection_reason']) : null;
 
             // ── Bump skipped drivers to next session ──
@@ -271,12 +296,12 @@ class CustomerController extends Controller
             // TripObserver when their trip completes).
             // NOTE: If this is an out-of-turn assignment (selectionReason provided),
             // we do NOT bump skipped drivers. The next-in-line remains unchanged.
-            if (!$selectionReason) {
-                $assignedSlot = null;
-                if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
-                    $assignedSlot = (int) $m[0];
-                }
+            $assignedSlot = null;
+            if (preg_match('/\d+/', $driver->registration_number ?? '', $m)) {
+                $assignedSlot = (int) $m[0];
+            }
 
+            if (!$selectionReason) {
                 if ($assignedSlot !== null && $driver->session_id !== null) {
                     $currentSession = $driver->session_id;
 
@@ -340,22 +365,52 @@ class CustomerController extends Controller
                 }
             }
 
-            // Move the assigned driver to the waiting queue immediately
-            if ($driver->session_id !== null) {
-                $driver->update(['session_id' => $driver->session_id + 1]);
+            $originalSession = $driver->session_id;
+
+            // Move the assigned driver to the waiting queue if regular trip,
+            // or keep in current session if short trip (until check-in)
+            if (!$isShortTrip) {
+                if ($driver->session_id !== null) {
+                    $driver->update([
+                        'session_id'  => $driver->session_id + 1,
+                        'duty_status' => 'on_trip',
+                    ]);
+                }
+            } else {
+                $driver->update([
+                    'duty_status' => 'on_trip',
+                ]);
             }
 
             $trip = Trip::create([
-                'driver_id'        => $data['driver_id'],
-                'customer_id'      => $customer->id,
-                'agent_id'         => $data['agent_id'],
-                'trip_assigned_at' => now(),
-                'trip_assigned_by' => auth()->id(),
-                'selection_reason' => $selectionReason,
+                'driver_id'           => $data['driver_id'],
+                'customer_id'         => $customer->id,
+                'agent_id'            => $data['agent_id'],
+                'trip_assigned_at'    => now(),
+                'trip_assigned_by'    => auth()->id(),
+                'selection_reason'    => $selectionReason,
                 'selection_reason_by' => $selectionReason ? auth()->id() : null,
-                'remarks'          => $data['remarks'] ?? null,
-                'status'           => 'Assigned',
+                'is_short_trip'       => $isShortTrip,
+                'short_trip_by'       => $isShortTrip ? auth()->id() : null,
+                'original_session_id' => $originalSession,
+                'original_slot_number'=> $assignedSlot,
+                'remarks'             => $data['remarks'] ?? null,
+                'status'              => 'Assigned',
             ]);
+
+            // Save short trip separately with who did it
+            if ($isShortTrip) {
+                \App\Models\ShortTrip::create([
+                    'trip_id'     => $trip->id,
+                    'driver_id'   => $driver->id,
+                    'session_id'  => $originalSession,
+                    'slot_number' => $assignedSlot,
+                    'assigned_by' => auth()->id(),
+                    'assigned_at' => now(),
+                    'status'      => 'active',
+                    'remarks'     => $data['remarks'] ?? null,
+                ]);
+            }
 
             // Update agent status
             $agent = Agent::findOrFail($data['agent_id']);

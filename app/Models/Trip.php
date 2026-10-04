@@ -17,6 +17,10 @@ class Trip extends Model
         'remarks',
         'selection_reason',
         'selection_reason_by',
+        'is_short_trip',
+        'short_trip_by',
+        'original_session_id',
+        'original_slot_number',
         'status',
         'survey_sent_at',
         'cash_received',
@@ -26,6 +30,9 @@ class Trip extends Model
         'trip_assigned_at' => 'datetime',
         'trip_started_at' => 'datetime',
         'trip_ended_at' => 'datetime',
+        'is_short_trip' => 'boolean',
+        'original_session_id' => 'integer',
+        'original_slot_number' => 'integer',
     ];
 
     protected $appends = ['shift_id'];
@@ -63,6 +70,16 @@ class Trip extends Model
     public function selectionReasonBy()
     {
         return $this->belongsTo(User::class, 'selection_reason_by');
+    }
+
+    public function shortTripBy()
+    {
+        return $this->belongsTo(User::class, 'short_trip_by');
+    }
+
+    public function shortTripRecord()
+    {
+        return $this->hasOne(ShortTrip::class);
     }
 
     public function getShiftIdAttribute()

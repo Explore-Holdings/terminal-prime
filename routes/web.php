@@ -161,6 +161,12 @@ Route::post('/customers/{customer}/assign-external-vehicle', [CustomerController
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
+Route::post('/trips/{trip}/check-in', [TripController::class, 'checkIn'])
+    ->name('trips.check-in');
+
+Route::get('/short-trips', [TripController::class, 'shortTripsIndex'])
+    ->name('short-trips.index');
+
 Route::get('/finance', [FinanceController::class, 'index'])->name('finance.index');
 Route::post('/finance/rates', [FinanceController::class, 'storeRateSettings'])->name('finance.rates.store');
 Route::post('/finance/payouts/store', [FinanceController::class, 'storePayout'])->name('finance.payouts.store');
