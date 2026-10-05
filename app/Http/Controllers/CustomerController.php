@@ -206,7 +206,7 @@ class CustomerController extends Controller
             ->route('counter.index');
     }
 
-    public function downloadInvoice(Customer $customer)
+    private function generateInvoicePdf(Customer $customer, ?string $invoiceNumber = null)
     {
         $payments = is_string($customer->payment_notes) 
             ? json_decode($customer->payment_notes, true) 
@@ -215,12 +215,12 @@ class CustomerController extends Controller
         $currency = $customer->agent->new_currency ?? 'LKR';
         $price = $customer->agent->new_price ?? 0;
 
-        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoiceNumber = $invoiceNumber ?: ($customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT)));
 
         $pettyCashReturn = \App\Models\PettyCashReturn::where('customer_id', $customer->id)->first();
         $returnedLkr = $pettyCashReturn ? $pettyCashReturn->amount_lkr : 0;
 
-        $pdf = Pdf::loadView('invoices.customer-invoice', [
+        return Pdf::loadView('invoices.customer-invoice', [
             'customer'    => $customer,
             'currency'    => $currency,
             'price'       => $price,
@@ -228,7 +228,21 @@ class CustomerController extends Controller
             'payments'    => collect($payments),
             'returnedLkr' => $returnedLkr,
         ]);
+    }
 
+    public function downloadInvoice(Customer $customer)
+    {
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $filePath = storage_path("app/public/invoices/{$invoiceNumber}.pdf");
+
+        if (file_exists($filePath)) {
+            return response()->file($filePath, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => "inline; filename=\"{$invoiceNumber}.pdf\"",
+            ]);
+        }
+
+        $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
         return $pdf->stream("{$invoiceNumber}.pdf");
     }
 
@@ -491,6 +505,19 @@ class CustomerController extends Controller
         $customer->refresh();
 
         $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoiceDir    = storage_path('app/public/invoices');
+        if (!file_exists($invoiceDir)) {
+            mkdir($invoiceDir, 0755, true);
+        }
+        $savedFile     = "{$invoiceDir}/{$invoiceNumber}.pdf";
+
+        try {
+            $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            Log::error("Failed to save invoice PDF for trip assignment on customer {$customer->id}: " . $e->getMessage());
+        }
+
         $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
 
         $customer->update([
@@ -657,6 +684,19 @@ class CustomerController extends Controller
         $customer->refresh();
 
         $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoiceDir    = storage_path('app/public/invoices');
+        if (!file_exists($invoiceDir)) {
+            mkdir($invoiceDir, 0755, true);
+        }
+        $savedFile     = "{$invoiceDir}/{$invoiceNumber}.pdf";
+
+        try {
+            $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            Log::error("Failed to save invoice PDF for external vehicle assignment on customer {$customer->id}: " . $e->getMessage());
+        }
+
         $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
 
         $customer->update([
