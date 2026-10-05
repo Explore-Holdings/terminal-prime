@@ -1359,15 +1359,23 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
                     {isLockedByOther ? `In Process (${lockedByName})` : 'Customer'}
                 </CardButton>
 
-                <CardButton color="blue" disabled={true} icon={<CreditCard size={13} />} >
+                <CardButton 
+                    color="blue" 
+                    disabled={isCustomerDisabled} 
+                    onClick={() => onOpen(agent, 'payment')} 
+                    icon={<CreditCard size={13} />}
+                >
                     Payment
                 </CardButton>
 
-                {agent.booking_type !== 'Rent a Car' && (
-                    <CardButton color="blue" disabled={true} icon={<Car size={13} />} >
-                        Vehicle
-                    </CardButton>
-                )}
+                <CardButton 
+                    color="blue" 
+                    disabled={isCustomerDisabled} 
+                    onClick={() => onOpen(agent, agent.booking_type === 'Rent a Car' ? 'rent_a_car_vehicle' : 'vehicle')} 
+                    icon={<Car size={13} />}
+                >
+                    Vehicle
+                </CardButton>
             </div>
         </div>
     );
@@ -1415,16 +1423,16 @@ function Modal({
                         Customer
                     </TabButton>
 
-                    <TabButton active={activeTab === 'payment'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('payment')} >
+                    <TabButton active={activeTab === 'payment'} onClick={() => setActiveTab('payment')}>
                         Payment
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('vehicle')} >
+                        <TabButton active={activeTab === 'vehicle'} onClick={() => setActiveTab('vehicle')}>
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} disabled={!effectiveCustomerId} onClick={() => setActiveTab('rent_a_car_vehicle')} >
+                        <TabButton active={activeTab === 'rent_a_car_vehicle'} onClick={() => setActiveTab('rent_a_car_vehicle')}>
                             External Vehicles
                         </TabButton>
                     )}
@@ -1436,9 +1444,7 @@ function Modal({
                     </div>
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
-                        {effectiveCustomerId && (
-                            <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} pettyCash={pettyCash} eurRates={eurRates} />
-                        )}
+                        <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} pettyCash={pettyCash} eurRates={eurRates} />
                     </div>
 
                     {agent.booking_type !== 'Rent a Car' ? (
@@ -3667,6 +3673,10 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     }, [startDate, endDate]);
 
     const confirmAssign = () => {
+        if (!customerId) {
+            alert('Customer not found. Please save customer first.');
+            return;
+        }
         setSubmitting(true);
         const v = confirmModal.vehicle;
         
