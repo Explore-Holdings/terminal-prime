@@ -23,6 +23,16 @@ class CustomerInvoiceMail extends Mailable implements ShouldQueue
 
     public function build()
     {
+        $invoiceFile = storage_path("app/public/invoices/{$this->invoiceNumber}.pdf");
+        if (file_exists($invoiceFile)) {
+            return $this->subject('Customer Invoice - ' . $this->invoiceNumber)
+                ->view('emails.customer-invoice')
+                ->attach($invoiceFile, [
+                    'as'   => "{$this->invoiceNumber}.pdf",
+                    'mime' => 'application/pdf',
+                ]);
+        }
+
         $payments = is_string($this->customer->payment_notes) 
             ? json_decode($this->customer->payment_notes, true) 
             : $this->customer->payment_notes;
