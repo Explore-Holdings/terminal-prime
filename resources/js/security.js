@@ -11,9 +11,12 @@
  */
 
 export function initSecurityLockdown() {
-    // Disabled inspect option removed as requested
-    return;
-
+    // 1. Block Right-Click Context Menu
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }, true);
     // 2. Block DevTools, Inspect Element, View Source & Shortcut Combinations
     document.addEventListener('keydown', (e) => {
         const isCtrlOrMeta = e.ctrlKey || e.metaKey;
