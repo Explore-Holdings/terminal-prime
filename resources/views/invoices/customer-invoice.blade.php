@@ -254,7 +254,8 @@
                     Services provided by:<br>
                     <strong>EUROPCAR - AIRPORT COUNTER</strong><br>
                     Bandaranaike International Airport<br>
-                    Katunayake, Sri Lanka
+                    Katunayake, Sri Lanka<br>
+                    Hotline: +94 71 874 1444
                 </div>
             </td>
             <td style="width: 50%;">
@@ -272,22 +273,76 @@
     </table>
 
 
-    {{-- ── YOUR RENTAL ── --}}
-    <div class="section-heading">Your Rental</div>
-    <table class="info-table">
-        <tr>
-            <td class="info-label">Counter Station</td>
-            <td class="info-value">BIA AIRPORT COUNTER</td>
-            <td class="info-label">Drop-off Location</td>
-            <td class="info-value">{{ strtoupper($customer->dropoff_location ?? '-') }}</td>
-        </tr>
-        <tr>
-            <td class="info-label">Service Date</td>
-            <td class="info-value">{{ $customer->created_at ? $customer->created_at->format('d.m.Y H:i') : now('Asia/Colombo')->format('d.m.Y H:i') }}</td>
-            <td class="info-label">Payment Method</td>
-            <td class="info-value">{{ strtoupper($customer->payment_method ?? '-') }}</td>
-        </tr>
+    @php
+        $agent = $customer->agent;
+        $bookingType = strtolower(trim($agent->booking_type ?? ''));
+        $isTour = $agent && ($bookingType === 'tour' || $bookingType === 'tours' || !empty($agent->tour_destinations) || !empty($agent->days));
+        $tourDestinations = '';
+        if ($agent && !empty($agent->tour_destinations)) {
+            $rawDest = $agent->tour_destinations;
+            if (is_array($rawDest)) {
+                $tourDestinations = implode(' → ', array_filter($rawDest));
+            } elseif (is_string($rawDest)) {
+                $trimmed = trim($rawDest);
+                if ((str_starts_with($trimmed, '[') && str_ends_with($trimmed, ']')) || (str_starts_with($trimmed, '{') && str_ends_with($trimmed, '}'))) {
+                    $decoded = json_decode($trimmed, true);
+                    if (is_array($decoded)) {
+                        $tourDestinations = implode(' → ', array_filter($decoded));
+                    } else {
+                        $tourDestinations = $trimmed;
+                    }
+                } else {
+                    $tourDestinations = $trimmed;
+                }
+            }
+        }
+        if ($isTour && empty($tourDestinations)) {
+            $tourDestinations = $customer->dropoff_location ?: ($agent->dropoff_location ?: '');
+        }
+    @endphp
 
+    {{-- ── YOUR RENTAL / TOUR ── --}}
+    <div class="section-heading">{{ $isTour ? 'Your Tour Booking' : 'Your Rental' }}</div>
+    <table class="info-table">
+        @if($isTour)
+            <tr>
+                <td class="info-label">Counter Station</td>
+                <td class="info-value">BIA AIRPORT COUNTER</td>
+                <td class="info-label">Booking Type</td>
+                <td class="info-value"><strong style="color: #00703c;">TOUR PACKAGE</strong></td>
+            </tr>
+            <tr>
+                <td class="info-label">Tour Destinations</td>
+                <td class="info-value" colspan="3" style="font-weight: bold; font-size: 10.5px;">
+                    {{ strtoupper($tourDestinations ?: '-') }}
+                </td>
+            </tr>
+            <tr>
+                <td class="info-label">Service Date</td>
+                <td class="info-value">{{ $customer->created_at ? $customer->created_at->format('d.m.Y H:i') : now('Asia/Colombo')->format('d.m.Y H:i') }}</td>
+                <td class="info-label">Payment Method</td>
+                <td class="info-value">{{ strtoupper($customer->payment_method ?? '-') }}</td>
+            </tr>
+            @if(!empty($agent->days))
+            <tr>
+                <td class="info-label">Duration</td>
+                <td class="info-value" colspan="3">{{ $agent->days }} {{ $agent->days == 1 ? 'Day' : 'Days' }}</td>
+            </tr>
+            @endif
+        @else
+            <tr>
+                <td class="info-label">Counter Station</td>
+                <td class="info-value">BIA AIRPORT COUNTER</td>
+                <td class="info-label">Drop-off Location</td>
+                <td class="info-value">{{ strtoupper($customer->dropoff_location ?? '-') }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">Service Date</td>
+                <td class="info-value">{{ $customer->created_at ? $customer->created_at->format('d.m.Y H:i') : now('Asia/Colombo')->format('d.m.Y H:i') }}</td>
+                <td class="info-label">Payment Method</td>
+                <td class="info-value">{{ strtoupper($customer->payment_method ?? '-') }}</td>
+            </tr>
+        @endif
     </table>
 
     {{-- ── YOUR COSTS ── --}}
@@ -304,10 +359,19 @@
         </thead>
         <tbody>
             <tr class="category-row">
-                <td colspan="3">Airport Counter Service</td>
+                <td colspan="3">{{ $isTour ? 'Tour Package Service' : 'Airport Counter Service' }}</td>
             </tr>
             <tr>
-                <td style="padding-left: 16px;">Airport Transfer Service</td>
+                <td style="padding-left: 16px;">
+                    @if($isTour)
+                        Tour Package Service
+                        @if(!empty($agent->days))
+                            - {{ $agent->days }} {{ $agent->days == 1 ? 'Day' : 'Days' }}
+                        @endif
+                    @else
+                        Airport Transfer Service
+                    @endif
+                </td>
                 <!-- <td class="text-right">1</td> -->
                 <!-- <td class="text-right">Service</td> -->
                 <td class="text-right">{{ number_format($price, 2) }}</td>

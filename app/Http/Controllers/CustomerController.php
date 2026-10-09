@@ -85,6 +85,13 @@ class CustomerController extends Controller
             ]);
         }
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'id' => $customer->id,
+                'customer' => $customer,
+            ]);
+        }
+
         return redirect()
             ->route('counter.index')
             ->with('created_customer_id', $customer->id);
@@ -212,12 +219,14 @@ class CustomerController extends Controller
 
     private function generateInvoicePdf(Customer $customer, ?string $invoiceNumber = null)
     {
+        $customer->loadMissing('agent');
+
         $payments = is_string($customer->payment_notes) 
             ? json_decode($customer->payment_notes, true) 
             : $customer->payment_notes;
 
-        $currency = $customer->agent->new_currency ?? 'LKR';
-        $price = $customer->agent->new_price ?? 0;
+        $currency = $customer->agent->new_currency ?? $customer->agent->currency ?? 'LKR';
+        $price = $customer->agent->new_price ?? $customer->agent->price ?? 0;
 
         $invoiceNumber = $invoiceNumber ?: ($customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT)));
 
@@ -239,14 +248,13 @@ class CustomerController extends Controller
         $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
         $filePath = storage_path("app/public/invoices/{$invoiceNumber}.pdf");
 
-        if (file_exists($filePath)) {
-            return response()->file($filePath, [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => "inline; filename=\"{$invoiceNumber}.pdf\"",
-            ]);
+        $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
+        try {
+            $pdf->save($filePath);
+        } catch (\Exception $e) {
+            // ignore save error, stream directly
         }
 
-        $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
         return $pdf->stream("{$invoiceNumber}.pdf");
     }
 

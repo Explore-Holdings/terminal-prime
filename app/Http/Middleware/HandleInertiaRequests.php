@@ -69,6 +69,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'invoice_path' => fn () => $request->session()->get('invoice_path'),
+                'created_customer_id' => fn () => $request->session()->get('created_customer_id'),
             ],
         ];
     }

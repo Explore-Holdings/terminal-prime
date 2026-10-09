@@ -9,10 +9,10 @@ const isTourBooking = (agent) => {
     return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations) || Boolean(agent.days);
 };
 
-const formatTourDestinations = (dest, fallback = '') => {
-    if (!dest) return fallback;
+const getTourDestinationsList = (dest) => {
+    if (!dest) return [];
     if (Array.isArray(dest)) {
-        return dest.filter(Boolean).join(' → ');
+        return dest.filter(Boolean).map(s => String(s).trim()).filter(Boolean);
     }
     if (typeof dest === 'string') {
         const trimmed = dest.trim();
@@ -20,15 +20,35 @@ const formatTourDestinations = (dest, fallback = '') => {
             try {
                 const parsed = JSON.parse(trimmed);
                 if (Array.isArray(parsed)) {
-                    return parsed.filter(Boolean).join(' → ');
+                    return parsed.filter(Boolean).map(s => String(s).trim()).filter(Boolean);
                 }
             } catch (e) {
                 // Not valid JSON
             }
         }
-        return trimmed;
+        if (trimmed.includes('→')) {
+            return trimmed.split('→').map(s => s.trim()).filter(Boolean);
+        }
+        if (trimmed.includes('->')) {
+            return trimmed.split('->').map(s => s.trim()).filter(Boolean);
+        }
+        if (trimmed.includes(',')) {
+            return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        if (trimmed.includes('\n')) {
+            return trimmed.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+        return [trimmed];
     }
-    return String(dest);
+    return [String(dest)];
+};
+
+const formatTourDestinations = (dest, fallback = '') => {
+    const list = getTourDestinationsList(dest);
+    if (list.length > 0) {
+        return list.join(' → ');
+    }
+    return fallback;
 };
 
 const CURRENCY_TO_COUNTRY = {
@@ -486,12 +506,21 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
-                const id = page.props.createdCustomerId || page.props.flash?.created_customer_id || selectedAgent?.customers?.[selectedAgent.customers.length - 1]?.id;
+                const updatedAgent = page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
+                if (updatedAgent) {
+                    setSelectedAgent(updatedAgent);
+                }
+                const id = page.props.flash?.created_customer_id
+                    || page.props.createdCustomerId
+                    || updatedAgent?.customers?.[updatedAgent.customers.length - 1]?.id
+                    || selectedAgent?.customers?.[selectedAgent.customers.length - 1]?.id;
 
                 if (id) {
                     setCreatedCustomerId(id);
                 }
-                setPaymentEnabledAgentId(selectedAgent.id);
+                if (selectedAgent?.id) {
+                    setPaymentEnabledAgentId(selectedAgent.id);
+                }
                 setActiveTab('payment');
             },
         });
@@ -1090,7 +1119,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} />
             )}
 
             {showCheckoutConfirm && (
@@ -1341,6 +1370,15 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
     const isPaymentActive = paymentEnabled || Boolean(agent.customers?.length > 0);
     const isVehicleActive = vehicleEnabled || Boolean(agent.customers?.some(c => c.invoice_path));
 
+    const subtitleParts = [];
+    if (agent.passenger_count != null && Number(agent.passenger_count) > 0) {
+        subtitleParts.push(`${agent.passenger_count} Pax`);
+    }
+    if (agent.luggage_count != null && Number(agent.luggage_count) > 0) {
+        subtitleParts.push(`${agent.luggage_count} Luggage`);
+    }
+    subtitleParts.push(formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '-');
+
     return (
         <div 
             onClick={() => onOpen(agent, 'customer')}
@@ -1355,7 +1393,7 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
 
             <div className="flex items-center justify-between gap-2 mt-1">
                 <p className="text-xs text-gray-600 truncate flex-1 min-w-0">
-                    {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '-'}
+                    {subtitleParts.join(' : ')}
                 </p>
                 {agent.booking_type && (
                     <span className="shrink-0 text-[10px] bg-blue-50 text-black-900 px-1.5 py-0.5 rounded font-medium border border-blue-100 uppercase tracking-wide">
@@ -1387,6 +1425,7 @@ function Modal({
     paymentForm,
     saveCustomer,
     customerId,
+    setCreatedCustomerId,
     invoicePath,
     setInvoicePath,
     vehicles,
@@ -1444,7 +1483,7 @@ function Modal({
                     </div>
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
-                        <PaymentTab agent={agent} customerId={effectiveCustomerId} form={paymentForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} pettyCash={pettyCash} eurRates={eurRates} />
+                        <PaymentTab agent={agent} customerId={effectiveCustomerId} setCreatedCustomerId={setCreatedCustomerId} form={paymentForm} customerForm={customerForm} invoicePath={effectiveInvoicePath} setInvoicePath={setInvoicePath} setActiveTab={setActiveTab} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={onClose} pettyCash={pettyCash} eurRates={eurRates} />
                     </div>
 
                     {agent.booking_type !== 'Rent a Car' ? (
@@ -1507,49 +1546,21 @@ function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLangua
                     </div>
 
                     {isTour ? (
-                        <div className="bg-white/90 rounded-lg p-3 border border-purple-100 mt-2 space-y-2">
-                            <div className="flex items-start gap-1.5">
-                                <span className="font-bold text-purple-800 shrink-0">📍 Tour Destinations:</span>
-                                <span className="font-semibold text-gray-900">{tourDestinations}</span>
-                            </div>
-
-                            {hasAnyTourMetrics && (
-                                <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-purple-50 text-xs">
-                                    {hasKm && (
-                                        <div>
-                                            <span className="text-gray-500">Distance:</span>{' '}
-                                            <span className="font-bold text-red-600">{agent?.distance_km} KM</span>
-                                        </div>
-                                    )}
-                                    {hasPax && (
-                                        <div>
-                                            <span className="text-gray-500">Passengers:</span>{' '}
-                                            <span className="font-bold text-gray-900">{agent?.passenger_count} Pax</span>
-                                        </div>
-                                    )}
-                                    {hasLug && (
-                                        <div>
-                                            <span className="text-gray-500">Luggage:</span>{' '}
-                                            <span className="font-bold text-gray-900">{agent?.luggage_count}</span>
-                                        </div>
-                                    )}
-                                    {hasDays && (
-                                        <div>
-                                            <span className="text-gray-500">Duration:</span>{' '}
-                                            <span className="font-bold text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</span>
-                                        </div>
-                                    )}
-                                </div>
+                        <div className="flex flex-wrap items-center gap-4 text-purple-900 text-xs mt-1">
+                            <span className="font-semibold text-purple-950">
+                                📍 Destinations: <strong className="text-gray-900">{formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}</strong>
+                            </span>
+                            {hasKm && (
+                                <span>Distance: <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
                             )}
-
+                            {hasDays && (
+                                <span>Duration: <strong className="text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</strong></span>
+                            )}
                             {hasDriverRate && (
-                                <div className="text-xs pt-1 border-t border-purple-50 flex items-center justify-between">
-                                    <span className="text-gray-600 font-medium">Assigned Tour Driver Rate:</span>
-                                    <span className="font-bold text-emerald-700">
-                                        LKR {Number(agent?.driver_rate || 0).toLocaleString()}
-                                        {agent?.driver_rate_reason ? ` (${agent.driver_rate_reason})` : ''}
-                                    </span>
-                                </div>
+                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+                                    Tour Driver Rate: LKR {Number(agent?.driver_rate || 0).toLocaleString()}
+                                    {agent?.driver_rate_reason ? ` (${agent.driver_rate_reason})` : ''}
+                                </span>
                             )}
                         </div>
                     ) : (
@@ -1606,8 +1617,12 @@ function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLangua
                     )}
                 </div>
                 <Field label={isTour ? "Tour Destinations" : "Dropoff Location"} required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
-                <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
-                <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
+                {!isTour && (
+                    <>
+                        <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                        <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
+                    </>
+                )}
 
                 <div>
                     <label className="label">
@@ -1659,7 +1674,7 @@ function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLangua
 }
 
 function PaymentTab({
-    agent, customerId, form, invoicePath,
+    agent, customerId, setCreatedCustomerId, form, customerForm, invoicePath,
     setInvoicePath, setActiveTab, setVehicleEnabledAgentId, onClose, pettyCash = 0, eurRates
 }) {
     const CURRENCIES = useMemo(() => {
@@ -1747,10 +1762,55 @@ function PaymentTab({
 
     const targetCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id;
 
-    const savePayment = (e) => {
+    const ensureCustomerId = async () => {
+        if (targetCustomerId) return targetCustomerId;
+
+        try {
+            const custPayload = {
+                agent_id: agent.id,
+                name: customerForm?.data?.name?.trim() || agent?.name || 'Customer',
+                email: customerForm?.data?.email?.trim() || null,
+                mobile_number: customerForm?.data?.mobile_number?.trim() || null,
+                whatsapp_number: customerForm?.data?.whatsapp_number?.trim() || null,
+                country: customerForm?.data?.country?.trim() || null,
+                dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || 'Colombo',
+                passenger_count: Number(customerForm?.data?.passenger_count || agent?.passenger_count || 1),
+                luggage_count: Number(customerForm?.data?.luggage_count ?? agent?.luggage_count ?? 0),
+                language_preference: customerForm?.data?.language_preference || agent?.language_preference || 'English',
+                status: 'New',
+                remarks: customerForm?.data?.remarks || agent?.remarks || null,
+            };
+
+            const res = await window.axios.post('/customers', custPayload, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const newId = res.data?.id;
+            if (newId) {
+                if (typeof setCreatedCustomerId === 'function') {
+                    setCreatedCustomerId(newId);
+                }
+                return newId;
+            }
+        } catch (err) {
+            console.error('Auto-creating customer before payment failed:', err);
+        }
+        return null;
+    };
+
+    const savePayment = async (e) => {
         e.preventDefault();
-        if (!targetCustomerId) return alert('Please save customer first.');
         if (!balanced) return alert(`Total in ${form.data.currency} (${grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}) must be at least the price (${price.toLocaleString()}).`);
+
+        let effectiveId = targetCustomerId;
+        if (!effectiveId) {
+            effectiveId = await ensureCustomerId();
+        }
+
+        if (!effectiveId) {
+            alert('Unable to save customer details. Please check Customer tab.');
+            setActiveTab('customer');
+            return;
+        }
 
         const payload = payments.map((p) => ({
             ...p,
@@ -1779,7 +1839,7 @@ function PaymentTab({
         }
 
         form.transform((d) => ({ ...d, payments: payload, total_paid: grandTotal, returned_lkr: returnedLkr }));
-        form.post(`/customers/${targetCustomerId}/payment`, {
+        form.post(`/customers/${effectiveId}/payment`, {
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
@@ -1817,39 +1877,6 @@ function PaymentTab({
                     </span>
                 </a>
             </div>
-
-            {/* Tour Info Strip if booking is a Tour */}
-            {isTourBooking(agent) && (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="px-2 py-0.5 bg-purple-200 text-purple-900 rounded font-bold uppercase text-[10px] tracking-wide shrink-0">
-                            Tour Booking
-                        </span>
-                        <span className="font-semibold text-purple-950 truncate max-w-md">
-                            📍 {formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}
-                        </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-purple-900 text-xs">
-                        {agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0 && (
-                            <span>📍 <strong className="text-red-600">{agent.distance_km} KM</strong></span>
-                        )}
-                        {agent?.passenger_count != null && Number(agent?.passenger_count) > 0 && (
-                            <span>👥 <strong>{agent.passenger_count} Pax</strong></span>
-                        )}
-                        {agent?.luggage_count != null && Number(agent?.luggage_count) > 0 && (
-                            <span>🧳 <strong>{agent.luggage_count} Luggage</strong></span>
-                        )}
-                        {agent?.days != null && Number(agent?.days) > 0 && (
-                            <span>🗓️ <strong>{agent.days} {agent.days === 1 ? 'Day' : 'Days'}</strong></span>
-                        )}
-                        {agent?.driver_rate != null && Number(agent?.driver_rate) > 0 ? (
-                            <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
-                                Driver: LKR {Number(agent.driver_rate).toLocaleString()}
-                            </span>
-                        ) : null}
-                    </div>
-                </div>
-            )}
 
             {/* Side-by-Side Main Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -2135,8 +2162,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         return null;
     });
     const [selectionReason, setSelectionReason] = useState('');
-    const hasTourDriverRate = Boolean(isTourBooking(agent) && agent?.driver_rate != null && Number(agent.driver_rate) > 0);
-    const [rateMode, setRateMode] = useState(() => hasTourDriverRate ? 'tour_rate' : 'custom');
+    const isTour = isTourBooking(agent);
+    const hasTourDriverRate = Boolean(isTour && agent?.driver_rate != null && Number(agent.driver_rate) > 0);
+    const [rateMode, setRateMode] = useState(() => isTour ? 'tour_rate' : 'custom');
     const [selectedServiceCategoryFilter, setSelectedServiceCategoryFilter] = useState(null);
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -2215,9 +2243,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const selectedCity = cityPrices.find(r => String(r.id) === String(selectedCityId)) ?? null;
 
     // Share calculations
-    const isTourRate = rateMode === 'tour_rate';
-    const useCustomRate = rateMode === 'custom';
-    const isPerKmRate = rateMode === 'per_km';
+    const isTourRate = isTour || rateMode === 'tour_rate';
+    const useCustomRate = !isTour && rateMode === 'custom';
+    const isPerKmRate = !isTour && rateMode === 'per_km';
 
     // Get current vehicle type rate for Per KM calculation
     const lookupType = confirmModal ? (vehicleTypeMap[confirmModal.vehicle?.vehicle_type] || '') : '';
@@ -2241,7 +2269,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const isRateAssigned = Boolean(
         driverShare > 0 &&
         (
-            rateMode === 'tour_rate'
+            isTourRate
                 ? (Number(agent?.driver_rate || 0) > 0)
                 : rateMode === 'custom'
                     ? (selectedCity && selectedCity.price !== null && Number(selectedCity.price) > 0)
@@ -2293,7 +2321,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             });
             return;
         }
-        setRateMode(hasTourDriverRate ? 'tour_rate' : 'custom');
+        setRateMode(isTour ? 'tour_rate' : 'custom');
         setCustomDriverShare('');
         setCustomAgentShare('');
         setSelectedCityId('');
@@ -2381,55 +2409,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
     return (
         <div>
-            {/* Tour Booking Header Banner */}
-            {isTourBooking(agent) && (
-                <div className="mb-4 bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="bg-purple-600 text-white text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                            Tour Booking
-                        </span>
-                        <div className="text-xs truncate">
-                            <span className="text-purple-900 font-bold">Destinations: </span>
-                            <span className="font-semibold text-gray-900" title={formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}>
-                                {formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 text-xs">
-                        {agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0 && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-gray-500">Distance:</span>
-                                <span className="font-bold text-red-600">{agent?.distance_km} KM</span>
-                            </div>
-                        )}
-                        {(Number(customerForm?.data?.passenger_count) > 0 || Number(agent?.passenger_count) > 0) && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-gray-500">Pax:</span>
-                                <span className="font-bold text-gray-900">{customerForm?.data?.passenger_count ?? agent?.passenger_count}</span>
-                            </div>
-                        )}
-                        {(Number(customerForm?.data?.luggage_count) > 0 || Number(agent?.luggage_count) > 0) && (
-                            <div className="flex items-center gap-1">
-                                <span className="text-gray-500">Luggage:</span>
-                                <span className="font-bold text-gray-900">{customerForm?.data?.luggage_count ?? agent?.luggage_count}</span>
-                            </div>
-                        )}
-                        {agent?.days != null && Number(agent?.days) > 0 ? (
-                            <div className="flex items-center gap-1">
-                                <span className="text-gray-500">Duration:</span>
-                                <span className="font-bold text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</span>
-                            </div>
-                        ) : null}
-                        {agent?.driver_rate != null && Number(agent?.driver_rate) > 0 ? (
-                            <div className="flex items-center gap-1 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded text-emerald-900 font-bold">
-                                <span>Driver Rate: LKR {Number(agent?.driver_rate).toLocaleString()}</span>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            )}
-
             {/* Filters Bar */}
             <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Languages Filter */}
@@ -2968,43 +2947,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 </div>
                             )}
 
-                            {/* Tour Specific Details Card */}
-                            {isTourBooking(agent) && (
-                                <div className="bg-purple-50/90 border border-purple-200 rounded-lg p-3 space-y-2 text-xs">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                            Tour Itinerary & Details
-                                        </span>
-                                        {agent.distance_km != null && agent.distance_km !== '' && Number(agent.distance_km) > 0 && (
-                                            <span className="font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
-                                                {agent.distance_km} KM
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500 font-medium">Destinations: </span>
-                                        <span className="font-bold text-gray-900">
-                                            {formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '-'}
-                                        </span>
-                                    </div>
-                                    {((Number(customerForm?.data?.passenger_count) > 0 || Number(agent.passenger_count) > 0) ||
-                                      (Number(customerForm?.data?.luggage_count) > 0 || Number(agent.luggage_count) > 0) ||
-                                      (agent.days != null && Number(agent.days) > 0)) && (
-                                        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-purple-100 text-gray-700">
-                                            {(Number(customerForm?.data?.passenger_count) > 0 || Number(agent.passenger_count) > 0) && (
-                                                <span>👥 <strong>{customerForm?.data?.passenger_count ?? agent.passenger_count} Pax</strong></span>
-                                            )}
-                                            {(Number(customerForm?.data?.luggage_count) > 0 || Number(agent.luggage_count) > 0) && (
-                                                <span>🧳 <strong>{customerForm?.data?.luggage_count ?? agent.luggage_count} Luggage</strong></span>
-                                            )}
-                                            {agent.days != null && Number(agent.days) > 0 && (
-                                                <span>🗓️ <strong>{agent.days} {agent.days === 1 ? 'Day' : 'Days'}</strong></span>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
                             {/* Trip amount */}
                             <div className="bg-gray-50 rounded-lg border p-3 flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-600">Trip Amount</span>
@@ -3055,199 +2997,131 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 </label>
                             </div>
 
-                            {/* Rate mode radio buttons */}
-                            <div>
-                                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {hasTourDriverRate && (
-                                        <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'tour_rate' ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                            <input
-                                                type="radio"
-                                                name="rateMode"
-                                                value="tour_rate"
-                                                checked={rateMode === 'tour_rate'}
-                                                onChange={() => setRateMode('tour_rate')}
-                                                className="sr-only"
-                                            />
-                                            <span className={`text-lg ${rateMode === 'tour_rate' ? 'text-emerald-700' : 'text-gray-400'}`}>🏷️</span>
-                                            <span className={`text-[11px] font-semibold ${rateMode === 'tour_rate' ? 'text-emerald-700' : 'text-gray-600'}`}>Tour Driver Rate</span>
-                                            <span className="text-[9px] text-gray-400">LKR {Number(agent.driver_rate).toLocaleString()}</span>
-                                        </label>
-                                    )}
-
-                                    {/* Custom Rate */}
-                                    <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'custom' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <input
-                                            type="radio"
-                                            name="rateMode"
-                                            value="custom"
-                                            checked={rateMode === 'custom'}
-                                            onChange={() => setRateMode('custom')}
-                                            className="sr-only"
-                                        />
-                                        <span className={`text-lg ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-400'}`}>🏙️</span>
-                                        <span className={`text-[11px] font-semibold ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-600'}`}>Custom Rate</span>
-                                        <span className="text-[9px] text-gray-400">City-based pricing</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Panel: Tour Driver Rate */}
-                            {rateMode === 'tour_rate' && (
-                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-xs">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-emerald-800 font-bold">Assigned Tour Driver Share:</span>
-                                        <span className="font-extrabold text-emerald-900 text-sm">LKR {Number(agent?.driver_rate || 0).toLocaleString()}</span>
-                                    </div>
-                                    {agent?.driver_rate_reason && (
-                                        <p className="text-[11px] text-emerald-700 italic">
-                                            Reason: {agent.driver_rate_reason}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Panel: Standard Rate - commented out */}
-                            {/* {rateMode === 'standard' && (
-                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex justify-between items-center text-xs">
-                                    <span className="text-blue-600 font-semibold uppercase tracking-wide">Driver Rate ({defaultDriverRate}%)</span>
-                                    <div className="text-right">
-                                        <span className="font-bold text-blue-700 block">
-                                            Driver Share: LKR {driverShare.toLocaleString()}
-                                        </span>
-                                        {(() => {
-                                            const lkrVal = formatToLkrString(driverShare, 'LKR', eurRates);
-                                            return lkrVal ? (
-                                                <span className="text-[10px] text-blue-600 font-semibold block mt-0.5">
-                                                    ≈ {lkrVal}
-                                                </span>
-                                            ) : null;
-                                        })()}
+                            {/* Rate mode section */}
+                            {isTour ? (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Driver Rate</p>
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-xs">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-emerald-800 font-bold flex items-center gap-1.5">
+                                                <span>🏷️</span>
+                                                <span>Assigned Tour Driver Rate:</span>
+                                            </span>
+                                            <span className="font-extrabold text-emerald-900 text-sm">
+                                                LKR {Number(agent?.driver_rate || 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {agent?.driver_rate_reason && (
+                                            <p className="text-[11px] text-emerald-700 italic">
+                                                Reason / Note: {agent.driver_rate_reason}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                            )} */}
-
-                            {/* Panel: Custom Rate — city picker */}
-                            {rateMode === 'custom' && (
-                                <div className="space-y-2">
-                                    <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-2.5 py-1.5 font-medium">
-                                        Select the destination city to load the price for this vehicle type ({confirmModal.vehicle.vehicle_type ?? 'Unknown'}).
-                                    </p>
-
-                                    {cityPrices.length === 0 ? (
-                                        <p className="text-xs text-gray-500 text-center py-3">No city prices available.</p>
-                                    ) : (
-                                        <>
-                                            {/* Search bar */}
-                                            <div className="relative">
-                                                <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none text-xs">🔍</span>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Search city, district or province…"
-                                                    value={citySearch}
-                                                    onChange={e => setCitySearch(e.target.value)}
-                                                    className="w-full pl-8 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                                                />
-                                                {citySearch && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setCitySearch('')}
-                                                        className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 text-xs"
-                                                    >✕</button>
-                                                )}
+                            ) : (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
+                                    <div className="mb-2">
+                                        <div className="flex items-center gap-2 rounded-lg border-2 border-orange-500 bg-orange-50 p-2">
+                                            <span className="text-lg text-orange-600">🏙️</span>
+                                            <div>
+                                                <span className="text-[11px] font-semibold text-orange-600 block">Custom Rate</span>
+                                                <span className="text-[9px] text-gray-400">City-based pricing</span>
                                             </div>
+                                        </div>
+                                    </div>
 
-                                            <div className="max-h-[102px] overflow-y-auto rounded-lg border divide-y">
-                                                {cityPrices
-                                                    .filter(row => {
+                                    {/* Panel: Custom Rate — city picker */}
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-2.5 py-1.5 font-medium">
+                                            Select the destination city to load the price for this vehicle type ({confirmModal.vehicle.vehicle_type ?? 'Unknown'}).
+                                        </p>
+
+                                        {cityPrices.length === 0 ? (
+                                            <p className="text-xs text-gray-500 text-center py-3">No city prices available.</p>
+                                        ) : (
+                                            <>
+                                                {/* Search bar */}
+                                                <div className="relative">
+                                                    <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none text-xs">🔍</span>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search city, district or province…"
+                                                        value={citySearch}
+                                                        onChange={e => setCitySearch(e.target.value)}
+                                                        className="w-full pl-8 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                                    />
+                                                    {citySearch && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setCitySearch('')}
+                                                            className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 text-xs"
+                                                        >✕</button>
+                                                    )}
+                                                </div>
+
+                                                <div className="max-h-[102px] overflow-y-auto rounded-lg border divide-y">
+                                                    {cityPrices
+                                                        .filter(row => {
+                                                            const q = citySearch.trim().toLowerCase();
+                                                            if (!q) return true;
+                                                            return (
+                                                                (row.city ?? '').toLowerCase().includes(q) ||
+                                                                (row.district ?? '').toLowerCase().includes(q) ||
+                                                                (row.province ?? '').toLowerCase().includes(q)
+                                                            );
+                                                        })
+                                                        .map((row) => (
+                                                            <button
+                                                                key={row.id}
+                                                                type="button"
+                                                                onClick={() => setSelectedCityId(String(row.id))}
+                                                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
+                                                            >
+                                                                <div>
+                                                                    <p className="text-xs font-semibold text-gray-800">{row.city}</p>
+                                                                    <p className="text-[10px] text-gray-400">{row.district}{row.province ? ` · ${row.province}` : ''}{row.zone ? ` · Zone ${row.zone}` : ''}</p>
+                                                                </div>
+                                                                <span className={`text-xs font-bold ${row.price !== null ? 'text-orange-600' : 'text-gray-400'}`}>
+                                                                    {row.price !== null ? `LKR ${Number(row.price).toLocaleString()}` : 'N/A'}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    {cityPrices.filter(row => {
                                                         const q = citySearch.trim().toLowerCase();
-                                                        if (!q) return true;
-                                                        return (
+                                                        if (!q) return false;
+                                                        return !(
                                                             (row.city ?? '').toLowerCase().includes(q) ||
                                                             (row.district ?? '').toLowerCase().includes(q) ||
                                                             (row.province ?? '').toLowerCase().includes(q)
                                                         );
-                                                    })
-                                                    .map((row) => (
-                                                        <button
-                                                            key={row.id}
-                                                            type="button"
-                                                            onClick={() => setSelectedCityId(String(row.id))}
-                                                            className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
-                                                        >
-                                                            <div>
-                                                                <p className="text-xs font-semibold text-gray-800">{row.city}</p>
-                                                                <p className="text-[10px] text-gray-400">{row.district}{row.province ? ` · ${row.province}` : ''}{row.zone ? ` · Zone ${row.zone}` : ''}</p>
-                                                            </div>
-                                                            <span className={`text-xs font-bold ${row.price !== null ? 'text-orange-600' : 'text-gray-400'}`}>
-                                                                {row.price !== null ? `LKR ${Number(row.price).toLocaleString()}` : 'N/A'}
-                                                            </span>
-                                                        </button>
-                                                    ))}
-                                                {cityPrices.filter(row => {
-                                                    const q = citySearch.trim().toLowerCase();
-                                                    if (!q) return false;
-                                                    return !(
-                                                        (row.city ?? '').toLowerCase().includes(q) ||
-                                                        (row.district ?? '').toLowerCase().includes(q) ||
-                                                        (row.province ?? '').toLowerCase().includes(q)
-                                                    );
-                                                }).length === cityPrices.length && (
-                                                        <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
-                                                    )}
-                                            </div>
-                                        </>
-                                    )}
+                                                    }).length === cityPrices.length && (
+                                                            <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
+                                                        )}
+                                                </div>
+                                            </>
+                                        )}
 
-                                    {selectedCity && selectedCity.price !== null && (
-                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
-                                            <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
-                                            <div className="text-right">
-                                                <span className="font-bold text-orange-700 block">
-                                                    LKR {Number(selectedCity.price).toLocaleString()}
-                                                </span>
+                                        {selectedCity && selectedCity.price !== null && (
+                                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
+                                                <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
+                                                <div className="text-right">
+                                                    <span className="font-bold text-orange-700 block">
+                                                        LKR {Number(selectedCity.price).toLocaleString()}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
                             )}
-
-                            {/* Panel: Per KM Rate details - commented out */}
-                            {/* {rateMode === 'per_km' && (
-                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2.5 space-y-1.5 text-xs">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-purple-700 font-medium">Distance</span>
-                                        <span className="font-bold text-purple-900">{Number(agent?.distance_km || 0)} KM</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-purple-700 font-medium">Rate per KM for {confirmModal.vehicle.vehicle_type}</span>
-                                        <span className="font-bold text-purple-900">LKR {vehicleRateValue.toLocaleString()}</span>
-                                    </div>
-                                    <div className="border-t border-purple-200 pt-1.5 flex justify-between items-center">
-                                        <span className="font-bold text-purple-800">Driver : </span>
-                                        <div className="text-right">
-                                            <span className="font-bold text-purple-900 block">
-                                                LKR {driverShare.toLocaleString()}
-                                            </span>
-                                            {(() => {
-                                                const lkrVal = formatToLkrString(driverShare, 'LKR', eurRates);
-                                                return lkrVal ? (
-                                                    <span className="text-[10px] text-purple-650 font-semibold block mt-0.5">
-                                                        ≈ {lkrVal}
-                                                    </span>
-                                                ) : null;
-                                            })()}
-                                        </div>
-                                    </div>
-                                </div>
-                            )} */}
                         </div>
 
                         {/* Rate Warning if not assigned */}
                         {!isRateAssigned && (
                             <div className="px-4 pb-2">
                                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 text-center font-medium">
-                                    ⚠️ {hasTourDriverRate ? 'Please select a valid rate option or destination city to enable assignment.' : 'Please select a destination city with a valid rate to enable assignment.'}
+                                    ⚠️ {isTour ? 'Tour driver rate is required to assign this tour.' : 'Please select a destination city with a valid rate to enable assignment.'}
                                 </p>
                             </div>
                         )}
