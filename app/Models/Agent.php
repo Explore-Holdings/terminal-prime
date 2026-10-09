@@ -35,6 +35,10 @@ class Agent extends Model
         'booking_number',
         'processing_by',
         'processing_at',
+        'driver_rate',
+        'driver_rate_reason',
+        'tour_destinations',
+        'days',
     ];
 
     public function user()

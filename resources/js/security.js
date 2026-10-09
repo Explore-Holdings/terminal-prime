@@ -11,14 +11,8 @@
  */
 
 export function initSecurityLockdown() {
-    if (typeof window === 'undefined') return;
-
-    // 1. Block Context Menu (Right Click)
-    document.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    }, true);
+    // Disabled inspect option removed as requested
+    return;
 
     // 2. Block DevTools, Inspect Element, View Source & Shortcut Combinations
     document.addEventListener('keydown', (e) => {

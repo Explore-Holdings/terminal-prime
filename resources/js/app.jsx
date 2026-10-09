@@ -9,7 +9,7 @@ import { initSecurityLockdown } from './security';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-initSecurityLockdown();
+// initSecurityLockdown();
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

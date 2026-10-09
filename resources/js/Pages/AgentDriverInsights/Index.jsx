@@ -46,14 +46,13 @@ export default function Index({ customers = [] }) {
         let list = customers.map((c) => {
             const agent = c.agent;
             const trip = c.latest_trip;
-            const finance = trip?.tripFinance;
+            const finance = trip?.trip_finance || trip?.tripFinance;
             const driver = trip?.driver;
 
             const origPrice = agent?.price ? `${agent.price} ${agent.currency || 'LKR'}` : '-';
             const agreedPrice = agent?.new_price ? `${agent.new_price} ${agent.new_currency || 'LKR'}` : (c.paid_amount ? `${c.paid_amount} LKR` : '-');
 
             const driverShareNum = finance?.driver_share ? Number(finance.driver_share) : 0;
-            const agentShareNum = finance?.agent_share ? Number(finance.agent_share) : 0;
             const balanceNum = finance?.balance ? Number(finance.balance) : 0;
             const totalAmountNum = finance?.total_amount ? Number(finance.total_amount) : (agent?.new_price || 0);
 
@@ -73,7 +72,6 @@ export default function Index({ customers = [] }) {
                 agreedPrice,
                 totalAmountNum,
                 driverShareNum,
-                agentShareNum,
                 balanceNum,
                 driverName,
                 driverReg: driver?.registration_number || '',
@@ -114,7 +112,7 @@ export default function Index({ customers = [] }) {
         let list = customers.filter(c => c.latest_trip?.driver || c.agent?.external_vehicle_reg).map((c) => {
             const trip = c.latest_trip;
             const driver = trip?.driver;
-            const finance = trip?.tripFinance;
+            const finance = trip?.trip_finance || trip?.tripFinance;
             const agent = c.agent;
 
             const agentName = agent?.user?.name || agent?.name || 'Unknown Agent';
@@ -201,7 +199,6 @@ export default function Index({ customers = [] }) {
             'Original Price',
             'Agreed Price',
             'Driver Share (LKR)',
-            'Agent Share (LKR)',
             'Balance (LKR)',
             'Assigned Driver',
             'Vehicle Reg No',
@@ -216,7 +213,6 @@ export default function Index({ customers = [] }) {
             r.origPrice,
             r.agreedPrice,
             r.driverShareNum,
-            r.agentShareNum,
             r.balanceNum,
             r.driverName,
             r.vehicleReg,
@@ -417,7 +413,6 @@ export default function Index({ customers = [] }) {
                                                 <th className="py-3.5 px-4">Original Price</th>
                                                 <th className="py-3.5 px-4">Agreed Price</th>
                                                 <th className="py-3.5 px-4 text-emerald-800 bg-emerald-100/50">Driver Share</th>
-                                                <th className="py-3.5 px-4 text-purple-800 bg-purple-100/50">Agent Share</th>
                                                 <th className="py-3.5 px-4">Assigned Driver & Vehicle</th>
                                             </tr>
                                         </thead>
@@ -451,9 +446,6 @@ export default function Index({ customers = [] }) {
                                                         </td>
                                                         <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-700 bg-emerald-50/40">
                                                             {formatLKR(r.driverShareNum)}
-                                                        </td>
-                                                        <td className="py-3.5 px-4 font-mono font-extrabold text-purple-700 bg-purple-50/40">
-                                                            {formatLKR(r.agentShareNum)}
                                                         </td>
                                                         <td className="py-3.5 px-4">
                                                             <div className="font-bold text-slate-800">{r.driverName}</div>

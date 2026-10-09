@@ -560,6 +560,7 @@ export default function Edit({ driver, serviceCategories = [] }) {
                                     <option>Active</option>
                                     <option>Suspended</option>
                                     <option>Rejected</option>
+                                    <option>Terminated</option>
                                 </Select>
                             </Section>
                         )}
