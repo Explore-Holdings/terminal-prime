@@ -1,7 +1,35 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar } from 'lucide-react';
 import DataTable from 'react-data-table-component';
+
+const isTourBooking = (agent) => {
+    if (!agent) return false;
+    const bt = (agent.booking_type || '').trim().toLowerCase();
+    return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations) || Boolean(agent.days);
+};
+
+const formatTourDestinations = (dest, fallback = '') => {
+    if (!dest) return fallback;
+    if (Array.isArray(dest)) {
+        return dest.filter(Boolean).join(' → ');
+    }
+    if (typeof dest === 'string') {
+        const trimmed = dest.trim();
+        if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.filter(Boolean).join(' → ');
+                }
+            } catch (e) {
+                // Not valid JSON
+            }
+        }
+        return trimmed;
+    }
+    return String(dest);
+};
 
 const CURRENCY_TO_COUNTRY = {
     LKR: 'lk', USD: 'us', EUR: 'eu', GBP: 'gb', AUD: 'au', CAD: 'ca', INR: 'in', AED: 'ae', CNY: 'cn', JPY: 'jp',
@@ -381,7 +409,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             mobile_number: '',
             whatsapp_number: '',
             country: '',
-            dropoff_location: existingCust?.dropoff_location || agent.dropoff_location || '',
+            dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '',
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
@@ -421,28 +449,23 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     };
 
     const openModal = (agent, tab = 'customer') => {
-        if (isAgentLockedByOther(agent)) {
-            alert(`This customer is already being processed by ${agent.processor?.name || 'another staff member'}.`);
-            return;
-        }
-
-        const isNewAgent = selectedAgent?.id !== agent.id;
+        if (!agent) return;
 
         setSelectedAgent(agent);
         setProcessingAgentId(agent.id);
 
-        // Lock customer in database immediately for all users
-        router.post('/counter/lock-customer', { agent_id: agent.id }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-
-        if (tab === 'customer' || isNewAgent) {
+        try {
             resetCustomerForm(agent);
+        } catch (e) {
+            console.error('Failed to reset customer form', e);
         }
 
         setActiveTab(tab);
         setShowModal(true);
+
+        if (agent.id && typeof window !== 'undefined' && window.axios) {
+            window.axios.post('/counter/lock-customer', { agent_id: agent.id }).catch(() => {});
+        }
     };
 
     const closeModal = () => {
@@ -451,11 +474,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         setProcessingAgentId(null);
         setSelectedAgent(null);
 
-        // Unlock customer in database immediately for all users
-        router.post('/counter/unlock-customer', { agent_id: agentToUnlockId }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        if (agentToUnlockId && typeof window !== 'undefined' && window.axios) {
+            window.axios.post('/counter/unlock-customer', { agent_id: agentToUnlockId }).catch(() => {});
+        }
     };
 
     const saveCustomer = (e) => {
@@ -575,24 +596,15 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>
                     {pendingAgents.length ? (
                         <div className="flex gap-3 overflow-x-auto pb-2">
-                            {pendingAgents.map((agent) => {
-                                const lockedByOther = isAgentLockedByOther(agent);
-                                const lockedByName = lockedByOther ? (agent.processor?.name || 'Staff') : null;
-                                const isThisCardDisabled = lockedByOther || (showModal && selectedAgent?.id === agent.id) || (processingAgentId === agent.id);
-
-                                return (
-                                    <CustomerCard 
-                                        key={agent.id} 
-                                        agent={agent} 
-                                        onOpen={openModal} 
-                                        paymentEnabled={paymentEnabledAgentId === agent.id} 
-                                        vehicleEnabled={vehicleEnabledAgentId === agent.id} 
-                                        isCustomerDisabled={isThisCardDisabled}
-                                        isLockedByOther={lockedByOther}
-                                        lockedByName={lockedByName}
-                                    />
-                                );
-                            })}
+                            {pendingAgents.map((agent) => (
+                                <CustomerCard 
+                                    key={agent.id} 
+                                    agent={agent} 
+                                    onOpen={openModal} 
+                                    paymentEnabled={paymentEnabledAgentId === agent.id} 
+                                    vehicleEnabled={vehicleEnabledAgentId === agent.id} 
+                                />
+                            ))}
                         </div>
                     ) : (
                         <Empty text="No pending customers found." />
@@ -1325,22 +1337,25 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     );
 }
 
-function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustomerDisabled, isLockedByOther, lockedByName }) {
+function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled }) {
     const isPaymentActive = paymentEnabled || Boolean(agent.customers?.length > 0);
     const isVehicleActive = vehicleEnabled || Boolean(agent.customers?.some(c => c.invoice_path));
 
     return (
-        <div className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm">
+        <div 
+            onClick={() => onOpen(agent, 'customer')}
+            className="min-w-[280px] border rounded-lg bg-gray-50 p-3 shadow-sm cursor-pointer hover:border-blue-400 hover:shadow transition"
+        >
             <h3 className="flex justify-between font-semibold text-sm">
                 <span className="truncate">{agent.name ?? 'Customer'}</span>
-                {agent.distance_km != null && agent.distance_km !== '' && (
+                {agent.distance_km != null && agent.distance_km !== '' && Number(agent.distance_km) > 0 && (
                     <span className="text-red-600 font-bold">{agent.distance_km} KM</span>
                 )}
             </h3>
 
             <div className="flex items-center justify-between gap-2 mt-1">
                 <p className="text-xs text-gray-600 truncate flex-1 min-w-0">
-                    {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {agent.dropoff_location ?? '-'}
+                    {agent.passenger_count ?? 0} Pax : {agent.luggage_count ?? 0} Luggage : {formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '-'}
                 </p>
                 {agent.booking_type && (
                     <span className="shrink-0 text-[10px] bg-blue-50 text-black-900 px-1.5 py-0.5 rounded font-medium border border-blue-100 uppercase tracking-wide">
@@ -1349,32 +1364,14 @@ function CustomerCard({ agent, onOpen, paymentEnabled, vehicleEnabled, isCustome
                 )}
             </div>
 
-            <div className="flex gap-1 mt-3">
-                <CardButton 
-                    color="blue" 
-                    disabled={isCustomerDisabled} 
-                    onClick={() => onOpen(agent, 'customer')} 
-                    icon={<UserPlus size={13} />}
-                    title={isLockedByOther ? `Being processed by ${lockedByName}` : (isCustomerDisabled ? 'A customer is currently being processed' : 'Process Customer')}
-                >
-                    {isLockedByOther ? `In Process (${lockedByName})` : 'Customer'}
+            <div className="flex gap-1 mt-3" onClick={(e) => e.stopPropagation()}>
+                <CardButton color="blue" onClick={() => onOpen(agent, 'customer')} icon={<UserPlus size={13} />}>
+                    Customer
                 </CardButton>
-
-                <CardButton 
-                    color="blue" 
-                    disabled={isCustomerDisabled} 
-                    onClick={() => onOpen(agent, 'payment')} 
-                    icon={<CreditCard size={13} />}
-                >
+                <CardButton color="blue" onClick={() => onOpen(agent, 'payment')} icon={<CreditCard size={13} />}>
                     Payment
                 </CardButton>
-
-                <CardButton 
-                    color="blue" 
-                    disabled={isCustomerDisabled} 
-                    onClick={() => onOpen(agent, agent.booking_type === 'Rent a Car' ? 'rent_a_car_vehicle' : 'vehicle')} 
-                    icon={<Car size={13} />}
-                >
+                <CardButton color="blue" onClick={() => onOpen(agent, agent.booking_type === 'Rent a Car' ? 'rent_a_car_vehicle' : 'vehicle')} icon={<Car size={13} />}>
                     Vehicle
                 </CardButton>
             </div>
@@ -1396,7 +1393,7 @@ function Modal({
     ongoingTrips = [],
     setVehicleEnabledAgentId,
     onClose,
-    countries,
+    countries = [],
     rateSetting,
     locationVehiclePrices = [],
     vehicleRates = [],
@@ -1406,6 +1403,8 @@ function Modal({
     pettyCash = 0,
     shortTrips = [],
 }) {
+    if (!agent) return null;
+
     const effectiveCustomerId = customerId || agent?.customers?.[agent.customers.length - 1]?.id || agent?.customer?.id || null;
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
 
@@ -1441,7 +1440,7 @@ function Modal({
 
                 <div className="p-4 min-h-[500px]">
                     <div className={activeTab === 'customer' ? '' : 'hidden'}>
-                        <CustomerTab agent={agent} countries={countries} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
+                        <CustomerTab agent={agent} countries={countries || []} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
                     </div>
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
@@ -1463,19 +1462,42 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages = [], onClose }) {
+function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLanguages = [], onClose }) {
+    const isTour = isTourBooking(agent);
+    const tourDestinations = formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-';
+
+    const hasKm = agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0;
+    const hasLug = agent?.luggage_count != null && agent?.luggage_count !== '' && Number(agent?.luggage_count) > 0;
+    const hasPax = agent?.passenger_count != null && agent?.passenger_count !== '' && Number(agent?.passenger_count) > 0;
+    const hasDays = agent?.days != null && agent?.days !== '' && Number(agent?.days) > 0;
+    const hasDriverRate = agent?.driver_rate != null && Number(agent?.driver_rate) > 0;
+    const hasAnyTourMetrics = hasKm || hasLug || hasPax || hasDays;
+
     return (
         <form onSubmit={onSubmit} autoComplete="off" className="space-y-5">
-            <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
-                <ImageBox path={agent.customer_passport} className="w-32 h-24" />
-                <div className="text-sm">
-                    <p className="font-bold">Agent : {agent.user?.name ?? '-'}</p>
-                    <div className="flex items-center gap-2 mt-1">
+            <div className={`rounded-lg border p-4 flex flex-col md:flex-row gap-4 ${isTour ? 'bg-purple-50/50 border-purple-200' : 'bg-slate-50 border-slate-200'}`}>
+                <ImageBox path={agent?.customer_passport} className="w-32 h-24 shrink-0" />
+                <div className="text-sm flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-base">{agent?.name || 'Customer'}</span>
+                            <span className="text-xs text-gray-500 font-normal">({agent?.user?.name ? `Agent: ${agent.user.name}` : 'Direct Customer'})</span>
+                        </div>
+                        {agent?.booking_type && (
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                isTour ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-200'
+                            }`}>
+                                {agent.booking_type}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
                         <span className="font-bold text-red-900">
-                            Price : {agent.currency ?? 'USD'} {Number(agent.price ?? 0).toLocaleString()}
+                            Price : {agent?.currency ?? 'USD'} {Number(agent?.price ?? 0).toLocaleString()}
                         </span>
                         {(() => {
-                            const lkrVal = formatToLkrString(agent.price, agent.currency, eurRates);
+                            const lkrVal = formatToLkrString(agent?.price, agent?.currency, eurRates);
                             return lkrVal ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
                                     ≈ {lkrVal}
@@ -1483,8 +1505,69 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                             ) : null;
                         })()}
                     </div>
-                    <p className="text-gray-500 mt-1">Dropoff : {agent.dropoff_location ?? '-'}</p>
-                    <p className="text-gray-500">Remarks : {agent.remarks ?? '-'}</p>
+
+                    {isTour ? (
+                        <div className="bg-white/90 rounded-lg p-3 border border-purple-100 mt-2 space-y-2">
+                            <div className="flex items-start gap-1.5">
+                                <span className="font-bold text-purple-800 shrink-0">📍 Tour Destinations:</span>
+                                <span className="font-semibold text-gray-900">{tourDestinations}</span>
+                            </div>
+
+                            {hasAnyTourMetrics && (
+                                <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-purple-50 text-xs">
+                                    {hasKm && (
+                                        <div>
+                                            <span className="text-gray-500">Distance:</span>{' '}
+                                            <span className="font-bold text-red-600">{agent?.distance_km} KM</span>
+                                        </div>
+                                    )}
+                                    {hasPax && (
+                                        <div>
+                                            <span className="text-gray-500">Passengers:</span>{' '}
+                                            <span className="font-bold text-gray-900">{agent?.passenger_count} Pax</span>
+                                        </div>
+                                    )}
+                                    {hasLug && (
+                                        <div>
+                                            <span className="text-gray-500">Luggage:</span>{' '}
+                                            <span className="font-bold text-gray-900">{agent?.luggage_count}</span>
+                                        </div>
+                                    )}
+                                    {hasDays && (
+                                        <div>
+                                            <span className="text-gray-500">Duration:</span>{' '}
+                                            <span className="font-bold text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {hasDriverRate && (
+                                <div className="text-xs pt-1 border-t border-purple-50 flex items-center justify-between">
+                                    <span className="text-gray-600 font-medium">Assigned Tour Driver Rate:</span>
+                                    <span className="font-bold text-emerald-700">
+                                        LKR {Number(agent?.driver_rate || 0).toLocaleString()}
+                                        {agent?.driver_rate_reason ? ` (${agent.driver_rate_reason})` : ''}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap gap-4 text-gray-600 text-xs mt-1">
+                            <span>Dropoff : <strong className="text-gray-900">{agent?.dropoff_location ?? '-'}</strong></span>
+                            {hasKm && (
+                                <span>Distance : <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
+                            )}
+                            {hasPax && (
+                                <span>Pax : <strong className="text-gray-900">{agent?.passenger_count}</strong></span>
+                            )}
+                            {hasLug && (
+                                <span>Luggage : <strong className="text-gray-900">{agent?.luggage_count}</strong></span>
+                            )}
+                        </div>
+                    )}
+
+                    <p className="text-gray-500 text-xs">Remarks : {agent?.remarks ?? '-'}</p>
                 </div>
             </div>
 
@@ -1508,7 +1591,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                     />
 
                     <datalist id="countries-list">
-                        {countries.map((country) => (
+                        {(countries || []).map((country) => (
                             <option
                                 key={country.id}
                                 value={country.country_name}
@@ -1522,7 +1605,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                         </p>
                     )}
                 </div>
-                <Field label="Dropoff Location" required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
+                <Field label={isTour ? "Tour Destinations" : "Dropoff Location"} required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
                 <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
                 <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
 
@@ -1734,6 +1817,39 @@ function PaymentTab({
                     </span>
                 </a>
             </div>
+
+            {/* Tour Info Strip if booking is a Tour */}
+            {isTourBooking(agent) && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="px-2 py-0.5 bg-purple-200 text-purple-900 rounded font-bold uppercase text-[10px] tracking-wide shrink-0">
+                            Tour Booking
+                        </span>
+                        <span className="font-semibold text-purple-950 truncate max-w-md">
+                            📍 {formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}
+                        </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-purple-900 text-xs">
+                        {agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0 && (
+                            <span>📍 <strong className="text-red-600">{agent.distance_km} KM</strong></span>
+                        )}
+                        {agent?.passenger_count != null && Number(agent?.passenger_count) > 0 && (
+                            <span>👥 <strong>{agent.passenger_count} Pax</strong></span>
+                        )}
+                        {agent?.luggage_count != null && Number(agent?.luggage_count) > 0 && (
+                            <span>🧳 <strong>{agent.luggage_count} Luggage</strong></span>
+                        )}
+                        {agent?.days != null && Number(agent?.days) > 0 && (
+                            <span>🗓️ <strong>{agent.days} {agent.days === 1 ? 'Day' : 'Days'}</strong></span>
+                        )}
+                        {agent?.driver_rate != null && Number(agent?.driver_rate) > 0 ? (
+                            <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
+                                Driver: LKR {Number(agent.driver_rate).toLocaleString()}
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+            )}
 
             {/* Side-by-Side Main Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -2008,18 +2124,19 @@ function PaymentTab({
 
 function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [] }) {
     const { auth } = usePage().props;
+    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
+    const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
     const [confirmModal, setConfirmModal] = useState(null);
+    const [reasonModal, setReasonModal] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(() => {
-        const nextInLine = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
-        if (nextInLine) {
-            const slotNum = getVehicleSlotNumber(nextInLine);
-            return { ...nextInLine, _slotNumber: slotNum };
+        if (nextInLineVehicle) {
+            return { ...nextInLineVehicle, _slotNumber: nextInLineSlotNumber };
         }
         return null;
     });
     const [selectionReason, setSelectionReason] = useState('');
-    const [reasonModal, setReasonModal] = useState(null); // { vehicle, slotNumber, isWaitingQueue, reason: '' }
-    const [rateMode, setRateMode] = useState('custom');
+    const hasTourDriverRate = Boolean(isTourBooking(agent) && agent?.driver_rate != null && Number(agent.driver_rate) > 0);
+    const [rateMode, setRateMode] = useState(() => hasTourDriverRate ? 'tour_rate' : 'custom');
     const [selectedServiceCategoryFilter, setSelectedServiceCategoryFilter] = useState(null);
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
@@ -2098,21 +2215,24 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const selectedCity = cityPrices.find(r => String(r.id) === String(selectedCityId)) ?? null;
 
     // Share calculations
+    const isTourRate = rateMode === 'tour_rate';
     const useCustomRate = rateMode === 'custom';
     const isPerKmRate = rateMode === 'per_km';
 
     // Get current vehicle type rate for Per KM calculation
     const lookupType = confirmModal ? (vehicleTypeMap[confirmModal.vehicle?.vehicle_type] || '') : '';
-    const vehicleRateObj = vehicleRates.find(r => r.vehicle_type === lookupType) ?? null;
+    const vehicleRateObj = (vehicleRates || []).find(r => r.vehicle_type === lookupType) ?? null;
     const vehicleRateValue = vehicleRateObj ? Number(vehicleRateObj.rate) : 0;
 
-    const driverShare = isPerKmRate
-        ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
-        : useCustomRate
-            ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-            : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+    const driverShare = isTourRate
+        ? Math.round(Number(agent?.driver_rate || 0))
+        : isPerKmRate
+            ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
+            : useCustomRate
+                ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+                : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
 
-    const agentShare = isPerKmRate
+    const agentShare = (isPerKmRate || isTourRate)
         ? 0
         : useCustomRate
             ? 0
@@ -2121,11 +2241,13 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const isRateAssigned = Boolean(
         driverShare > 0 &&
         (
-            rateMode === 'custom'
-                ? (selectedCity && selectedCity.price !== null && Number(selectedCity.price) > 0)
-                : rateMode === 'per_km'
-                    ? (Number(agent?.distance_km || 0) > 0 && vehicleRateValue > 0)
-                    : (defaultDriverRate > 0 && totalAmountInLkr > 0)
+            rateMode === 'tour_rate'
+                ? (Number(agent?.driver_rate || 0) > 0)
+                : rateMode === 'custom'
+                    ? (selectedCity && selectedCity.price !== null && Number(selectedCity.price) > 0)
+                    : rateMode === 'per_km'
+                        ? (Number(agent?.distance_km || 0) > 0 && vehicleRateValue > 0)
+                        : (defaultDriverRate > 0 && totalAmountInLkr > 0)
         )
     );
 
@@ -2171,7 +2293,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             });
             return;
         }
-        setRateMode('custom');
+        setRateMode(hasTourDriverRate ? 'tour_rate' : 'custom');
         setCustomDriverShare('');
         setCustomAgentShare('');
         setSelectedCityId('');
@@ -2207,20 +2329,22 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         if (!isRateAssigned) { alert('Please select a destination rate before assigning.'); return; }
 
         // Snapshot shares
-        const finalDriverShare = isPerKmRate
-            ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
-            : useCustomRate
-                ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-                : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
-        const finalAgentShare = isPerKmRate
+        const finalDriverShare = isTourRate
+            ? Math.round(Number(agent?.driver_rate || 0))
+            : isPerKmRate
+                ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
+                : useCustomRate
+                    ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
+                    : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+        const finalAgentShare = (isPerKmRate || isTourRate)
             ? 0
             : useCustomRate
                 ? 0
                 : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
         const finalBalance = Math.round(totalAmountInLkr - finalDriverShare - finalAgentShare);
 
-        const finalDriverRate = (useCustomRate || isPerKmRate) ? 0 : defaultDriverRate;
-        const finalAgentRate = (useCustomRate || isPerKmRate) ? 0 : defaultAgentRate;
+        const finalDriverRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultDriverRate;
+        const finalAgentRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultAgentRate;
 
         // Open invoice on trip assignment
         const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
@@ -2241,7 +2365,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 is_short_trip: isShortTrip,
                 driver_rate: finalDriverRate,
                 agent_rate: finalAgentRate,
-                is_custom_rate: useCustomRate,
+                is_custom_rate: useCustomRate || isTourRate,
                 total_amount: totalAmountInLkr,
                 driver_share: finalDriverShare,
                 agent_share: finalAgentShare,
@@ -2255,11 +2379,57 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         );
     };
 
-    const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
-    const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
-
     return (
         <div>
+            {/* Tour Booking Header Banner */}
+            {isTourBooking(agent) && (
+                <div className="mb-4 bg-purple-50/80 border border-purple-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="bg-purple-600 text-white text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                            Tour Booking
+                        </span>
+                        <div className="text-xs truncate">
+                            <span className="text-purple-900 font-bold">Destinations: </span>
+                            <span className="font-semibold text-gray-900" title={formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}>
+                                {formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs">
+                        {agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0 && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-gray-500">Distance:</span>
+                                <span className="font-bold text-red-600">{agent?.distance_km} KM</span>
+                            </div>
+                        )}
+                        {(Number(customerForm?.data?.passenger_count) > 0 || Number(agent?.passenger_count) > 0) && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-gray-500">Pax:</span>
+                                <span className="font-bold text-gray-900">{customerForm?.data?.passenger_count ?? agent?.passenger_count}</span>
+                            </div>
+                        )}
+                        {(Number(customerForm?.data?.luggage_count) > 0 || Number(agent?.luggage_count) > 0) && (
+                            <div className="flex items-center gap-1">
+                                <span className="text-gray-500">Luggage:</span>
+                                <span className="font-bold text-gray-900">{customerForm?.data?.luggage_count ?? agent?.luggage_count}</span>
+                            </div>
+                        )}
+                        {agent?.days != null && Number(agent?.days) > 0 ? (
+                            <div className="flex items-center gap-1">
+                                <span className="text-gray-500">Duration:</span>
+                                <span className="font-bold text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</span>
+                            </div>
+                        ) : null}
+                        {agent?.driver_rate != null && Number(agent?.driver_rate) > 0 ? (
+                            <div className="flex items-center gap-1 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded text-emerald-900 font-bold">
+                                <span>Driver Rate: LKR {Number(agent?.driver_rate).toLocaleString()}</span>
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
+
             {/* Filters Bar */}
             <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Languages Filter */}
@@ -2798,6 +2968,43 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 </div>
                             )}
 
+                            {/* Tour Specific Details Card */}
+                            {isTourBooking(agent) && (
+                                <div className="bg-purple-50/90 border border-purple-200 rounded-lg p-3 space-y-2 text-xs">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                                            Tour Itinerary & Details
+                                        </span>
+                                        {agent.distance_km != null && agent.distance_km !== '' && Number(agent.distance_km) > 0 && (
+                                            <span className="font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">
+                                                {agent.distance_km} KM
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500 font-medium">Destinations: </span>
+                                        <span className="font-bold text-gray-900">
+                                            {formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '-'}
+                                        </span>
+                                    </div>
+                                    {((Number(customerForm?.data?.passenger_count) > 0 || Number(agent.passenger_count) > 0) ||
+                                      (Number(customerForm?.data?.luggage_count) > 0 || Number(agent.luggage_count) > 0) ||
+                                      (agent.days != null && Number(agent.days) > 0)) && (
+                                        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-purple-100 text-gray-700">
+                                            {(Number(customerForm?.data?.passenger_count) > 0 || Number(agent.passenger_count) > 0) && (
+                                                <span>👥 <strong>{customerForm?.data?.passenger_count ?? agent.passenger_count} Pax</strong></span>
+                                            )}
+                                            {(Number(customerForm?.data?.luggage_count) > 0 || Number(agent.luggage_count) > 0) && (
+                                                <span>🧳 <strong>{customerForm?.data?.luggage_count ?? agent.luggage_count} Luggage</strong></span>
+                                            )}
+                                            {agent.days != null && Number(agent.days) > 0 && (
+                                                <span>🗓️ <strong>{agent.days} {agent.days === 1 ? 'Day' : 'Days'}</strong></span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Trip amount */}
                             <div className="bg-gray-50 rounded-lg border p-3 flex justify-between items-center">
                                 <span className="text-xs font-medium text-gray-600">Trip Amount</span>
@@ -2851,21 +3058,22 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             {/* Rate mode radio buttons */}
                             <div>
                                 <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {/* Standard Rate - commented out */}
-                                    {/* <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'standard' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <input
-                                            type="radio"
-                                            name="rateMode"
-                                            value="standard"
-                                            checked={rateMode === 'standard'}
-                                            onChange={() => setRateMode('standard')}
-                                            className="sr-only"
-                                        />
-                                        <span className={`text-lg ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-400'}`}>📊</span>
-                                        <span className={`text-[11px] font-semibold ${rateMode === 'standard' ? 'text-blue-700' : 'text-gray-600'}`}>Standard Rate</span>
-                                        <span className="text-[9px] text-gray-400">Based on % rates</span>
-                                    </label> */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {hasTourDriverRate && (
+                                        <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'tour_rate' ? 'border-emerald-600 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                                            <input
+                                                type="radio"
+                                                name="rateMode"
+                                                value="tour_rate"
+                                                checked={rateMode === 'tour_rate'}
+                                                onChange={() => setRateMode('tour_rate')}
+                                                className="sr-only"
+                                            />
+                                            <span className={`text-lg ${rateMode === 'tour_rate' ? 'text-emerald-700' : 'text-gray-400'}`}>🏷️</span>
+                                            <span className={`text-[11px] font-semibold ${rateMode === 'tour_rate' ? 'text-emerald-700' : 'text-gray-600'}`}>Tour Driver Rate</span>
+                                            <span className="text-[9px] text-gray-400">LKR {Number(agent.driver_rate).toLocaleString()}</span>
+                                        </label>
+                                    )}
 
                                     {/* Custom Rate */}
                                     <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'custom' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -2881,23 +3089,23 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         <span className={`text-[11px] font-semibold ${rateMode === 'custom' ? 'text-orange-600' : 'text-gray-600'}`}>Custom Rate</span>
                                         <span className="text-[9px] text-gray-400">City-based pricing</span>
                                     </label>
-
-                                    {/* Per KM Rate - commented out */}
-                                    {/* <label className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 cursor-pointer transition ${rateMode === 'per_km' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                                        <input
-                                            type="radio"
-                                            name="rateMode"
-                                            value="per_km"
-                                            checked={rateMode === 'per_km'}
-                                            onChange={() => setRateMode('per_km')}
-                                            className="sr-only"
-                                        />
-                                        <span className={`text-lg ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-400'}`}>📍</span>
-                                        <span className={`text-[11px] font-semibold ${rateMode === 'per_km' ? 'text-purple-600' : 'text-gray-600'}`}>Per KM Rate</span>
-                                        <span className="text-[9px] text-gray-400">Distance-based pricing</span>
-                                    </label> */}
                                 </div>
                             </div>
+
+                            {/* Panel: Tour Driver Rate */}
+                            {rateMode === 'tour_rate' && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-1 text-xs">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-emerald-800 font-bold">Assigned Tour Driver Share:</span>
+                                        <span className="font-extrabold text-emerald-900 text-sm">LKR {Number(agent?.driver_rate || 0).toLocaleString()}</span>
+                                    </div>
+                                    {agent?.driver_rate_reason && (
+                                        <p className="text-[11px] text-emerald-700 italic">
+                                            Reason: {agent.driver_rate_reason}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Panel: Standard Rate - commented out */}
                             {/* {rateMode === 'standard' && (
@@ -3039,7 +3247,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         {!isRateAssigned && (
                             <div className="px-4 pb-2">
                                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 text-center font-medium">
-                                    ⚠️ Please select a destination city with a valid rate to enable assignment.
+                                    ⚠️ {hasTourDriverRate ? 'Please select a valid rate option or destination city to enable assignment.' : 'Please select a destination city with a valid rate to enable assignment.'}
                                 </p>
                             </div>
                         )}
@@ -3273,6 +3481,33 @@ function TripCard({ trip }) {
                             trip.agent?.name ??
                             '-'}
                     </div>
+
+                    {isTourBooking(trip.agent) ? (
+                        <div className="bg-purple-50/80 border border-purple-200 rounded p-1.5 space-y-1 text-[10px]">
+                            <div className="line-clamp-2 text-purple-900 font-medium" title={formatTourDestinations(trip.agent?.tour_destinations) || trip.customer?.dropoff_location || trip.agent?.dropoff_location || '-'}>
+                                <span className="font-bold text-purple-800">Tour: </span>
+                                {formatTourDestinations(trip.agent?.tour_destinations) || trip.customer?.dropoff_location || trip.agent?.dropoff_location || '-'}
+                            </div>
+                            <div className="flex items-center justify-between text-gray-700 font-semibold">
+                                <span>👥 {trip.customer?.passenger_count ?? trip.agent?.passenger_count ?? 1} Pax &middot; 🧳 {trip.customer?.luggage_count ?? trip.agent?.luggage_count ?? 0}</span>
+                                {trip.agent?.distance_km && (
+                                    <span className="text-red-600 font-bold">{trip.agent.distance_km} KM</span>
+                                )}
+                            </div>
+                            {trip.agent?.days ? (
+                                <div className="text-indigo-700 font-medium">
+                                    🗓️ {trip.agent.days} Days
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        (trip.customer?.dropoff_location || trip.agent?.dropoff_location) && (
+                            <div className="truncate">
+                                <span className="font-semibold">Dropoff :</span>{' '}
+                                {trip.customer?.dropoff_location || trip.agent?.dropoff_location}
+                            </div>
+                        )
+                    )}
 
                     <div>
                         <span className="font-semibold">Assigned :</span>

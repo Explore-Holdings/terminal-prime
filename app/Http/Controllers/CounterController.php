@@ -323,7 +323,7 @@ class CounterController extends Controller
             ]);
         }
 
-        return back();
+        return response()->json(['success' => true]);
     }
 
     public function unlockCustomer(Request $request)
@@ -341,7 +341,7 @@ class CounterController extends Controller
             ]);
         }
 
-        return back();
+        return response()->json(['success' => true]);
     }
 
     public function checkoutSummary(UserLoginLog $userLoginLog)

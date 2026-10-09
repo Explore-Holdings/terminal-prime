@@ -884,6 +884,7 @@ export default function Create({ serviceCategories = [] }) {
                                     <option>Active</option>
                                     <option>Suspended</option>
                                     <option>Rejected</option>
+                                    <option>Terminated</option>
                                 </Select>
                             </Section>
                         )}
