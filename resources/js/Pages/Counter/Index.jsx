@@ -355,7 +355,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         country: '',
         dropoff_location: '',
         passenger_count: 1,
-        language_preference: '',
+        language_preference: 'English',
         status: 'New',
         remarks: '',
     });
@@ -372,19 +372,21 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     });
 
     const resetCustomerForm = (agent) => {
+        const existingCust = agent.customers?.length ? agent.customers[agent.customers.length - 1] : (agent.customer || null);
+
         customerForm.setData({
             agent_id: agent.id,
-            name: agent.name ?? '',
+            name: existingCust?.name || agent.name || '',
             email: '',
             mobile_number: '',
             whatsapp_number: '',
             country: '',
-            dropoff_location: agent.dropoff_location ?? '',
-            passenger_count: agent.passenger_count ?? 1,
-            luggage_count: agent.luggage_count ?? 0,
-            language_preference: '',
-            status: 'New',
-            remarks: agent.remarks ?? '',
+            dropoff_location: existingCust?.dropoff_location || agent.dropoff_location || '',
+            passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
+            luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
+            language_preference: existingCust?.language_preference || agent.language_preference || 'English',
+            status: existingCust?.status || 'New',
+            remarks: existingCust?.remarks || agent.remarks || '',
         });
 
         paymentForm.setData({
@@ -398,7 +400,6 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             }],
         });
 
-        const existingCust = agent.customers?.length ? agent.customers[agent.customers.length - 1] : (agent.customer || null);
         if (existingCust?.id) {
             setCreatedCustomerId(existingCust.id);
             setPaymentEnabledAgentId(agent.id);
@@ -1464,7 +1465,7 @@ function Modal({
 
 function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages = [], onClose }) {
     return (
-        <form onSubmit={onSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} autoComplete="off" className="space-y-5">
             <div className="rounded-lg bg-slate-50 border p-4 flex gap-4">
                 <ImageBox path={agent.customer_passport} className="w-32 h-24" />
                 <div className="text-sm">
@@ -1488,16 +1489,19 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <Field label="Customer Name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
-                <Field label="Email" type="email" placeholder="Enter Email" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
+                <Field label="Customer Name" required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
+                <Field label="Email" type="email" placeholder="Enter Email" required autoComplete="off" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
+                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" required autoComplete="off" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
                 <div>
-                    <label className="label">Country</label>
+                    <label className="label">
+                        Country <span className="text-red-600 font-bold ml-1">*</span>
+                    </label>
 
                     <input
                         type="text"
                         list="countries-list"
                         className="input"
+                        autoComplete="off"
                         value={form.data.country || ''}
                         onChange={(e) => form.setData('country', e.target.value)}
                         placeholder="Search country..."
@@ -1518,18 +1522,20 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                         </p>
                     )}
                 </div>
-                <Field label="Dropoff Location" value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
-                <Field label="Passenger Count" type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
-                <Field label="Luggage Count" type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
+                <Field label="Dropoff Location" required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
+                <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
+                <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
 
                 <div>
-                    <label className="label">Language Preference</label>
+                    <label className="label">
+                        Language Preference <span className="text-red-600 font-bold ml-1">*</span>
+                    </label>
 
                     <input
                         type="text"
                         list="language-list"
                         className="input"
-                        value={form.data.language_preference || ''}
+                        value={form.data.language_preference ?? 'English'}
                         onChange={(e) =>
                             form.setData('language_preference', e.target.value)
                         }
@@ -1537,6 +1543,7 @@ function CustomerTab({ agent, form, onSubmit, countries, eurRates, dbLanguages =
                     />
 
                     <datalist id="language-list">
+                        {!dbLanguages?.includes('English') && <option value="English" />}
                         {(dbLanguages || []).map((lang) => (
                             <option key={lang} value={lang} />
                         ))}
@@ -3565,7 +3572,7 @@ function TabButton({ active, disabled, children, onClick }) {
     );
 }
 
-function Field({ label, value, onChange, error, type = 'text', ...rest }) {
+function Field({ label, value, onChange, error, type = 'text', required = false, ...rest }) {
     const handleKeyDown = (e) => {
         if (type === 'number') {
             if (['e', 'E', '+', '-'].includes(e.key)) {
@@ -3590,7 +3597,10 @@ function Field({ label, value, onChange, error, type = 'text', ...rest }) {
                     -moz-appearance: textfield;
                 }
             `}</style>
-            <label className="label">{label}</label>
+            <label className="label">
+                {label}
+                {required && <span className="text-red-600 font-bold ml-1">*</span>}
+            </label>
             <input type={type} value={value ?? ''} onChange={onChange} onKeyDown={handleKeyDown} className="input" min="0" step={type === 'number' ? 'any' : undefined} {...rest} />
             {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
         </div>

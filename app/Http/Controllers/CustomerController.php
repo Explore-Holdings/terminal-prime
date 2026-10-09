@@ -54,6 +54,10 @@ class CustomerController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
+        if (empty($data['language_preference'])) {
+            $data['language_preference'] = 'English';
+        }
+
         $agent = Agent::findOrFail($data['agent_id']);
 
         $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
