@@ -99,6 +99,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+        if ($user) {
+            $user->loadMissing('role');
+            $roleName = strtolower($user->role?->name ?? '');
+            $isStaff = in_array($roleName, ['staff', 'counter staff']) || (str_contains($roleName, 'staff') && !str_contains($roleName, 'executive'));
+            if ($isStaff) {
+                $activeShift = \App\Models\UserLoginLog::where('user_id', $user->id)
+                    ->whereNull('logout_at')
+                    ->latest('login_at')
+                    ->first();
+
+                if ($activeShift) {
+                    return redirect()->route('counter.index')->with('error', 'Staff must checkout from the Counter before logging out.');
+                }
+            }
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
