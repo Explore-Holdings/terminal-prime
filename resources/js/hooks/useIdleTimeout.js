@@ -6,8 +6,9 @@ import { router } from '@inertiajs/react';
  * 
  * @param {number} timeoutMs Total inactivity duration before forced logout (default: 10 mins = 600,000 ms)
  * @param {number} warningMs Duration before showing warning modal (default: 9 mins = 540,000 ms)
+ * @param {boolean} enabled Whether the inactivity auto-logout is enabled (default: true)
  */
-export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 1000) {
+export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 1000, enabled = true) {
     const [isWarningVisible, setIsWarningVisible] = useState(false);
     const [secondsRemaining, setSecondsRemaining] = useState(60);
 
@@ -16,7 +17,7 @@ export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 
 
     // Perform the logout
     const performLogout = useCallback(() => {
-        if (isLoggedOutRef.current) return;
+        if (!enabled || isLoggedOutRef.current) return;
         isLoggedOutRef.current = true;
 
         try {
@@ -30,7 +31,7 @@ export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 
                 window.location.href = '/login?reason=inactivity';
             },
         });
-    }, []);
+    }, [enabled]);
 
     // Reset timer on user interaction
     const resetTimer = useCallback(() => {
@@ -43,6 +44,11 @@ export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 
     }, [isWarningVisible]);
 
     useEffect(() => {
+        if (!enabled) {
+            setIsWarningVisible(false);
+            return;
+        }
+
         const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
 
         // Throttle activity event handler so it doesn't fire hundreds of times per second
@@ -90,7 +96,7 @@ export function useIdleTimeout(timeoutMs = 10 * 60 * 1000, warningMs = 9 * 60 * 
             if (throttleTimeout) clearTimeout(throttleTimeout);
             clearInterval(checkInterval);
         };
-    }, [resetTimer, performLogout, timeoutMs, warningMs, isWarningVisible]);
+    }, [enabled, resetTimer, performLogout, timeoutMs, warningMs, isWarningVisible]);
 
     return {
         isWarningVisible,

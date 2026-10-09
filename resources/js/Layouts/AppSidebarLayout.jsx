@@ -61,13 +61,15 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
     const [adminLoading, setAdminLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // 10-minute inactivity auto-logout (with 60s warning at 9 mins)
+    const role = String(user?.role ?? '').toLowerCase();
+    const isStaff = ['staff', 'counter staff'].includes(role) || (role.includes('staff') && !role.includes('executive'));
+
+    // 10-minute inactivity auto-logout (with 60s warning at 9 mins) - disabled for staff role
     const { isWarningVisible, secondsRemaining, stayLoggedIn } = useIdleTimeout(
         10 * 60 * 1000,
-        9 * 60 * 1000
+        9 * 60 * 1000,
+        !isStaff
     );
-
-    const role = String(user?.role ?? '').toLowerCase();
 
     const menuItems = [
         { label: 'Dashboard', path: '/dashboard', roles: ['admin', 'finance', 'counter staff','staff', 'executive', 'manager'] },
@@ -228,19 +230,23 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                         })}
                     </nav>
 
-                    {/* Logout */}
-                    <div className="mx-4 border-t border-gray-100" />
-                    <div className="px-3 py-3">
-                        <Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
-                        >
-                            <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px] shrink-0" />
-                            Logout
-                        </Link>
-                    </div>
+                    {/* Logout - Hidden for staff; they must checkout from Counter to end shift */}
+                    {!isStaff && (
+                        <>
+                            <div className="mx-4 border-t border-gray-100" />
+                            <div className="px-3 py-3">
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
+                                >
+                                    <ArrowRightStartOnRectangleIcon className="w-[18px] h-[18px] shrink-0" />
+                                    Logout
+                                </Link>
+                            </div>
+                        </>
+                    )}
 
                     {/* User Info */}
                     <div className="mx-4 border-t border-gray-100" />
