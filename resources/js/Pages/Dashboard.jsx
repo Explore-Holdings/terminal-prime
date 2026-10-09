@@ -20,9 +20,9 @@ export default function Dashboard({
     const role = String(props.auth?.user?.role ?? '').toLowerCase();
     const userName = props.auth?.user?.name ?? 'User';
 
-    const canViewCustomers = role.includes('executive') || ['admin', 'counter staff','staff'].includes(role);
-    const canViewDrivers = role.includes('executive') || ['admin'].includes(role);
-    const canViewFinance = role.includes('executive') || ['admin', 'finance'].includes(role);
+    const canViewCustomers = role.includes('executive') || ['admin', 'coperate', 'counter staff','staff'].includes(role);
+    const canViewDrivers = role.includes('executive') || ['admin', 'coperate'].includes(role);
+    const canViewFinance = role.includes('executive') || ['admin', 'coperate', 'finance'].includes(role);
 
     return (
         <AppSidebarLayout title="Dashboard">
