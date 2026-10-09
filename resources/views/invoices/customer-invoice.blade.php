@@ -255,7 +255,7 @@
                     <strong>EUROPCAR - AIRPORT COUNTER</strong><br>
                     Bandaranaike International Airport<br>
                     Katunayake, Sri Lanka<br>
-                    Hotline: +94 71 874 1444
+                    <strong>Hotline (24/7) : <a href="tel:+94718741444" style="color: black; text-decoration: none;">+94 71 874 1444</a></strong>
                 </div>
             </td>
             <td style="width: 50%;">
