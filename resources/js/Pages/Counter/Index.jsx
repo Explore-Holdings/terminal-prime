@@ -4024,11 +4024,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         }
     };
 
-    useEffect(() => {
-        if (onRefreshVehicles) {
-            onRefreshVehicles();
-        }
-    }, [onRefreshVehicles]);
 
     const driverHasShortTripInCurrentSession = useMemo(() => {
         const vehicle = confirmModal?.vehicle || selectedVehicle;
