@@ -6,7 +6,7 @@ import DataTable from 'react-data-table-component';
 const isTourBooking = (agent) => {
     if (!agent) return false;
     const bt = (agent.booking_type || '').trim().toLowerCase();
-    return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations) || Boolean(agent.days);
+    return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations);
 };
 
 const getTourDestinationsList = (dest) => {
@@ -437,7 +437,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
             days: agent.days ?? 1,
-            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate ? agent.driver_rate : (rateSetting?.driver_rate ?? '')),
+            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.booking_type === 'Tour' || (agent.booking_type || '').toLowerCase().includes('tour') ? (agent.driver_rate ?? rateSetting?.driver_rate ?? '') : (agent.driver_rate ?? '')),
             driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
             external_vehicle_make: agent.external_vehicle_make || '',
             external_vehicle_model: agent.external_vehicle_model || '',
@@ -2172,10 +2172,19 @@ function CustomerTab({
                     driver_rate_reason: '',
                 }));
             }
+        } else if (selectedType === 'Transfers') {
+            // For Transfers, driver rate is a % computed in VehicleTab — clear manual value
+            if (form.data.driver_rate !== '' && form.data.driver_rate != null) {
+                form.setData((prev) => ({
+                    ...prev,
+                    driver_rate: '',
+                    driver_rate_reason: '',
+                }));
+            }
         }
     }, [selectedType]);
 
-    // Auto-populate default driver rate for tours if empty
+    // Auto-populate default driver rate only for Tours
     useEffect(() => {
         if (selectedType === 'Tours' && (form.data.driver_rate === '' || form.data.driver_rate == null) && standardDriverRate > 0) {
             form.setData('driver_rate', standardDriverRate);
