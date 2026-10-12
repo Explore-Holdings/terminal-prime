@@ -2953,11 +2953,11 @@ function CustomerTab({
                                 <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
                                     <span className="flex items-center gap-1">
                                         <Car size={13} className="text-black" />
-                                        <span>Driver Rate (LKR) <span className="text-red-600">*</span></span>
+                                        <span>Driver Rate (LKR / Day) <span className="text-red-600">*</span></span>
                                     </span>
                                     {standardDriverRate > 0 ? (
                                         <span className="text-[10px] text-black font-bold">
-                                            Standard: LKR {standardDriverRate.toLocaleString()}
+                                            Standard: LKR {standardDriverRate.toLocaleString()} / day
                                         </span>
                                     ) : (
                                         <span className="text-[10px] text-black font-bold">Driver Payout</span>
@@ -2978,11 +2978,16 @@ function CustomerTab({
                                         className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
                                     />
                                 </div>
-                                {standardDriverRate > 0 && (
-                                    <p className="text-[11px] font-bold text-red-500 mt-1">
-                                        Standard rate: LKR {standardDriverRate.toLocaleString()}
-                                    </p>
-                                )}
+                                <div className="flex justify-between items-center text-[11px] font-bold mt-1">
+                                    {standardDriverRate > 0 && (
+                                        <span className="text-red-500">
+                                            Standard: LKR {standardDriverRate.toLocaleString()} / day
+                                        </span>
+                                    )}
+                                    <span className="text-emerald-700 ml-auto">
+                                        Total Driver Payout ({form.data.days || 1} {Number(form.data.days || 1) === 1 ? 'day' : 'days'}): LKR {Math.round((parseFloat(form.data.driver_rate) || 0) * (form.data.days || 1)).toLocaleString()}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -2995,7 +3000,7 @@ function CustomerTab({
                                         <span>Reason for Lower Rate <span className="text-red-600">*</span></span>
                                     </span>
                                     <span className="text-[10px] text-amber-900 font-bold">
-                                        Entered rate is lower than standard (LKR {standardDriverRate.toLocaleString()})
+                                        Entered rate is lower than standard (LKR {standardDriverRate.toLocaleString()} / day)
                                     </span>
                                 </label>
                                 <textarea
@@ -4011,8 +4016,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const vehicleRateObj = (vehicleRates || []).find(r => r.vehicle_type === lookupType) ?? null;
     const vehicleRateValue = vehicleRateObj ? Number(vehicleRateObj.rate) : 0;
 
+    const tourDays = Math.max(1, Number(agent?.days || 1));
+
     const driverShare = isTourRate
-        ? Math.round(Number(agent?.driver_rate || 0))
+        ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
         : isPerKmRate
             ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
@@ -4116,8 +4123,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         if (!isRateAssigned) { alert('Please select a destination rate before assigning.'); return; }
 
         // Snapshot shares
+        const tourDays = Math.max(1, Number(agent?.days || 1));
         const finalDriverShare = isTourRate
-            ? Math.round(Number(agent?.driver_rate || 0))
+            ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
             : isPerKmRate
                 ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
                 : useCustomRate
@@ -4798,9 +4806,16 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                 <span>🏷️</span>
                                                 <span>Assigned Tour Driver Rate:</span>
                                             </span>
-                                            <span className="font-extrabold text-emerald-900 text-sm">
-                                                LKR {Number(agent?.driver_rate || 0).toLocaleString()}
-                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-extrabold text-emerald-900 text-sm block">
+                                                    LKR {Math.round(Number(agent?.driver_rate || 0) * tourDays).toLocaleString()}
+                                                </span>
+                                                {tourDays > 1 && (
+                                                    <span className="text-[10px] text-emerald-700 font-semibold block">
+                                                        (LKR {Number(agent?.driver_rate || 0).toLocaleString()} / day × {tourDays} days)
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         {agent?.driver_rate_reason && (
                                             <p className="text-[11px] text-emerald-700 italic">
