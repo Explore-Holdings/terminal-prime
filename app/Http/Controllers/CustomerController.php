@@ -71,6 +71,10 @@ class CustomerController extends Controller
             $data['language_preference'] = 'English';
         }
 
+        if (!empty($data['booking_type']) && trim(strtolower($data['booking_type'])) === 'tour') {
+            $data['booking_type'] = 'Tours';
+        }
+
         if (empty($data['agent_id'])) {
             $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
             $agent = Agent::create([

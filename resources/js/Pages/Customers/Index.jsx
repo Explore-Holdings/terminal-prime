@@ -55,6 +55,7 @@ export default function Index({ customers = [] }) {
             case 'Transfer':
                 return 'bg-blue-50 text-blue-700 border border-blue-200';
             case 'Tour':
+            case 'Tours':
                 return 'bg-purple-50 text-purple-700 border border-purple-200';
             case 'Rent a Car':
                 return 'bg-amber-50 text-amber-800 border border-amber-200';

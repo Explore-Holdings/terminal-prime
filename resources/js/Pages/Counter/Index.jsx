@@ -437,7 +437,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
             days: agent.days ?? 1,
-            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.booking_type === 'Tour' || (agent.booking_type || '').toLowerCase().includes('tour') ? (agent.driver_rate ?? rateSetting?.driver_rate ?? '') : (agent.driver_rate ?? '')),
+            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.booking_type === 'Tours' || agent.booking_type === 'Tour' || (agent.booking_type || '').toLowerCase().includes('tour') ? (agent.driver_rate ?? rateSetting?.driver_rate ?? '') : (agent.driver_rate ?? '')),
             driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
             external_vehicle_make: agent.external_vehicle_make || '',
             external_vehicle_model: agent.external_vehicle_model || '',
@@ -2236,7 +2236,7 @@ function CustomerTab({
 
     const handleSelectType = (type) => {
         setSelectedType(type);
-        const resolvedType = type === 'Transfers' ? 'Transfer' : (type === 'Tours' ? 'Tour' : type);
+        const resolvedType = type === 'Transfers' ? 'Transfer' : type;
         if (agent) {
             agent.booking_type = resolvedType;
         }
