@@ -343,6 +343,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [reorderSaving, setReorderSaving] = useState(false);
     const [reorderInput, setReorderInput] = useState('');
     const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const [refreshingVehicles, setRefreshingVehicles] = useState(false);
 
     const [showShortTripsModal, setShowShortTripsModal] = useState(false);
 
@@ -707,16 +708,30 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
                 <Section 
                     title={
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                             <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
                             <button 
                                 type="button"
-                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
-                                className="p-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg shadow-sm transition flex items-center"
-                                title="Refresh Data"
+                                onClick={() => {
+                                    setRefreshingVehicles(true);
+                                    router.reload({
+                                        only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'],
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+                                        onFinish: () => setRefreshingVehicles(false)
+                                    });
+                                }}
+                                disabled={refreshingVehicles}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 text-gray-700 active:scale-95 rounded-lg shadow-xs transition text-xs font-bold disabled:opacity-50"
+                                title="Refresh Vehicles Queue Data"
                             >
-                                <RefreshCw size={14} className="opacity-75" />
+                                <RefreshCw size={13} className={refreshingVehicles ? "animate-spin text-blue-600" : "text-gray-500"} />
+                                <span>{refreshingVehicles ? 'Refreshing...' : 'Refresh'}</span>
                             </button>
+                            <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
+                                Refresh before assigning a vehicle
+                            </span>
                         </div>
                     } 
                     icon={<CarFront className="text-green-700" size={22} />}
@@ -3833,6 +3848,19 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
     const [showFinalConfirm, setShowFinalConfirm] = useState(false);
     const [isShortTrip, setIsShortTrip] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            only: ['vehicles', 'ongoingTrips', 'shortTrips', 'lastReorderedAt'],
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => {
+                setIsRefreshing(false);
+            }
+        });
+    };
 
     const driverHasShortTripInCurrentSession = useMemo(() => {
         const vehicle = confirmModal?.vehicle || selectedVehicle;
@@ -4214,9 +4242,32 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             </div>
             </div>
 
-            <div className="flex justify-between mb-3">
-                <h3 className="font-bold text-lg">Select Vehicle</h3>
-                <span className="text-sm text-gray-500">
+            {/* Highlighted Refresh Banner before assigning vehicle */}
+            <div className="flex flex-wrap items-center gap-3 bg-red-50 border-2 border-red-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
+                <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 relative shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-red-600 uppercase tracking-wide">
+                        Refresh before assigning a vehicle
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-lg shadow-sm border border-red-700 transition disabled:opacity-50"
+                    title="Refresh Live Vehicle Queue"
+                >
+                    <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
+                    <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+            </div>
+
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="font-bold text-lg text-black">Select Vehicle</h3>
+                <span className="text-xs sm:text-sm text-gray-500 font-bold">
                     {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered
                 </span>
             </div>
@@ -5528,6 +5579,28 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                     </div>
                 </div>
             )}
+            {/* Highlighted Refresh Banner before assigning vehicle */}
+            <div className="flex flex-wrap items-center gap-3 bg-red-50 border-2 border-red-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
+                <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 relative shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-red-600 uppercase tracking-wide">
+                        Refresh before assigning a vehicle
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    onClick={fetchVehicles}
+                    disabled={loading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-lg shadow-sm border border-red-700 transition disabled:opacity-50"
+                    title="Refresh Fleet Availability"
+                >
+                    <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+            </div>
 
             {/* Date and Search Bar */}
             <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
