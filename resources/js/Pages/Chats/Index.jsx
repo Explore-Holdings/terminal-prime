@@ -137,37 +137,6 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
         }
     }, [activeChat?.id, activeChat?.messages?.length]);
 
-    // Background auto-polling active chat so incoming customer messages show up in real-time
-    useEffect(() => {
-        if (!selectedChatId) return;
-
-        const interval = setInterval(async () => {
-            try {
-                const res = await axios.get(`/chats/${selectedChatId}/messages`);
-                if (res.data?.chat) {
-                    setChats((prev) =>
-                        prev.map((c) => {
-                            if (c.id === selectedChatId) {
-                                return {
-                                    ...c,
-                                    ...res.data.chat,
-                                    status: res.data.status || res.data.chat.status || c.status,
-                                    messages: res.data.messages || [],
-                                    messages_count: (res.data.messages || []).length,
-                                };
-                            }
-                            return c;
-                        })
-                    );
-                }
-            } catch (err) {
-                // Background poll failure silently handled
-            }
-        }, 3500);
-
-        return () => clearInterval(interval);
-    }, [selectedChatId]);
-
     // Manual refresh active chat messages from backend
     const refreshActiveChat = async (chatId) => {
         if (!chatId) return;
@@ -397,9 +366,19 @@ export default function Index({ chats: initialChats = [], agents = [], filters =
                                     {filteredChats.length}
                                 </span>
                             </div>
-                            <span className="text-xs font-bold text-neutral-700">
-                                {statusFilter === 'all' ? 'All Statuses' : statusFilter === 'continuing' ? 'Active' : 'Finished'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-neutral-700">
+                                    {statusFilter === 'all' ? 'All Statuses' : statusFilter === 'continuing' ? 'Active' : 'Finished'}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => router.reload({ preserveState: true, preserveScroll: true })}
+                                    className="p-1.5 text-neutral-600 hover:text-black hover:bg-neutral-100 rounded-lg border border-neutral-200 transition"
+                                    title="Refresh All Chats"
+                                >
+                                    <ArrowPathIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Chat List Scroll Area */}
