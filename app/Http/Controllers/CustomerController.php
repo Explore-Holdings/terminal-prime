@@ -61,6 +61,7 @@ class CustomerController extends Controller
             'driver_rate_reason' => 'nullable|string',
             'external_vehicle_make' => 'nullable|string|max:255',
             'external_vehicle_model' => 'nullable|string|max:255',
+            'external_vehicle_reg' => 'nullable|string|max:100',
             'external_company_name' => 'nullable|string|max:255',
             'language_preference' => 'nullable|string|max:100',
             'status' => 'nullable|string|max:50',
@@ -79,9 +80,9 @@ class CustomerController extends Controller
             $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
             $agent = Agent::create([
                 'user_id' => $data['agent_user_id'] ?? Auth::id(),
-                'name' => $data['name'] ?: 'Walk-in Customer',
+                'name' => !empty($data['name']) ? $data['name'] : 'Walk-in Customer',
                 'status' => 'Pending',
-                'booking_type' => $data['booking_type'] ?: 'Transfer',
+                'booking_type' => !empty($data['booking_type']) ? $data['booking_type'] : 'Transfer',
                 'currency' => $data['currency'] ?? 'LKR',
                 'price' => $data['price'] ?? 0,
                 'passenger_count' => $data['passenger_count'] ?? 1,
@@ -90,6 +91,11 @@ class CustomerController extends Controller
                 'booking_number' => $bookingNumber,
                 'processing_by' => Auth::id(),
                 'processing_at' => now(),
+                'external_vehicle_reg' => $data['external_vehicle_reg'] ?? null,
+                'external_vehicle_make' => $data['external_vehicle_make'] ?? null,
+                'external_vehicle_model' => $data['external_vehicle_model'] ?? null,
+                'external_company_name' => $data['external_company_name'] ?? null,
+                'days' => $data['days'] ?? 1,
             ]);
             $data['agent_id'] = $agent->id;
         } else {
@@ -98,16 +104,16 @@ class CustomerController extends Controller
 
         $customerData = [
             'agent_id' => $data['agent_id'],
-            'name' => $data['name'] ?: $agent->name,
+            'name' => !empty($data['name']) ? $data['name'] : $agent->name,
             'email' => $data['email'] ?? null,
             'mobile_number' => $data['mobile_number'] ?? null,
             'whatsapp_number' => $data['whatsapp_number'] ?? null,
             'country' => $data['country'] ?? null,
-            'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-            'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+            'dropoff_location' => !empty($data['dropoff_location']) ? $data['dropoff_location'] : $agent->dropoff_location,
+            'passenger_count' => !empty($data['passenger_count']) ? $data['passenger_count'] : $agent->passenger_count,
             'language_preference' => $data['language_preference'],
             'status' => $data['status'] ?? 'New',
-            'remarks' => $data['remarks'] ?: $agent->remarks,
+            'remarks' => !empty($data['remarks']) ? $data['remarks'] : $agent->remarks,
         ];
 
         $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
@@ -162,21 +168,25 @@ class CustomerController extends Controller
         if (array_key_exists('driver_rate_reason', $data)) {
             $agentUpdates['driver_rate_reason'] = $data['driver_rate_reason'];
         }
-        if (isset($data['external_vehicle_make'])) {
+        if (array_key_exists('external_vehicle_make', $data)) {
             $agentUpdates['external_vehicle_make'] = $data['external_vehicle_make'];
         }
-        if (isset($data['external_vehicle_model'])) {
+        if (array_key_exists('external_vehicle_model', $data)) {
             $agentUpdates['external_vehicle_model'] = $data['external_vehicle_model'];
         }
-        if (isset($data['external_company_name'])) {
+        if (array_key_exists('external_vehicle_reg', $data)) {
+            $agentUpdates['external_vehicle_reg'] = $data['external_vehicle_reg'];
+        }
+        if (array_key_exists('external_company_name', $data)) {
             $agentUpdates['external_company_name'] = $data['external_company_name'];
         }
-        if (($data['booking_type'] ?? '') === 'Rent a Car') {
+        if (($data['booking_type'] ?? $agent->booking_type) === 'Rent a Car') {
             $agentUpdates['driver_rate'] = null;
             $agentUpdates['driver_rate_reason'] = null;
-            if (!empty($data['days'])) {
+            $days = $data['days'] ?? $agent->days ?? 1;
+            if ($days) {
                 $agentUpdates['rent_start_date'] = now()->toDateString();
-                $agentUpdates['rent_end_date'] = now()->addDays((int) $data['days'])->toDateString();
+                $agentUpdates['rent_end_date'] = now()->addDays((int) $days)->toDateString();
             }
         }
 
@@ -186,6 +196,8 @@ class CustomerController extends Controller
             return response()->json([
                 'id' => $customer->id,
                 'customer' => $customer,
+                'agent' => $agent->fresh(),
+                'agent_id' => $agent->id,
             ]);
         }
 
@@ -193,7 +205,7 @@ class CustomerController extends Controller
             ->route('counter.index')
             ->with('created_customer_id', $customer->id)
             ->with('created_agent_id', $agent->id)
-            ->with('agent', $agent->loadMissing(['user', 'customers']));
+            ->with('agent', $agent->fresh()->loadMissing(['user', 'customers']));
     }
 
     public function savePayment(Request $request, Customer $customer)
@@ -313,7 +325,10 @@ class CustomerController extends Controller
         }
 
         return redirect()
-            ->route('counter.index');
+            ->route('counter.index')
+            ->with('created_customer_id', $customer->id)
+            ->with('created_agent_id', $agent->id)
+            ->with('agent', $agent->fresh()->loadMissing(['user', 'customers']));
     }
 
     private function generateInvoicePdf(Customer $customer, ?string $invoiceNumber = null)

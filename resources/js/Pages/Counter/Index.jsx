@@ -483,6 +483,8 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
         driver_rate_reason: '',
         external_vehicle_make: '',
         external_vehicle_model: '',
+        external_vehicle_reg: '',
+        external_company_name: '',
         rent_a_car_rate_id: '',
         status: 'New',
         remarks: '',
@@ -514,7 +516,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
             vehicle_type: 'car',
-            price: agent.price ?? 0,
+            price: agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0),
             currency: agent.currency ?? 'LKR',
             booking_type: agent.booking_type || 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
@@ -524,18 +526,20 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
             external_vehicle_make: agent.external_vehicle_make || '',
             external_vehicle_model: agent.external_vehicle_model || '',
+            external_vehicle_reg: agent.external_vehicle_reg || '',
             rent_a_car_rate_id: '',
             status: existingCust?.status || 'New',
             remarks: existingCust?.remarks || agent.remarks || '',
         });
 
+        const initialRentPrice = agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0);
         paymentForm.setData({
             currency: agent.currency ?? 'LKR',
-            price: agent.price ?? 0,
+            price: initialRentPrice,
             payments: [{
                 method: 'Cash',
                 currency: agent.currency ?? 'LKR',
-                amount: agent.price ?? 0,
+                amount: initialRentPrice,
                 notes: [{ amount: '', count: '', currency: agent.currency ?? 'LKR' }],
             }],
         });
@@ -620,15 +624,22 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             onSuccess: (page) => {
                 const createdAgentId = page.props.flash?.created_agent_id || page.props.createdAgentId;
                 const createdAgent = page.props.flash?.agent;
-                const updatedAgent = (createdAgentId ? page.props.pendingAgents?.find(a => a.id === createdAgentId) : null)
-                    || createdAgent
+                const updatedAgent = createdAgent
+                    || (createdAgentId ? page.props.pendingAgents?.find(a => a.id === createdAgentId) : null)
                     || page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
 
                 if (updatedAgent) {
+                    if (customerForm?.data?.external_vehicle_reg) {
+                        updatedAgent.external_vehicle_reg = customerForm.data.external_vehicle_reg;
+                    }
                     setSelectedAgent(updatedAgent);
                     setPaymentEnabledAgentId(updatedAgent.id);
                 } else if (createdAgentId) {
-                    setSelectedAgent(prev => ({ ...(prev || {}), id: createdAgentId }));
+                    setSelectedAgent(prev => ({
+                        ...(prev || {}),
+                        id: createdAgentId,
+                        external_vehicle_reg: customerForm?.data?.external_vehicle_reg || prev?.external_vehicle_reg
+                    }));
                     setPaymentEnabledAgentId(createdAgentId);
                 }
                 const id = page.props.flash?.created_customer_id
@@ -1708,7 +1719,7 @@ function Modal({
                         </div>
                     ) : (
                         <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
-                            <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
+                            <RentACarVehicleTab agent={agent} customerForm={customerForm} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
                         </div>
                     )}
                 </div>
@@ -2095,97 +2106,30 @@ function CustomerTab({
     const [tourDestinations, setTourDestinations] = useState(() => {
         return getTourDestinationsList(form.data.tour_destinations || agent?.tour_destinations || []);
     });
-
-    // Rent a Car State
-    const [selectedRentVehicleId, setSelectedRentVehicleId] = useState(() => {
-        if (agent?.external_vehicle_make && agent?.external_vehicle_model) {
-            const found = rentACarRates.find(
-                (v) =>
-                    v.make?.toLowerCase() === agent.external_vehicle_make?.toLowerCase() &&
-                    v.model?.toLowerCase() === agent.external_vehicle_model?.toLowerCase()
-            );
-            if (found) return found.id;
-        }
-        return null;
-    });
-    const rentCategories = useMemo(() => {
-        return Array.from(new Set(rentACarRates.map((r) => r.vehicle_category).filter(Boolean)));
-    }, [rentACarRates]);
-
-    const [rentVehicleCategoryFilter, setRentVehicleCategoryFilter] = useState(() => {
-        if (agent?.remarks && rentACarRates.some((r) => r.vehicle_category === agent.remarks)) {
-            return agent.remarks;
-        }
-        if (agent?.external_vehicle_make) {
-            const found = rentACarRates.find(
-                (v) =>
-                    v.make?.toLowerCase() === agent.external_vehicle_make?.toLowerCase() &&
-                    v.model?.toLowerCase() === agent.external_vehicle_model?.toLowerCase()
-            );
-            if (found?.vehicle_category) return found.vehicle_category;
-        }
-        return rentACarRates[0]?.vehicle_category || '';
-    });
-    const [rentVehicleSearch, setRentVehicleSearch] = useState('');
-
-    useEffect(() => {
-        if (rentCategories.length > 0 && (!rentVehicleCategoryFilter || !rentCategories.includes(rentVehicleCategoryFilter))) {
-            setRentVehicleCategoryFilter(rentCategories[0]);
-        }
-    }, [rentCategories]);
-
-    const filteredRentVehicles = useMemo(() => {
-        return rentACarRates.filter((v) => {
-            const matchesCategory = !rentVehicleCategoryFilter || v.vehicle_category === rentVehicleCategoryFilter;
-            if (!matchesCategory) return false;
-            if (!rentVehicleSearch.trim()) return true;
-            const q = rentVehicleSearch.trim().toLowerCase();
-            return (
-                (v.vehicle_category || '').toLowerCase().includes(q) ||
-                (v.make || '').toLowerCase().includes(q) ||
-                (v.model || '').toLowerCase().includes(q)
-            );
-        });
-    }, [rentACarRates, rentVehicleCategoryFilter, rentVehicleSearch]);
-
-    const selectedRentVehicle = useMemo(() => {
-        return rentACarRates.find((v) => v.id === selectedRentVehicleId) || null;
-    }, [rentACarRates, selectedRentVehicleId]);
-
-    // Rent a Car Daily Rate (Editable)
+    // Rent a Car State & Pricing
+    const firstRentRate = Number(rentACarRates?.[0]?.rate || 14000);
     const [rentDailyRate, setRentDailyRate] = useState(() => {
         if (form.data.price && form.data.days) {
             return Math.round(Number(form.data.price) / Number(form.data.days));
         }
-        return '';
+        return firstRentRate;
     });
 
-    // Handle Rent a Car vehicle selection
-    const handleSelectRentVehicle = (vehicle) => {
-        setSelectedRentVehicleId(vehicle.id);
+    // Handle Rent a Car price change directly
+    const handleRentPriceChange = (priceVal) => {
+        const p = parseFloat(priceVal) || 0;
         const dayCount = parseInt(form.data.days) || 1;
-        const dailyRate = Number(vehicle.rate) || 0;
-        setRentDailyRate(dailyRate);
-        const totalPrice = dailyRate * dayCount;
-
-        form.setData((prev) => ({
-            ...prev,
-            external_vehicle_make: vehicle.make,
-            external_vehicle_model: vehicle.model,
-            price: totalPrice,
-            currency: 'LKR',
-            remarks: prev.remarks || `${vehicle.vehicle_category} - ${vehicle.make} ${vehicle.model}`,
-        }));
-
+        form.setData('price', p);
+        setRentDailyRate(Math.round(p / dayCount));
         if (paymentForm && typeof paymentForm.setData === 'function') {
             paymentForm.setData((prev) => ({
                 ...prev,
                 currency: 'LKR',
-                price: totalPrice,
+                price: p,
                 payments: [{
                     method: 'Cash',
                     currency: 'LKR',
-                    amount: totalPrice,
+                    amount: p,
                     notes: [{ amount: '', count: '', currency: 'LKR' }],
                 }],
             }));
@@ -2218,7 +2162,7 @@ function CustomerTab({
     const handleRentDaysChange = (newDays) => {
         const d = Math.max(1, parseInt(newDays) || 1);
         form.setData('days', d);
-        const rateToUse = rentDailyRate !== '' ? (parseFloat(rentDailyRate) || 0) : (selectedRentVehicle ? Number(selectedRentVehicle.rate) : 0);
+        const rateToUse = rentDailyRate !== '' ? (parseFloat(rentDailyRate) || 0) : firstRentRate;
         const totalPrice = rateToUse * d;
         form.setData('price', totalPrice);
         if (paymentForm && typeof paymentForm.setData === 'function') {
@@ -2240,6 +2184,24 @@ function CustomerTab({
         if (selectedType === 'Rent a Car') {
             if (!form.data.dropoff_location || form.data.dropoff_location === '') {
                 form.setData('dropoff_location', 'BIA Airport');
+            }
+            if (!form.data.price || Number(form.data.price) === 0) {
+                const dayCount = parseInt(form.data.days) || 1;
+                const totalPrice = firstRentRate * dayCount;
+                form.setData('price', totalPrice);
+                if (paymentForm && typeof paymentForm.setData === 'function') {
+                    paymentForm.setData((prev) => ({
+                        ...prev,
+                        price: totalPrice,
+                        currency: 'LKR',
+                        payments: [{
+                            method: 'Cash',
+                            currency: 'LKR',
+                            amount: totalPrice,
+                            notes: [{ amount: '', count: '', currency: 'LKR' }],
+                        }],
+                    }));
+                }
             }
             if (form.data.driver_rate !== '' || form.data.driver_rate_reason !== '') {
                 form.setData((prev) => ({
@@ -3109,9 +3071,14 @@ function CustomerTab({
             {selectedType === 'Rent a Car' && (
                 <form
                     onSubmit={(e) => {
-                        if (!selectedRentVehicle) {
+                        if (!form.data.external_vehicle_reg || !form.data.external_vehicle_reg.trim()) {
                             e.preventDefault();
-                            alert('Please select a vehicle from the Rent a Car rates.');
+                            alert('Please enter the vehicle number.');
+                            return;
+                        }
+                        if (!form.data.price || Number(form.data.price) <= 0) {
+                            e.preventDefault();
+                            alert('Please enter a valid price.');
                             return;
                         }
                         onSubmit(e);
@@ -3262,225 +3229,77 @@ function CustomerTab({
                         </div>
                     </div>
 
-                    {/* Row 4: Vehicles from rent_a_car_rates */}
-                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-2.5">
-                            <div className="flex items-center gap-2">
-                                <CarFront size={16} className="text-black" />
-                                <div>
-                                    <h4 className="text-xs font-black text-black uppercase tracking-wide">
-                                        Select Vehicle from Rent a Car Rates <span className="text-red-600">*</span>
-                                    </h4>
-                                    <p className="text-[11px] font-bold text-black/70">
-                                        Rates are per day in LKR. Total calculated as Rate × Day Count ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
-                                    </p>
-                                </div>
+                    {/* Row 4: Vehicle Details & Price */}
+                    <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
+                        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+                            <CarFront size={16} className="text-black" />
+                            <div>
+                                <h4 className="text-xs font-black text-black uppercase tracking-wide">
+                                    Vehicle Details & Pricing
+                                </h4>
+                                <p className="text-[11px] font-bold text-black/70">
+                                    Enter the vehicle number and set the price ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
+                                </p>
                             </div>
+                        </div>
 
-                            {/* Search filter for vehicles */}
-                            <div className="relative w-full sm:w-60">
-                                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-black/60" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                            {/* Vehicle Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                                    <CarFront size={13} className="text-black" />
+                                    <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                </label>
                                 <input
                                     type="text"
-                                    value={rentVehicleSearch}
-                                    onChange={(e) => setRentVehicleSearch(e.target.value)}
-                                    placeholder="Search make or model..."
-                                    className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    required
+                                    value={form.data.external_vehicle_reg || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value.toUpperCase();
+                                        form.setData('external_vehicle_reg', val);
+                                        if (agent) {
+                                            agent.external_vehicle_reg = val;
+                                        }
+                                    }}
+                                    placeholder="e.g. CBV-1508"
+                                    className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2.5 px-3 bg-white"
                                 />
-                                {rentVehicleSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setRentVehicleSearch('')}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
-                                    >
-                                        <X size={12} />
-                                    </button>
-                                )}
+                                <p className="text-[10px] font-bold text-black/60 mt-1">
+                                    Registration number of the vehicle to assign
+                                </p>
                             </div>
-                        </div>
 
-                        {/* Category tabs/filter */}
-                        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
-                            {rentCategories.map((cat) => {
-                                const active = rentVehicleCategoryFilter === cat;
-                                return (
-                                    <button
-                                        key={cat}
-                                        type="button"
-                                        onClick={() => setRentVehicleCategoryFilter(cat)}
-                                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition whitespace-nowrap ${
-                                            active
-                                                ? 'bg-black text-white border-black shadow-sm'
-                                                : 'bg-white border-gray-300 text-black hover:border-black hover:bg-slate-100'
-                                        }`}
-                                    >
-                                        {cat}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {/* Vehicles Grid / List */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto p-1">
-                            {filteredRentVehicles.length > 0 ? (
-                                filteredRentVehicles.map((v) => {
-                                    const isSelected = selectedRentVehicleId === v.id;
-                                    const dailyRate = Number(v.rate) || 0;
-                                    const dayCount = parseInt(form.data.days) || 1;
-                                    const totalCalculated = dailyRate * dayCount;
-
-                                    return (
-                                        <button
-                                            key={v.id}
-                                            type="button"
-                                            onClick={() => handleSelectRentVehicle(v)}
-                                            className={`text-left p-2.5 rounded-xl border-2 transition relative flex flex-col justify-between gap-2 ${
-                                                isSelected
-                                                    ? 'border-blue-600 bg-blue-50/90 shadow-md ring-1 ring-blue-500/30'
-                                                    : 'border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <div className="flex items-start justify-between gap-1">
-                                                <div>
-                                                    <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-black border border-gray-300 mb-1">
-                                                        {v.vehicle_category}
-                                                    </span>
-                                                    <div className="text-xs font-black text-black">
-                                                        {v.make} <span className="uppercase">{v.model}</span>
-                                                    </div>
-                                                </div>
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition shrink-0 ${
-                                                    isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
-                                                }`}>
-                                                    {isSelected && <Check size={11} className="stroke-[3]" />}
-                                                </div>
-                                            </div>
-
-                                            <div className="border-t border-gray-100 pt-1.5 flex items-end justify-between">
-                                                <div>
-                                                    <span className="text-[10px] font-bold text-black/60 block">Daily Rate:</span>
-                                                    <span className="text-xs font-black text-black">
-                                                        LKR {dailyRate.toLocaleString()}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-[10px] font-bold text-black/60 block">{dayCount} {dayCount === 1 ? 'day' : 'days'}:</span>
-                                                    <span className="text-xs font-black text-blue-800">
-                                                        LKR {totalCalculated.toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })
-                            ) : (
-                                <div className="col-span-full p-4 text-center text-xs text-black font-bold bg-white rounded-xl border border-gray-200">
-                                    No vehicles found matching "{rentVehicleSearch}".
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Selected Vehicle Pricing & Editable Rate */}
-                        {selectedRentVehicle ? (
-                            <div className="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3.5 space-y-3 animate-in fade-in duration-150">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0">
-                                            <CarFront size={18} />
-                                        </div>
-                                        <div>
-                                            <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                                                <span>{selectedRentVehicle.make} {selectedRentVehicle.model}</span>
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded">
-                                                    {selectedRentVehicle.vehicle_category}
-                                                </span>
-                                            </div>
-                                            <div className="text-[11px] font-bold text-emerald-800 mt-0.5">
-                                                Catalog Rate: LKR {Number(selectedRentVehicle.rate).toLocaleString()} / day
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-[11px] font-bold text-emerald-900 bg-white/90 border border-emerald-200 px-3 py-1 rounded-lg">
-                                        Duration: <span className="font-black text-emerald-950">{form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}</span>
-                                    </div>
-                                </div>
-
-                                {/* Editable Rates Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-emerald-200">
-                                    {/* Editable Daily Rate */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
-                                            <span className="flex items-center gap-1">
-                                                <CreditCard size={13} className="text-emerald-800" />
-                                                <span>Daily Rate (LKR) <span className="text-red-600">*</span></span>
-                                            </span>
-                                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                                Editable
-                                            </span>
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
-                                                LKR
-                                            </span>
-                                            <input
-                                                type="number"
-                                                step="any"
-                                                min="0"
-                                                required
-                                                value={rentDailyRate}
-                                                onChange={(e) => handleRentDailyRateChange(e.target.value)}
-                                                placeholder="0.00"
-                                                className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-emerald-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
-                                            />
-                                        </div>
-                                        <p className="text-[10px] font-bold text-black/70 mt-1">
-                                            Adjust rate per day (calculates total automatically)
-                                        </p>
-                                    </div>
-
-                                    {/* Editable Total Selling Price */}
-                                    <div>
-                                        <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
-                                            <span className="flex items-center gap-1">
-                                                <CreditCard size={13} className="text-emerald-800" />
-                                                <span>Total Rent Price (LKR) <span className="text-red-600">*</span></span>
-                                            </span>
-                                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                                Editable
-                                            </span>
-                                        </label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
-                                                LKR
-                                            </span>
-                                            <input
-                                                type="number"
-                                                step="any"
-                                                min="0"
-                                                required
-                                                value={form.data.price}
-                                                onChange={(e) => handlePriceChange(e.target.value)}
-                                                placeholder="0.00"
-                                                className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-emerald-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
-                                            />
-                                        </div>
-                                        <p className="text-[10px] font-bold text-emerald-800 mt-1">
-                                            Rate: LKR {Number(rentDailyRate || 0).toLocaleString()} × {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between gap-3 text-amber-900">
-                                <div className="flex items-center gap-2">
-                                    <CarFront size={16} className="text-amber-700 shrink-0" />
-                                    <span className="text-xs font-bold">
-                                        Please pick a vehicle from the rates list above to load and edit its rate.
+                            {/* Price (Pre-filled from rent_a_car_rates first price) */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={13} className="text-black" />
+                                        <span>Price (LKR) <span className="text-red-600">*</span></span>
                                     </span>
+                                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                        Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()} / day
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.price}
+                                        onChange={(e) => handleRentPriceChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    />
                                 </div>
+                                <p className="text-[10px] font-bold text-black/60 mt-1">
+                                    Total for {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'} (Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()}/day)
+                                </p>
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* Action Button */}
@@ -3594,16 +3413,28 @@ function PaymentTab({
 
         try {
             const custPayload = {
-                agent_id: agent.id,
-                name: customerForm?.data?.name?.trim() || agent?.name || 'Customer',
+                agent_id: agent?.id || null,
+                agent_user_id: agent?.user_id || customerForm?.data?.agent_user_id || null,
+                name: customerForm?.data?.name?.trim() || agent?.name || 'Walk-in Customer',
                 email: customerForm?.data?.email?.trim() || null,
                 mobile_number: customerForm?.data?.mobile_number?.trim() || null,
                 whatsapp_number: customerForm?.data?.whatsapp_number?.trim() || null,
                 country: customerForm?.data?.country?.trim() || null,
-                dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || 'Colombo',
+                dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || (customerForm?.data?.booking_type === 'Rent a Car' ? 'BIA Airport' : 'Colombo'),
                 passenger_count: Number(customerForm?.data?.passenger_count || agent?.passenger_count || 1),
                 luggage_count: Number(customerForm?.data?.luggage_count ?? agent?.luggage_count ?? 0),
                 language_preference: customerForm?.data?.language_preference || agent?.language_preference || 'English',
+                price: Number(form?.data?.price ?? customerForm?.data?.price ?? agent?.price ?? 0),
+                currency: form?.data?.currency || customerForm?.data?.currency || agent?.currency || 'LKR',
+                booking_type: customerForm?.data?.booking_type || agent?.booking_type || 'Transfer',
+                tour_destinations: customerForm?.data?.tour_destinations || agent?.tour_destinations || null,
+                days: Number(customerForm?.data?.days || agent?.days || 1),
+                driver_rate: customerForm?.data?.driver_rate || agent?.driver_rate || null,
+                driver_rate_reason: customerForm?.data?.driver_rate_reason || agent?.driver_rate_reason || null,
+                external_vehicle_make: customerForm?.data?.external_vehicle_make || agent?.external_vehicle_make || null,
+                external_vehicle_model: customerForm?.data?.external_vehicle_model || agent?.external_vehicle_model || null,
+                external_vehicle_reg: customerForm?.data?.external_vehicle_reg || agent?.external_vehicle_reg || null,
+                external_company_name: customerForm?.data?.external_company_name || agent?.external_company_name || null,
                 status: 'New',
                 remarks: customerForm?.data?.remarks || agent?.remarks || null,
             };
@@ -3612,6 +3443,10 @@ function PaymentTab({
                 headers: { 'Accept': 'application/json' }
             });
             const newId = res.data?.id;
+            const updatedAgent = res.data?.agent;
+            if (updatedAgent && agent) {
+                Object.assign(agent, updatedAgent);
+            }
             if (newId) {
                 if (typeof setCreatedCustomerId === 'function') {
                     setCreatedCustomerId(newId);
@@ -5644,23 +5479,28 @@ function Empty({ text }) {
     );
 }
 
-function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) {
+function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoicePath = null }) {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
-    const [searchQuery, setSearchQuery] = useState(agent?.external_vehicle_make || '');
 
     const initialStartDate = agent?.rent_start_date || new Date().toISOString().split('T')[0];
     const initialEndDate = agent?.rent_end_date || (() => {
         const d = new Date(initialStartDate);
-        d.setDate(d.getDate() + (parseInt(agent?.days) || 1));
+        d.setDate(d.getDate() + (parseInt(customerForm?.data?.days || agent?.days) || 1));
         return d.toISOString().split('T')[0];
     })();
 
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
+
+    const targetReg = (
+        customerForm?.data?.external_vehicle_reg ||
+        agent?.external_vehicle_reg ||
+        ''
+    ).trim();
 
     const fetchVehicles = async () => {
         setLoading(true);
@@ -5684,6 +5524,31 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     useEffect(() => {
         fetchVehicles();
     }, [startDate, endDate]);
+
+    const matchedVehicle = useMemo(() => {
+        if (!targetReg) return null;
+        const cleanTarget = targetReg.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        return vehicles.find(v => {
+            const cleanReg = (v.reg_no || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return cleanReg === cleanTarget;
+        });
+    }, [vehicles, targetReg]);
+
+    const vehicleToShow = useMemo(() => {
+        if (matchedVehicle) return matchedVehicle;
+        if (targetReg) {
+            return {
+                id: 0,
+                reg_no: targetReg,
+                make: customerForm?.data?.external_vehicle_make || agent?.external_vehicle_make || 'Rent a Car',
+                model: customerForm?.data?.external_vehicle_model || agent?.external_vehicle_model || 'Vehicle',
+                company_id: 1,
+                company_name: customerForm?.data?.external_company_name || agent?.external_company_name || 'External Rental Fleet',
+                vehicle_type_name: 'Car'
+            };
+        }
+        return null;
+    }, [matchedVehicle, targetReg, agent, customerForm?.data?.external_vehicle_make, customerForm?.data?.external_vehicle_model, customerForm?.data?.external_company_name]);
 
     const confirmAssign = () => {
         if (!customerId) {
@@ -5713,6 +5578,12 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
+                    if (agent) {
+                        agent.external_vehicle_reg = v.reg_no;
+                    }
+                    if (customerForm) {
+                        customerForm.setData('external_vehicle_reg', v.reg_no);
+                    }
                     setConfirmModal(null);
                     onClose();
                 },
@@ -5723,162 +5594,95 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
 
     return (
         <div className="space-y-4 text-black">
-            {/* Selected Vehicle Type to Assign */}
-            {agent?.external_vehicle_make && (
-                <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-black bg-blue-50 border border-blue-200 p-3 rounded-xl shadow-xs">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-gray-700 font-bold">Selected Type to Assign:</span>
-                        <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg font-black text-sm shadow-xs">
-                            {agent.external_vehicle_make} {agent.external_vehicle_model}
-                        </span>
-                        {agent?.remarks && (
-                            <span className="bg-white border border-blue-200 text-blue-900 px-2 py-0.5 rounded text-xs font-bold">
-                                {agent.remarks}
-                            </span>
-                        )}
-                        <span className="text-gray-500 font-normal">
-                            ({agent.days || 1} {Number(agent?.days) === 1 ? 'Day' : 'Days'} • Dropoff: {agent.dropoff_location || 'BIA Airport'})
-                        </span>
-                    </div>
+            {/* Target Vehicle Banner */}
+            {targetReg && (
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-xs">
                     <div className="flex items-center gap-2">
-                        {searchQuery ? (
-                            <button
-                                type="button"
-                                onClick={() => setSearchQuery('')}
-                                className="text-xs bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-2.5 py-1 rounded-lg font-bold transition shadow-xs"
-                            >
-                                Show All Vehicles
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => setSearchQuery(agent.external_vehicle_make)}
-                                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg font-bold transition shadow-xs"
-                            >
-                                Filter to {agent.external_vehicle_make}
-                            </button>
-                        )}
+                        <CarFront className="text-emerald-700" size={18} />
+                        <span className="text-xs font-bold text-gray-700">Assigned Vehicle Number:</span>
+                        <span className="font-mono font-black text-sm bg-yellow-100 text-yellow-900 px-2.5 py-0.5 rounded border border-yellow-300">
+                            {targetReg}
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">
+                            ({agent?.days || 1} {Number(agent?.days) === 1 ? 'Day' : 'Days'} • Dropoff: {agent?.dropoff_location || 'BIA Airport'})
+                        </span>
                     </div>
+                    <button
+                        type="button"
+                        onClick={fetchVehicles}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-xs font-bold rounded-lg shadow-2xs transition disabled:opacity-50 cursor-pointer"
+                        title="Refresh Availability"
+                    >
+                        <RefreshCw size={12} className={loading ? "animate-spin text-blue-600" : "text-gray-500"} />
+                        <span>{loading ? 'Checking...' : 'Check Status'}</span>
+                    </button>
                 </div>
             )}
-            {/* Highlighted Refresh Banner before assigning vehicle */}
-            <div className="flex flex-wrap items-center gap-3 bg-red-50 border-2 border-red-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
-                <div className="flex items-center gap-2">
-                    <span className="flex h-2.5 w-2.5 relative shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
-                    </span>
-                    <span className="text-xs sm:text-sm font-black text-red-600 uppercase tracking-wide">
-                        Refresh before assigning a vehicle
-                    </span>
-                </div>
-                <button
-                    type="button"
-                    onClick={fetchVehicles}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-lg shadow-sm border border-red-700 transition disabled:opacity-50"
-                    title="Refresh Fleet Availability"
-                >
-                    <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-                </button>
-            </div>
 
-            {/* Date and Search Bar */}
-            <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <div>
-                    <label className="block text-xs font-bold text-black mb-1">Start Date</label>
-                    <input type="date" className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-black mb-1">End Date</label>
-                    <input type="date" className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                </div>
-                <div className="pt-5">
-                    <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black hover:bg-blue-700 transition">Search Fleet</button>
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-xs font-bold text-black mb-1">Search Fleet Vehicles</label>
-                    <input 
-                        type="text" 
-                        className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" 
-                        placeholder="Search by make, model, reg, or company..." 
-                        value={searchQuery} 
-                        onChange={e => setSearchQuery(e.target.value)} 
-                    />
-                </div>
-            </div>
+            {/* Target Vehicle Card Only */}
+            {vehicleToShow ? (
+                <div className="max-w-xl mx-auto py-2">
+                    <div className="border-2 border-emerald-400 bg-white rounded-2xl p-5 shadow-md space-y-4 hover:shadow-lg transition">
+                        <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                            <div>
+                                <span className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded border border-emerald-300 mb-1.5">
+                                    ✓ Designated Vehicle
+                                </span>
+                                <h3 className="font-black text-lg text-gray-900">{vehicleToShow.make} {vehicleToShow.model}</h3>
+                                <p className="text-xs text-gray-500 font-bold">{vehicleToShow.vehicle_type_name || 'Car'} • {vehicleToShow.company_name}</p>
+                            </div>
+                            <span className="font-mono font-black text-base bg-yellow-100 text-yellow-900 px-3 py-1 rounded-lg border border-yellow-300 shadow-2xs">
+                                {vehicleToShow.reg_no}
+                            </span>
+                        </div>
 
-            {loading ? (
-                <div className="text-center py-10 text-gray-500 font-bold text-xs">Loading external vehicles...</div>
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <div>
+                                <span className="text-[11px] font-bold text-gray-500 block">Rental Dates</span>
+                                <span className="font-black text-gray-800">{startDate} → {endDate}</span>
+                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">({customerForm?.data?.days || agent?.days || 1} {Number(customerForm?.data?.days || agent?.days) === 1 ? 'day' : 'days'})</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[11px] font-bold text-gray-500 block">Total Rent Price</span>
+                                <span className="font-black text-emerald-800 text-sm">LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()}</span>
+                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">No Driver</span>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setConfirmModal({ vehicle: vehicleToShow })}
+                            className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-black text-sm rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            <span>Assign Vehicle ({vehicleToShow.reg_no})</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+            ) : loading ? (
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">Loading vehicle details...</div>
             ) : error ? (
                 <div className="text-center py-10 text-red-500 font-bold text-xs">{error}</div>
-            ) : vehicles.length === 0 ? (
-                <div className="text-center py-10 text-gray-500 font-bold text-xs">No vehicles available for these dates.</div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                    {vehicles.filter(v => {
-                        if (!searchQuery) return true;
-                        const query = searchQuery.toLowerCase();
-                        return (
-                            (v.make || '').toLowerCase().includes(query) ||
-                            (v.model || '').toLowerCase().includes(query) ||
-                            (v.reg_no || '').toLowerCase().includes(query) ||
-                            (v.company_name || '').toLowerCase().includes(query)
-                        );
-                    }).map(v => {
-                        const matchesSelected = Boolean(
-                            agent?.external_vehicle_make &&
-                            ((v.make || '').toLowerCase().includes(agent.external_vehicle_make.toLowerCase()) ||
-                             (v.model || '').toLowerCase().includes(agent.external_vehicle_model?.toLowerCase() || ''))
-                        );
-
-                        return (
-                            <div
-                                key={v.id}
-                                className={`border-2 rounded-xl p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-500 cursor-pointer transition-all ${
-                                    matchesSelected ? 'border-emerald-400 bg-emerald-50/40' : 'border-gray-200'
-                                }`}
-                                onClick={() => setConfirmModal({ vehicle: v })}
-                            >
-                                <div>
-                                    {matchesSelected && (
-                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-1.5 py-0.5 rounded border border-emerald-300 mb-1.5">
-                                            ✓ Matches Selected Type
-                                        </span>
-                                    )}
-                                    <h4 className="font-black text-sm text-gray-900">{v.make} {v.model}</h4>
-                                    <p className="text-xs text-gray-600 font-semibold mt-0.5">{v.vehicle_type_name}</p>
-                                </div>
-                                <div className="mt-3 text-xs border-t border-gray-100 pt-2 flex items-center justify-between">
-                                    <span className="inline-block bg-yellow-100 text-yellow-900 px-2 py-0.5 rounded font-mono font-bold">{v.reg_no}</span>
-                                    <p className="text-[11px] text-gray-600 font-bold truncate max-w-[120px]">{v.company_name}</p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">No vehicle specified. Please enter a vehicle number in customer details.</div>
             )}
 
+            {/* Confirmation Modal */}
             {confirmModal && (
                 <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
                         <h3 className="text-base font-black text-gray-900">Assign External Vehicle</h3>
                         <div className="bg-gray-50 p-3 rounded-lg border text-xs space-y-1.5 font-bold text-gray-800">
-                            {agent?.external_vehicle_make && (
-                                <p className="text-blue-900">
-                                    <strong>Selected Spec:</strong> {agent.external_vehicle_make} {agent.external_vehicle_model}
-                                </p>
-                            )}
                             <p><strong>Fleet Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
                             <p><strong>Reg No:</strong> <span className="font-mono bg-yellow-100 px-1 rounded">{confirmModal.vehicle.reg_no}</span></p>
                             <p><strong>Company:</strong> {confirmModal.vehicle.company_name}</p>
-                            <p><strong>Dates:</strong> {startDate} to {endDate} ({agent?.days || 1} Days)</p>
-                            <p className="text-emerald-700"><strong>Rate:</strong> LKR {Number(agent?.price || 0).toLocaleString()} (No Driver)</p>
+                            <p><strong>Dates:</strong> {startDate} to {endDate} ({customerForm?.data?.days || agent?.days || 1} Days)</p>
+                            <p className="text-emerald-700"><strong>Rate:</strong> LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()} (No Driver)</p>
                         </div>
                         <div className="flex gap-2 pt-2">
-                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50">Cancel</button>
-                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-xs font-black hover:bg-blue-800 disabled:opacity-50">
+                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer">Cancel</button>
+                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-xs font-black hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
                                 {submitting ? 'Assigning...' : 'Confirm Assignment'}
                             </button>
                         </div>
