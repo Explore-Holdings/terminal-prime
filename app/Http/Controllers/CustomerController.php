@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class CustomerController extends Controller
 {
@@ -41,14 +42,27 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'agent_id' => 'required|exists:agents,id',
-            'name' => 'required|string|max:255',
+            'agent_id' => 'nullable|exists:agents,id',
+            'agent_user_id' => 'nullable|exists:users,id',
+            'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'mobile_number' => 'nullable|string|max:30',
             'whatsapp_number' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:100',
             'dropoff_location' => 'nullable|string|max:255',
-            'passenger_count' => 'required|integer|min:1',
+            'passenger_count' => 'nullable|integer|min:1',
+            'luggage_count' => 'nullable|integer|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|max:10',
+            'booking_type' => 'nullable|string|max:100',
+            'tour_destinations' => 'nullable',
+            'days' => 'nullable|integer|min:1',
+            'driver_rate' => 'nullable|numeric|min:0',
+            'driver_rate_reason' => 'nullable|string',
+            'external_vehicle_make' => 'nullable|string|max:255',
+            'external_vehicle_model' => 'nullable|string|max:255',
+            'external_vehicle_reg' => 'nullable|string|max:100',
+            'external_company_name' => 'nullable|string|max:255',
             'language_preference' => 'nullable|string|max:100',
             'status' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
@@ -58,43 +72,140 @@ class CustomerController extends Controller
             $data['language_preference'] = 'English';
         }
 
-        $agent = Agent::findOrFail($data['agent_id']);
+        if (!empty($data['booking_type']) && trim(strtolower($data['booking_type'])) === 'tour') {
+            $data['booking_type'] = 'Tours';
+        }
+
+        if (empty($data['agent_id'])) {
+            $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
+            $agent = Agent::create([
+                'user_id' => $data['agent_user_id'] ?? Auth::id(),
+                'name' => !empty($data['name']) ? $data['name'] : 'Walk-in Customer',
+                'status' => 'Pending',
+                'booking_type' => !empty($data['booking_type']) ? $data['booking_type'] : 'Transfer',
+                'currency' => $data['currency'] ?? 'LKR',
+                'price' => $data['price'] ?? 0,
+                'passenger_count' => $data['passenger_count'] ?? 1,
+                'luggage_count' => $data['luggage_count'] ?? 0,
+                'dropoff_location' => $data['dropoff_location'] ?? null,
+                'booking_number' => $bookingNumber,
+                'processing_by' => Auth::id(),
+                'processing_at' => now(),
+                'external_vehicle_reg' => $data['external_vehicle_reg'] ?? null,
+                'external_vehicle_make' => $data['external_vehicle_make'] ?? null,
+                'external_vehicle_model' => $data['external_vehicle_model'] ?? null,
+                'external_company_name' => $data['external_company_name'] ?? null,
+                'days' => $data['days'] ?? 1,
+            ]);
+            $data['agent_id'] = $agent->id;
+        } else {
+            $agent = Agent::findOrFail($data['agent_id']);
+        }
+
+        $customerData = [
+            'agent_id' => $data['agent_id'],
+            'name' => !empty($data['name']) ? $data['name'] : $agent->name,
+            'email' => $data['email'] ?? null,
+            'mobile_number' => $data['mobile_number'] ?? null,
+            'whatsapp_number' => $data['whatsapp_number'] ?? null,
+            'country' => $data['country'] ?? null,
+            'dropoff_location' => !empty($data['dropoff_location']) ? $data['dropoff_location'] : $agent->dropoff_location,
+            'passenger_count' => !empty($data['passenger_count']) ? $data['passenger_count'] : $agent->passenger_count,
+            'language_preference' => $data['language_preference'],
+            'status' => $data['status'] ?? 'New',
+            'remarks' => !empty($data['remarks']) ? $data['remarks'] : $agent->remarks,
+        ];
 
         $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
         if ($existing) {
-            $existing->update([
-                ...$data,
-                'name' => $data['name'] ?: $agent->name,
-                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-                'remarks' => $data['remarks'] ?: $agent->remarks,
-                'status' => $data['status'] ?? 'New',
-            ]);
+            $existing->update($customerData);
             $customer = $existing;
         } else {
             $customer = Customer::create([
-                ...$data,
+                ...$customerData,
                 'customer_code' => $this->generateCustomerCode(),
                 'passport_image' => $agent->customer_passport,
-                'name' => $data['name'] ?: $agent->name,
-                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-                'remarks' => $data['remarks'] ?: $agent->remarks,
-                'status' => $data['status'] ?? 'New',
                 'created_by' => Auth::id(),
             ]);
         }
+
+        $agentUpdates = [
+            'name' => $customer->name,
+            'dropoff_location' => $customer->dropoff_location,
+            'passenger_count' => $customer->passenger_count,
+        ];
+        if (!empty($data['agent_user_id'])) {
+            $agentUpdates['user_id'] = $data['agent_user_id'];
+        }
+        if (isset($data['luggage_count'])) {
+            $agentUpdates['luggage_count'] = $data['luggage_count'];
+        }
+        if (isset($data['price']) && (float)$data['price'] >= 0) {
+            $agentUpdates['price'] = $data['price'];
+        }
+        if (!empty($data['currency'])) {
+            $agentUpdates['currency'] = $data['currency'];
+        }
+        if (!empty($data['booking_type'])) {
+            $agentUpdates['booking_type'] = $data['booking_type'];
+        }
+        if (isset($data['tour_destinations'])) {
+            $destStr = is_array($data['tour_destinations'])
+                ? implode(', ', array_filter($data['tour_destinations']))
+                : trim((string) $data['tour_destinations']);
+            $agentUpdates['tour_destinations'] = $destStr;
+            if (empty($data['dropoff_location']) && !empty($destStr)) {
+                $customer->update(['dropoff_location' => $destStr]);
+                $agentUpdates['dropoff_location'] = $destStr;
+            }
+        }
+        if (isset($data['days'])) {
+            $agentUpdates['days'] = (int) $data['days'];
+        }
+        if (isset($data['driver_rate'])) {
+            $agentUpdates['driver_rate'] = (float) $data['driver_rate'];
+        }
+        if (array_key_exists('driver_rate_reason', $data)) {
+            $agentUpdates['driver_rate_reason'] = $data['driver_rate_reason'];
+        }
+        if (array_key_exists('external_vehicle_make', $data)) {
+            $agentUpdates['external_vehicle_make'] = $data['external_vehicle_make'];
+        }
+        if (array_key_exists('external_vehicle_model', $data)) {
+            $agentUpdates['external_vehicle_model'] = $data['external_vehicle_model'];
+        }
+        if (array_key_exists('external_vehicle_reg', $data)) {
+            $agentUpdates['external_vehicle_reg'] = $data['external_vehicle_reg'];
+        }
+        if (array_key_exists('external_company_name', $data)) {
+            $agentUpdates['external_company_name'] = $data['external_company_name'];
+        }
+        if (($data['booking_type'] ?? $agent->booking_type) === 'Rent a Car') {
+            $agentUpdates['driver_rate'] = null;
+            $agentUpdates['driver_rate_reason'] = null;
+            $days = $data['days'] ?? $agent->days ?? 1;
+            if ($days) {
+                $agentUpdates['rent_start_date'] = now()->toDateString();
+                $agentUpdates['rent_end_date'] = now()->addDays((int) $days)->toDateString();
+            }
+        }
+
+        $agent->update($agentUpdates);
 
         if ($request->wantsJson()) {
             return response()->json([
                 'id' => $customer->id,
                 'customer' => $customer,
+                'agent' => $agent->fresh(),
+                'agent_id' => $agent->id,
             ]);
         }
 
         return redirect()
             ->route('counter.index')
-            ->with('created_customer_id', $customer->id);
+            ->with('created_customer_id', $customer->id)
+            ->with('created_agent_id', $agent->id)
+            ->with('agent', $agent->fresh()->loadMissing(['user', 'customers']));
     }
 
     public function savePayment(Request $request, Customer $customer)
@@ -214,7 +325,10 @@ class CustomerController extends Controller
         }
 
         return redirect()
-            ->route('counter.index');
+            ->route('counter.index')
+            ->with('created_customer_id', $customer->id)
+            ->with('created_agent_id', $agent->id)
+            ->with('agent', $agent->fresh()->loadMissing(['user', 'customers']));
     }
 
     private function generateInvoicePdf(Customer $customer, ?string $invoiceNumber = null)
@@ -262,7 +376,7 @@ class CustomerController extends Controller
     {
         $data = $request->validate([
             'driver_id'      => 'required|exists:drivers,id',
-            'agent_id'       => 'required|exists:agents,id',
+            'agent_id'       => 'nullable|exists:agents,id',
             'remarks'        => 'nullable|string',
             'driver_rate'    => 'nullable|numeric|min:0|max:100',
             'agent_rate'     => 'nullable|numeric|min:0|max:100',
@@ -277,7 +391,14 @@ class CustomerController extends Controller
 
         $trip = null;
 
-        DB::transaction(function () use ($data, $customer, &$trip) {
+        $agentId = $data['agent_id'] ?? $customer->agent_id;
+        if (!$agentId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'agent_id' => 'Agent booking not found for this customer.',
+            ]);
+        }
+
+        DB::transaction(function () use ($data, $customer, &$trip, $agentId) {
 
             // ── Session Tracking: Initialize session_id for ALL drivers ──
             // When session_id is null (fresh start), session 1 applies to every
@@ -411,7 +532,7 @@ class CustomerController extends Controller
             $trip = Trip::create([
                 'driver_id'           => $data['driver_id'],
                 'customer_id'         => $customer->id,
-                'agent_id'            => $data['agent_id'],
+                'agent_id'            => $agentId,
                 'trip_assigned_at'    => now(),
                 'trip_assigned_by'    => auth()->id(),
                 'selection_reason'    => $selectionReason,
@@ -722,6 +843,72 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', 'External vehicle assigned successfully.')
+            ->with('invoice_path', $invoicePath);
+    }
+
+    public function assignOutsourceVehicle(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'vehicle_number' => 'required|string|max:100',
+            'price'          => 'required|numeric|min:0',
+            'mobile_number'  => 'nullable|string|max:50',
+        ]);
+
+        $agent = $customer->agent;
+        if (!$agent) {
+            return back()->withErrors(['agent' => 'Agent booking not found for this customer.']);
+        }
+
+        \App\Models\OutsourceVehicle::create([
+            'customer_id'    => $customer->id,
+            'agent_id'       => $agent->id,
+            'price'          => $data['price'],
+            'vehicle_number' => strtoupper(trim($data['vehicle_number'])),
+            'mobile_number'  => $data['mobile_number'] ?? null,
+            'created_by'     => auth()->id(),
+        ]);
+
+        $agent->update([
+            'status'               => 'Approved',
+            'external_vehicle_reg' => strtoupper(trim($data['vehicle_number'])),
+        ]);
+        Cache::forget('active_counter_processing_agent');
+
+        $customer->refresh();
+
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoiceDir    = storage_path('app/public/invoices');
+        if (!file_exists($invoiceDir)) {
+            mkdir($invoiceDir, 0755, true);
+        }
+        $savedFile     = "{$invoiceDir}/{$invoiceNumber}.pdf";
+
+        try {
+            $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            Log::error("Failed to save invoice PDF for outsource vehicle assignment on customer {$customer->id}: " . $e->getMessage());
+        }
+
+        $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
+
+        $customer->update([
+            'invoice_number' => $invoiceNumber,
+            'invoice_path'   => $invoicePath,
+        ]);
+
+        if ($customer->email) {
+            try {
+                Mail::to($customer->email)
+                    ->queue(new CustomerInvoiceMail($customer->load('agent.user'), $invoiceNumber));
+            } catch (\Exception $e) {
+                Log::error("Failed to queue invoice email: " . $e->getMessage());
+            }
+        }
+
+        return redirect()
+            ->route('counter.index')
+            ->with('success', 'Outsource vehicle assigned successfully.')
             ->with('invoice_path', $invoicePath);
     }
 }

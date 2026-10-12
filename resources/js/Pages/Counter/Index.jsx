@@ -1,12 +1,13 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar } from 'lucide-react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import axios from 'axios';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle, Phone } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const isTourBooking = (agent) => {
     if (!agent) return false;
     const bt = (agent.booking_type || '').trim().toLowerCase();
-    return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations) || Boolean(agent.days);
+    return bt === 'tour' || bt === 'tours' || Boolean(agent.tour_destinations);
 };
 
 const getTourDestinationsList = (dest) => {
@@ -325,9 +326,32 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips: initialOngoingTrips = [], vehicles: initialVehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt: initialLastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [], rentACarRates = [], queueVersion: initialQueueVersion = null }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
+    const [vehicles, setVehicles] = useState(initialVehicles);
+    const [ongoingTrips, setOngoingTrips] = useState(initialOngoingTrips);
+    const [lastReorderedAt, setLastReorderedAt] = useState(initialLastReorderedAt);
+    const currentVersionRef = useRef(initialQueueVersion);
+
+    useEffect(() => {
+        setVehicles(initialVehicles);
+    }, [initialVehicles]);
+
+    useEffect(() => {
+        setOngoingTrips(initialOngoingTrips);
+    }, [initialOngoingTrips]);
+
+    useEffect(() => {
+        setLastReorderedAt(initialLastReorderedAt);
+    }, [initialLastReorderedAt]);
+
+    useEffect(() => {
+        if (initialQueueVersion) {
+            currentVersionRef.current = initialQueueVersion;
+        }
+    }, [initialQueueVersion]);
+
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [checkoutInput, setCheckoutInput] = useState('');
@@ -343,6 +367,66 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [reorderSaving, setReorderSaving] = useState(false);
     const [reorderInput, setReorderInput] = useState('');
     const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const [refreshingVehicles, setRefreshingVehicles] = useState(false);
+
+    // Fetch the updated queue only when a DB change is detected
+    const fetchVehiclesQueue = useCallback(async (silent = true) => {
+        if (!silent) setRefreshingVehicles(true);
+        try {
+            const res = await axios.get('/counter/vehicles-queue');
+            if (res.data?.vehicles) {
+                setVehicles(res.data.vehicles);
+                if (res.data.ongoingTrips !== undefined) {
+                    setOngoingTrips(res.data.ongoingTrips);
+                }
+                if (res.data.lastReorderedAt !== undefined) {
+                    setLastReorderedAt(res.data.lastReorderedAt);
+                }
+                if (res.data.version) {
+                    currentVersionRef.current = res.data.version;
+                }
+                setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            }
+        } catch (err) {
+            console.error('Failed to sync live vehicles queue:', err);
+        } finally {
+            if (!silent) setRefreshingVehicles(false);
+        }
+    }, []);
+
+    // DB Change Token: Checks a ~20-byte hash every 5 seconds.
+    // DOES NOTHING if the DB hasn't changed. Syncs immediately when a DB change occurs!
+    useEffect(() => {
+        const checkDbUpdate = async () => {
+            if (document.visibilityState === 'hidden') return;
+            if (showCheckoutConfirm || showReorderModal) return;
+
+            try {
+                const res = await axios.get('/counter/queue-version');
+                const serverVersion = res.data?.version;
+                if (serverVersion && serverVersion !== currentVersionRef.current) {
+                    currentVersionRef.current = serverVersion;
+                    fetchVehiclesQueue(true);
+                }
+            } catch (err) {
+                // silent network error tolerance
+            }
+        };
+
+        const timer = setInterval(checkDbUpdate, 5000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkDbUpdate();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchVehiclesQueue, showCheckoutConfirm, showReorderModal]);
 
     const [showShortTripsModal, setShowShortTripsModal] = useState(false);
 
@@ -375,27 +459,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             .catch(err => console.error('Failed to fetch currency rates:', err));
     }, []);
 
-    useEffect(() => {
-        let isFetching = false;
-        const interval = setInterval(() => {
-            if (isFetching) return;
-            isFetching = true;
-            router.reload({
-                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips', 'lastReorderedAt', 'pettyCash'],
-                preserveScroll: true,
-                preserveState: true,
-                onFinish: () => {
-                    isFetching = false;
-                },
-                onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-            });
-        }, 500); // 500ms for near-instant real-time sync without request stacking
 
-        return () => clearInterval(interval);
-    }, []);
 
     const customerForm = useForm({
         agent_id: '',
+        agent_user_id: '',
         name: '',
         email: '',
         mobile_number: '',
@@ -403,7 +471,21 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         country: '',
         dropoff_location: '',
         passenger_count: 1,
+        luggage_count: 0,
+        vehicle_type: 'car',
+        price: 0,
+        currency: 'LKR',
+        booking_type: 'Transfer',
         language_preference: 'English',
+        tour_destinations: [],
+        days: 1,
+        driver_rate: '',
+        driver_rate_reason: '',
+        external_vehicle_make: '',
+        external_vehicle_model: '',
+        external_vehicle_reg: '',
+        external_company_name: '',
+        rent_a_car_rate_id: '',
         status: 'New',
         remarks: '',
     });
@@ -423,27 +505,41 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         const existingCust = agent.customers?.length ? agent.customers[agent.customers.length - 1] : (agent.customer || null);
 
         customerForm.setData({
-            agent_id: agent.id,
-            name: existingCust?.name || agent.name || '',
-            email: '',
-            mobile_number: '',
-            whatsapp_number: '',
-            country: '',
-            dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '',
+            agent_id: agent.id || '',
+            agent_user_id: agent.user_id || '',
+            name: existingCust?.name || (agent.name !== 'Walk-in Customer' ? agent.name : '') || '',
+            email: existingCust?.email || '',
+            mobile_number: existingCust?.mobile_number || '',
+            whatsapp_number: existingCust?.whatsapp_number || '',
+            country: existingCust?.country || '',
+            dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || (agent.booking_type === 'Rent a Car' ? 'BIA Airport' : ''),
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
+            vehicle_type: 'car',
+            price: agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0),
+            currency: agent.currency ?? 'LKR',
+            booking_type: agent.booking_type || 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
+            tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
+            days: agent.days ?? 1,
+            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.booking_type === 'Tours' || agent.booking_type === 'Tour' || (agent.booking_type || '').toLowerCase().includes('tour') ? (agent.driver_rate ?? rateSetting?.driver_rate ?? '') : (agent.driver_rate ?? '')),
+            driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
+            external_vehicle_make: agent.external_vehicle_make || '',
+            external_vehicle_model: agent.external_vehicle_model || '',
+            external_vehicle_reg: agent.external_vehicle_reg || '',
+            rent_a_car_rate_id: '',
             status: existingCust?.status || 'New',
             remarks: existingCust?.remarks || agent.remarks || '',
         });
 
+        const initialRentPrice = agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0);
         paymentForm.setData({
             currency: agent.currency ?? 'LKR',
-            price: agent.price ?? 0,
+            price: initialRentPrice,
             payments: [{
                 method: 'Cash',
                 currency: agent.currency ?? 'LKR',
-                amount: 0,
+                amount: initialRentPrice,
                 notes: [{ amount: '', count: '', currency: agent.currency ?? 'LKR' }],
             }],
         });
@@ -462,6 +558,26 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     };
 
     const [processingAgentId, setProcessingAgentId] = useState(null);
+    const [creatingBooking, setCreatingBooking] = useState(false);
+    const [showPendingDropdown, setShowPendingDropdown] = useState(false);
+
+    const handleAddNewBooking = () => {
+        const newBookingAgent = {
+            id: null,
+            is_new: true,
+            user_id: currentUserId || auth?.user?.id || '',
+            name: '',
+            status: 'Pending',
+            booking_type: 'Transfer',
+            currency: 'LKR',
+            price: 0,
+            passenger_count: 1,
+            luggage_count: 0,
+            country: '',
+            customers: [],
+        };
+        openModal(newBookingAgent, 'customer');
+    };
 
     // Is a specific agent locked by another staff member?
     const isAgentLockedByOther = (agent) => {
@@ -472,7 +588,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         if (!agent) return;
 
         setSelectedAgent(agent);
-        setProcessingAgentId(agent.id);
+        setProcessingAgentId(agent.id || null);
 
         try {
             resetCustomerForm(agent);
@@ -506,9 +622,25 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
-                const updatedAgent = page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
+                const createdAgentId = page.props.flash?.created_agent_id || page.props.createdAgentId;
+                const createdAgent = page.props.flash?.agent;
+                const updatedAgent = createdAgent
+                    || (createdAgentId ? page.props.pendingAgents?.find(a => a.id === createdAgentId) : null)
+                    || page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
+
                 if (updatedAgent) {
+                    if (customerForm?.data?.external_vehicle_reg) {
+                        updatedAgent.external_vehicle_reg = customerForm.data.external_vehicle_reg;
+                    }
                     setSelectedAgent(updatedAgent);
+                    setPaymentEnabledAgentId(updatedAgent.id);
+                } else if (createdAgentId) {
+                    setSelectedAgent(prev => ({
+                        ...(prev || {}),
+                        id: createdAgentId,
+                        external_vehicle_reg: customerForm?.data?.external_vehicle_reg || prev?.external_vehicle_reg
+                    }));
+                    setPaymentEnabledAgentId(createdAgentId);
                 }
                 const id = page.props.flash?.created_customer_id
                     || page.props.createdCustomerId
@@ -518,10 +650,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 if (id) {
                     setCreatedCustomerId(id);
                 }
-                if (selectedAgent?.id) {
-                    setPaymentEnabledAgentId(selectedAgent.id);
-                }
                 setActiveTab('payment');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).join('\n');
+                alert('Could not save customer details:\n' + (msg || 'Please check the form inputs.'));
             },
         });
     };
@@ -622,36 +755,83 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
                 </div>
 
-                <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>
-                    {pendingAgents.length ? (
-                        <div className="flex gap-3 overflow-x-auto pb-2">
-                            {pendingAgents.map((agent) => (
-                                <CustomerCard 
-                                    key={agent.id} 
-                                    agent={agent} 
-                                    onOpen={openModal} 
-                                    paymentEnabled={paymentEnabledAgentId === agent.id} 
-                                    vehicleEnabled={vehicleEnabledAgentId === agent.id} 
-                                />
-                            ))}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
+                            <UserPlus size={24} />
                         </div>
-                    ) : (
-                        <Empty text="No pending customers found." />
-                    )}
-                </Section>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Counter Bookings</h2>
+                            <p className="text-xs text-gray-500">Create new walk-in customer booking, process payment, and assign driver</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                        {pendingAgents.length > 0 && (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPendingDropdown(prev => !prev)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold transition"
+                                >
+                                    <ClipboardList size={16} className="text-amber-700" />
+                                    <span>Pending Inquiries ({pendingAgents.length})</span>
+                                    <ChevronDown size={14} />
+                                </button>
+                                {showPendingDropdown && (
+                                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-30 max-h-64 overflow-y-auto">
+                                        <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b">
+                                            Online & Agent Requests
+                                        </div>
+                                        {pendingAgents.map((ag) => (
+                                            <button
+                                                key={ag.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowPendingDropdown(false);
+                                                    openModal(ag, 'customer');
+                                                }}
+                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs flex flex-col gap-0.5 border-b last:border-b-0"
+                                            >
+                                                <span className="font-bold text-gray-800">{ag.name || 'Customer'}</span>
+                                                <span className="text-[11px] text-gray-500 truncate">{ag.dropoff_location || ag.tour_destinations || '-'}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleAddNewBooking}
+                            disabled={creatingBooking}
+                            className="inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white px-6 py-2.5 rounded-xl font-bold shadow-md shadow-blue-700/20 hover:shadow-lg hover:shadow-blue-700/30 transition-all duration-150 text-sm disabled:opacity-50"
+                        >
+                            <UserPlus size={18} />
+                            <span>{creatingBooking ? 'Opening...' : 'Add New Booking'}</span>
+                        </button>
+                    </div>
+                </div>
 
                 <Section 
                     title={
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                             <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
                             <button 
                                 type="button"
-                                onClick={() => router.reload({ only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'], onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) })}
-                                className="p-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 rounded-lg shadow-sm transition flex items-center"
-                                title="Refresh Data"
+                                onClick={() => fetchVehiclesQueue(false)}
+                                disabled={refreshingVehicles}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 text-gray-700 active:scale-95 rounded-lg shadow-xs transition text-xs font-bold disabled:opacity-50 cursor-pointer"
+                                title="Sync Vehicles Queue Data"
                             >
-                                <RefreshCw size={14} className="opacity-75" />
+                                <RefreshCw size={13} className={refreshingVehicles ? "animate-spin text-blue-600" : "text-gray-500"} />
+                                {/* <span>{refreshingVehicles ? 'Syncing...' : 'Sync Queue'}</span> */}
                             </button>
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Live Queue  • {lastUpdated}</span>
+                            </span>
                         </div>
                     } 
                     icon={<CarFront className="text-green-700" size={22} />}
@@ -1119,7 +1299,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} onRefreshVehicles={() => fetchVehiclesQueue(false)} />
             )}
 
             {showCheckoutConfirm && (
@@ -1441,6 +1621,10 @@ function Modal({
     lastReorderedAt = null,
     pettyCash = 0,
     shortTrips = [],
+    agentUsers = [],
+    counterSellingRates = [],
+    rentACarRates = [],
+    onRefreshVehicles = null,
 }) {
     if (!agent) return null;
 
@@ -1448,38 +1632,81 @@ function Modal({
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-4 border-b">
-                    <h3 className="text-lg font-bold">Pending Customer Process</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[92vh] max-h-[94vh] flex flex-col overflow-hidden border border-gray-100">
+                <div className="flex justify-between items-center px-5 py-3 border-b bg-gray-50/50 shrink-0">
+                    <h3 className="text-lg font-bold text-gray-900">Customer Booking Process</h3>
+                    <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="flex border-b">
+                <div className="flex border-b shrink-0 px-4 bg-white">
                     <TabButton active={activeTab === 'customer'} onClick={() => setActiveTab('customer')}>
                         Customer
                     </TabButton>
 
-                    <TabButton active={activeTab === 'payment'} onClick={() => setActiveTab('payment')}>
+                    <TabButton
+                        active={activeTab === 'payment'}
+                        disabled={!effectiveCustomerId}
+                        onClick={() => {
+                            if (!effectiveCustomerId) {
+                                alert('Please save customer details first before proceeding to payment.');
+                                return;
+                            }
+                            setActiveTab('payment');
+                        }}
+                    >
                         Payment
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} onClick={() => setActiveTab('vehicle')}>
+                        <TabButton
+                            active={activeTab === 'vehicle'}
+                            disabled={!effectiveCustomerId}
+                            onClick={() => {
+                                if (!effectiveCustomerId) {
+                                    alert('Please save customer details first before assigning a vehicle.');
+                                    return;
+                                }
+                                setActiveTab('vehicle');
+                            }}
+                        >
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} onClick={() => setActiveTab('rent_a_car_vehicle')}>
+                        <TabButton
+                            active={activeTab === 'rent_a_car_vehicle'}
+                            disabled={!effectiveCustomerId}
+                            onClick={() => {
+                                if (!effectiveCustomerId) {
+                                    alert('Please save customer details first before assigning a vehicle.');
+                                    return;
+                                }
+                                setActiveTab('rent_a_car_vehicle');
+                            }}
+                        >
                             External Vehicles
                         </TabButton>
                     )}
                 </div>
 
-                <div className="p-4 min-h-[500px]">
+                <div className="p-5 flex-1 overflow-y-auto">
                     <div className={activeTab === 'customer' ? '' : 'hidden'}>
-                        <CustomerTab agent={agent} countries={countries || []} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
+                        <CustomerTab
+                            agent={agent}
+                            countries={countries || []}
+                            form={customerForm}
+                            paymentForm={paymentForm}
+                            onSubmit={saveCustomer}
+                            eurRates={eurRates}
+                            dbLanguages={dbLanguages}
+                            onClose={onClose}
+                            agentUsers={agentUsers}
+                            counterSellingRates={counterSellingRates}
+                            rateSetting={rateSetting}
+                            rentACarRates={rentACarRates}
+                        />
                     </div>
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
@@ -1488,11 +1715,11 @@ function Modal({
 
                     {agent.booking_type !== 'Rent a Car' ? (
                         <div className={activeTab === 'vehicle' ? '' : 'hidden'}>
-                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} shortTrips={shortTrips} />
+                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} shortTrips={shortTrips} onRefreshVehicles={onRefreshVehicles} />
                         </div>
                     ) : (
                         <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
-                            <RentACarVehicleTab agent={agent} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
+                            <RentACarVehicleTab agent={agent} customerForm={customerForm} customerId={effectiveCustomerId} onClose={onClose} invoicePath={effectiveInvoicePath} />
                         </div>
                     )}
                 </div>
@@ -1501,175 +1728,1501 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLanguages = [], onClose }) {
-    const isTour = isTourBooking(agent);
-    const tourDestinations = formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-';
+function SearchableCountryDropdown({ value, onChange, countries = [] }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
-    const hasKm = agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0;
-    const hasLug = agent?.luggage_count != null && agent?.luggage_count !== '' && Number(agent?.luggage_count) > 0;
-    const hasPax = agent?.passenger_count != null && agent?.passenger_count !== '' && Number(agent?.passenger_count) > 0;
-    const hasDays = agent?.days != null && agent?.days !== '' && Number(agent?.days) > 0;
-    const hasDriverRate = agent?.driver_rate != null && Number(agent?.driver_rate) > 0;
-    const hasAnyTourMetrics = hasKm || hasLug || hasPax || hasDays;
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filtered = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return countries.slice(0, 100);
+        }
+        const q = searchTerm.trim().toLowerCase();
+        return countries.filter((c) => {
+            const name = typeof c === 'string' ? c : (c.country_name || '');
+            return name.toLowerCase().includes(q);
+        }).slice(0, 100);
+    }, [countries, searchTerm]);
+
+    const handleSelect = (name) => {
+        onChange(name);
+        setSearchTerm('');
+        setIsOpen(false);
+    };
 
     return (
-        <form onSubmit={onSubmit} autoComplete="off" className="space-y-5">
-            <div className={`rounded-lg border p-4 flex flex-col md:flex-row gap-4 ${isTour ? 'bg-purple-50/50 border-purple-200' : 'bg-slate-50 border-slate-200'}`}>
-                <ImageBox path={agent?.customer_passport} className="w-32 h-24 shrink-0" />
-                <div className="text-sm flex-1 space-y-1.5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-900 text-base">{agent?.name || 'Customer'}</span>
-                            <span className="text-xs text-gray-500 font-normal">({agent?.user?.name ? `Agent: ${agent.user.name}` : 'Direct Customer'})</span>
+        <div className="relative" ref={dropdownRef}>
+            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                <Globe size={13} className="text-black" />
+                <span>Country</span>
+            </label>
+
+            <div
+                onClick={() => setIsOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
+                    isOpen
+                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                        : value
+                            ? 'border-gray-400 bg-white'
+                            : 'border-gray-300 hover:border-gray-400'
+                }`}
+            >
+                <div className="flex items-center gap-2 truncate">
+                    <Globe size={14} className="text-black shrink-0" />
+                    {value ? (
+                        <span className="font-extrabold text-black truncate">{value}</span>
+                    ) : (
+                        <span className="text-black/60 font-medium">Search country...</span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {value && (
+                        <span
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onChange('');
+                            }}
+                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
+                            title="Clear country"
+                        >
+                            <X size={13} />
+                        </span>
+                    )}
+                    <ChevronDown size={14} className={`text-black transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            {isOpen && (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="p-2 border-b bg-gray-50">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                            <input
+                                type="text"
+                                autoFocus
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Type country name..."
+                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
                         </div>
-                        {agent?.booking_type && (
-                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                                isTour ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-200'
+                    </div>
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                        {filtered.length > 0 ? (
+                            filtered.map((c) => {
+                                const name = typeof c === 'string' ? c : (c.country_name || '');
+                                const isCurrent = value?.trim().toLowerCase() === name?.trim().toLowerCase();
+                                return (
+                                    <button
+                                        key={c.id || name}
+                                        type="button"
+                                        onClick={() => handleSelect(name)}
+                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                            isCurrent
+                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                : 'hover:bg-slate-50 text-black font-bold'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <Globe size={13} className="text-black shrink-0" />
+                                            <span className="truncate text-black">{name}</span>
+                                        </span>
+                                        {isCurrent && <Check size={13} className="text-blue-700 stroke-[3]" />}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-4 text-center text-xs text-black font-bold">
+                                No countries matching "{searchTerm}"
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TourDestinationsPicker({
+    selectedDestinations = [],
+    onChange,
+    counterSellingRates = [],
+}) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filtered = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return counterSellingRates.slice(0, 60);
+        }
+        const q = searchTerm.trim().toLowerCase();
+        return counterSellingRates.filter((c) =>
+            (c.city_name || '').toLowerCase().includes(q)
+        ).slice(0, 60);
+    }, [counterSellingRates, searchTerm]);
+
+    const addDestination = (cityName) => {
+        const clean = cityName.trim();
+        if (!clean) return;
+        if (!selectedDestinations.includes(clean)) {
+            onChange([...selectedDestinations, clean]);
+        }
+        setSearchTerm('');
+        setIsOpen(false);
+    };
+
+    const removeDestination = (idx) => {
+        onChange(selectedDestinations.filter((_, i) => i !== idx));
+    };
+
+    return (
+        <div className="space-y-2 relative" ref={dropdownRef}>
+            <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-black flex items-center gap-1.5">
+                    <MapPin size={14} className="text-black" />
+                    <span>Destinations (Pick one or more) <span className="text-red-600">*</span></span>
+                </label>
+                {selectedDestinations.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => onChange([])}
+                        className="text-[11px] font-bold text-red-600 hover:text-red-800 transition"
+                    >
+                        Clear All
+                    </button>
+                )}
+            </div>
+
+            {/* Search and Picker Bar */}
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setIsOpen(true);
+                        }}
+                        onFocus={() => setIsOpen(true)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (searchTerm.trim()) {
+                                    addDestination(searchTerm);
+                                }
+                            }
+                        }}
+                        placeholder="Search destination city or type custom and press Add..."
+                        className="w-full pl-8 pr-8 py-2 text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                        >
+                            <X size={13} />
+                        </button>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (searchTerm.trim()) {
+                            addDestination(searchTerm);
+                        } else {
+                            setIsOpen((prev) => !prev);
+                        }
+                    }}
+                    className="inline-flex items-center gap-1 bg-black text-white hover:bg-gray-800 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+                >
+                    <Plus size={14} />
+                    <span>Add</span>
+                </button>
+            </div>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+                <div className="absolute left-0 right-0 top-[calc(100%+2px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-[10px] font-bold text-black/70 uppercase tracking-wider flex justify-between">
+                        <span>Select City from Counter Rates</span>
+                        <span>{filtered.length} Results</span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                        {filtered.length > 0 ? (
+                            filtered.map((c) => {
+                                const isPicked = selectedDestinations.includes(c.city_name);
+                                return (
+                                    <button
+                                        key={c.id || c.city_name}
+                                        type="button"
+                                        onClick={() => addDestination(c.city_name)}
+                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                            isPicked
+                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                : 'hover:bg-slate-50 text-black font-bold'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <MapPin size={13} className="text-black shrink-0" />
+                                            <span className="truncate text-black">{c.city_name}</span>
+                                        </span>
+                                        {isPicked ? (
+                                            <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">
+                                                Added
+                                            </span>
+                                        ) : (
+                                            <span className="text-[11px] text-black/60 font-semibold flex items-center gap-1">
+                                                <Plus size={11} />
+                                                Select
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-3 text-center text-xs text-black font-bold">
+                                No cities matching "{searchTerm}". Click "Add" above to add as custom destination.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Selected Destinations Tags & Ordered Route Preview */}
+            {selectedDestinations.length > 0 ? (
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-300 space-y-2 mt-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-black">
+                        <span>Selected Tour Route ({selectedDestinations.length} Stops):</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {selectedDestinations.map((dest, idx) => (
+                            <div
+                                key={dest + idx}
+                                className="inline-flex items-center gap-1.5 bg-white border border-gray-400 px-3 py-1 rounded-lg shadow-sm text-xs font-black text-black"
+                            >
+                                <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                    {idx + 1}
+                                </span>
+                                <span>{dest}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => removeDestination(idx)}
+                                    className="p-0.5 hover:bg-red-50 hover:text-red-600 rounded text-black/60 transition ml-1"
+                                    title="Remove destination"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="text-[11px] font-bold text-black bg-white p-2 rounded-lg border border-gray-200 flex items-center gap-2">
+                        <Route size={14} className="text-black shrink-0" />
+                        <span className="truncate">
+                            <strong>Route:</strong> {selectedDestinations.join(' → ')}
+                        </span>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-[11px] font-semibold text-black/70 bg-amber-50/70 border border-amber-200/80 p-2 rounded-lg">
+                    Select one or more destinations from the cities list above to build the tour itinerary.
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CustomerTab({
+    agent,
+    form,
+    paymentForm,
+    onSubmit,
+    countries = [],
+    eurRates,
+    dbLanguages = [],
+    onClose,
+    agentUsers = [],
+    counterSellingRates = [],
+    rateSetting = null,
+    rentACarRates = [],
+}) {
+    const standardDriverRate = Number(rateSetting?.driver_rate ?? 0);
+
+    const [selectedType, setSelectedType] = useState(() => {
+        const bt = (agent?.booking_type || form.data.booking_type || '').toLowerCase();
+        if (bt.includes('tour')) return 'Tours';
+        if (bt.includes('rent')) return 'Rent a Car';
+        return 'Transfers';
+    });
+
+    useEffect(() => {
+        const bt = (agent?.booking_type || form.data.booking_type || '').toLowerCase();
+        if (bt.includes('tour')) setSelectedType('Tours');
+        else if (bt.includes('rent')) setSelectedType('Rent a Car');
+        else setSelectedType('Transfers');
+    }, [agent?.id, agent?.booking_type]);
+
+    const [selectedCityName, setSelectedCityName] = useState(form.data.dropoff_location || '');
+    const [citySearchTerm, setCitySearchTerm] = useState('');
+    const [isCityOpen, setIsCityOpen] = useState(false);
+    const [selectedVehicleType, setSelectedVehicleType] = useState(form.data.vehicle_type || 'car');
+    const cityDropdownRef = useRef(null);
+
+    // Tour Destinations State
+    const [tourDestinations, setTourDestinations] = useState(() => {
+        return getTourDestinationsList(form.data.tour_destinations || agent?.tour_destinations || []);
+    });
+    // Rent a Car State & Pricing
+    const firstRentRate = Number(rentACarRates?.[0]?.rate || 14000);
+    const [rentDailyRate, setRentDailyRate] = useState(() => {
+        if (form.data.price && form.data.days) {
+            return Math.round(Number(form.data.price) / Number(form.data.days));
+        }
+        return firstRentRate;
+    });
+
+    // Handle Rent a Car price change directly
+    const handleRentPriceChange = (priceVal) => {
+        const p = parseFloat(priceVal) || 0;
+        const dayCount = parseInt(form.data.days) || 1;
+        form.setData('price', p);
+        setRentDailyRate(Math.round(p / dayCount));
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: p,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: p,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Handle Rent a Car daily rate change (Editable)
+    const handleRentDailyRateChange = (rateVal) => {
+        setRentDailyRate(rateVal);
+        const dayCount = parseInt(form.data.days) || 1;
+        const num = parseFloat(rateVal) || 0;
+        const totalPrice = num * dayCount;
+        form.setData('price', totalPrice);
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: totalPrice,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: totalPrice,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Handle Rent a Car days count change
+    const handleRentDaysChange = (newDays) => {
+        const d = Math.max(1, parseInt(newDays) || 1);
+        form.setData('days', d);
+        const rateToUse = rentDailyRate !== '' ? (parseFloat(rentDailyRate) || 0) : firstRentRate;
+        const totalPrice = rateToUse * d;
+        form.setData('price', totalPrice);
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                price: totalPrice,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: totalPrice,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Default dropoff to BIA Airport & clear driver rate when Rent a Car is active
+    useEffect(() => {
+        if (selectedType === 'Rent a Car') {
+            if (!form.data.dropoff_location || form.data.dropoff_location === '') {
+                form.setData('dropoff_location', 'BIA Airport');
+            }
+            if (!form.data.price || Number(form.data.price) === 0) {
+                const dayCount = parseInt(form.data.days) || 1;
+                const totalPrice = firstRentRate * dayCount;
+                form.setData('price', totalPrice);
+                if (paymentForm && typeof paymentForm.setData === 'function') {
+                    paymentForm.setData((prev) => ({
+                        ...prev,
+                        price: totalPrice,
+                        currency: 'LKR',
+                        payments: [{
+                            method: 'Cash',
+                            currency: 'LKR',
+                            amount: totalPrice,
+                            notes: [{ amount: '', count: '', currency: 'LKR' }],
+                        }],
+                    }));
+                }
+            }
+            if (form.data.driver_rate !== '' || form.data.driver_rate_reason !== '') {
+                form.setData((prev) => ({
+                    ...prev,
+                    driver_rate: '',
+                    driver_rate_reason: '',
+                }));
+            }
+        } else if (selectedType === 'Transfers') {
+            // For Transfers, driver rate is a % computed in VehicleTab — clear manual value
+            if (form.data.driver_rate !== '' && form.data.driver_rate != null) {
+                form.setData((prev) => ({
+                    ...prev,
+                    driver_rate: '',
+                    driver_rate_reason: '',
+                }));
+            }
+        }
+    }, [selectedType]);
+
+    // Auto-populate default driver rate only for Tours
+    useEffect(() => {
+        if (selectedType === 'Tours' && (form.data.driver_rate === '' || form.data.driver_rate == null) && standardDriverRate > 0) {
+            form.setData('driver_rate', standardDriverRate);
+        }
+    }, [selectedType, standardDriverRate]);
+
+    const enteredDriverRate = form.data.driver_rate !== '' && form.data.driver_rate != null
+        ? parseFloat(form.data.driver_rate)
+        : null;
+    const isLowerRate = standardDriverRate > 0 && enteredDriverRate !== null && !isNaN(enteredDriverRate) && enteredDriverRate < standardDriverRate;
+
+    // Close searchable city dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target)) {
+                setIsCityOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Find the matched city in counterSellingRates
+    const currentCityRate = useMemo(() => {
+        if (!selectedCityName) return null;
+        return counterSellingRates.find(
+            (c) => c.city_name?.trim().toLowerCase() === selectedCityName?.trim().toLowerCase()
+        ) || null;
+    }, [selectedCityName, counterSellingRates]);
+
+    // Rate helper: Car maps to 'sedan', Van maps to 'van'
+    const getVehiclePrice = (cityObj, vType) => {
+        if (!cityObj) return 0;
+        const field = vType === 'van' ? 'van' : 'sedan';
+        const rate = cityObj[field];
+        return rate ? Number(rate) : 0;
+    };
+
+    // Filter cities based on search term
+    const filteredCities = useMemo(() => {
+        if (!citySearchTerm.trim()) {
+            return counterSellingRates.slice(0, 80);
+        }
+        const q = citySearchTerm.trim().toLowerCase();
+        return counterSellingRates.filter((c) =>
+            c.city_name?.toLowerCase().includes(q)
+        ).slice(0, 80);
+    }, [counterSellingRates, citySearchTerm]);
+
+    const handleSelectType = (type) => {
+        setSelectedType(type);
+        const resolvedType = type === 'Transfers' ? 'Transfer' : type;
+        if (agent) {
+            agent.booking_type = resolvedType;
+        }
+        if (form && typeof form.setData === 'function') {
+            form.setData('booking_type', resolvedType);
+            if (resolvedType === 'Rent a Car' && (!form.data.dropoff_location || form.data.dropoff_location === '')) {
+                form.setData('dropoff_location', 'BIA Airport');
+            }
+        }
+    };
+
+    const updateCalculatedPrice = (cityObj, vType) => {
+        if (!cityObj) return;
+        const price = getVehiclePrice(cityObj, vType);
+        form.setData((prev) => ({
+            ...prev,
+            dropoff_location: cityObj.city_name,
+            vehicle_type: vType,
+            price: price,
+            currency: 'LKR',
+        }));
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: price,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: price,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    const handleSelectCity = (cityObj) => {
+        setSelectedCityName(cityObj.city_name);
+        setCitySearchTerm('');
+        setIsCityOpen(false);
+        updateCalculatedPrice(cityObj, selectedVehicleType);
+    };
+
+    const handleVehicleTypeSelect = (vType) => {
+        setSelectedVehicleType(vType);
+        form.setData('vehicle_type', vType);
+        if (currentCityRate) {
+            updateCalculatedPrice(currentCityRate, vType);
+        }
+    };
+
+    const handlePriceChange = (val) => {
+        form.setData('price', val);
+        const num = parseFloat(val) || 0;
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: num,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: num,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    const handleTourDestinationsChange = (dests) => {
+        setTourDestinations(dests);
+        form.setData((prev) => ({
+            ...prev,
+            tour_destinations: dests,
+            dropoff_location: dests.join(' → '),
+        }));
+    };
+
+    const bookingTypes = [
+        { id: 'Tours', title: 'Tours', icon: Compass },
+        { id: 'Transfers', title: 'Transfers', icon: Car },
+        { id: 'Rent a Car', title: 'Rent a Car', icon: CarFront },
+    ];
+
+    return (
+        <div className="space-y-4 text-black">
+            {/* Top Compact Cards: Tours, Transfers, Rent a Car */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {bookingTypes.map(({ id, title, icon: Icon }) => {
+                    const isSelected = selectedType === id;
+                    return (
+                        <button
+                            key={id}
+                            type="button"
+                            onClick={() => handleSelectType(id)}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all font-bold text-sm ${
+                                isSelected
+                                    ? 'border-blue-600 bg-blue-50/80 text-black shadow-sm ring-1 ring-blue-500/20'
+                                    : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
                             }`}>
-                                {agent.booking_type}
-                            </span>
+                                <Icon size={16} />
+                            </div>
+                            <span className="font-extrabold text-black flex-1 text-left">{title}</span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition ${
+                                isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                            }`}>
+                                {isSelected && <Check size={12} className="stroke-[3]" />}
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* If no booking type is selected yet */}
+            {!selectedType && (
+                <div className="p-8 sm:p-12 text-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/40 my-6 flex flex-col items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mb-3 shadow-inner">
+                        <Sparkles size={28} />
+                    </div>
+                    <h4 className="text-base font-extrabold text-slate-800">Please Select a Booking Type</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-1 font-medium">
+                        Click on <strong>Tours</strong>, <strong>Transfers</strong>, or <strong>Rent a Car</strong> above to configure this booking.
+                    </p>
+                </div>
+            )}
+
+            {/* When Transfers is selected: show Transfer Details Form */}
+            {selectedType === 'Transfers' && (
+                <form onSubmit={onSubmit} className="space-y-4 pt-1 text-black">
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Row 2: Select City + Vehicle Type (Car or Van) + Editable Price */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-end">
+                        {/* City Searchable Dropdown */}
+                        <div className="lg:col-span-5 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 relative" ref={cityDropdownRef}>
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                    <MapPin size={14} className="text-black" />
+                                    <span>Destination City <span className="text-red-600">*</span></span>
+                                </span>
+                                {currentCityRate && (
+                                    <span className="text-[10px] text-black font-extrabold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <Check size={11} className="stroke-[3]" />
+                                        Rate Found
+                                    </span>
+                                )}
+                            </label>
+
+                            {/* Dropdown Trigger */}
+                            <div
+                                onClick={() => setIsCityOpen((prev) => !prev)}
+                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
+                                    isCityOpen
+                                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                                        : selectedCityName
+                                            ? 'border-gray-400 bg-white'
+                                            : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 truncate">
+                                    <MapPin size={15} className="text-black shrink-0" />
+                                    {selectedCityName ? (
+                                        <span className="font-extrabold text-black truncate">{selectedCityName}</span>
+                                    ) : (
+                                        <span className="text-black/60 font-medium">Search & select city from counter selling rates...</span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                    {selectedCityName && (
+                                        <span
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCityName('');
+                                                form.setData('dropoff_location', '');
+                                                handlePriceChange(0);
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
+                                            title="Clear city"
+                                        >
+                                            <X size={13} />
+                                        </span>
+                                    )}
+                                    <ChevronDown size={15} className={`text-black transition-transform ${isCityOpen ? 'rotate-180' : ''}`} />
+                                </div>
+                            </div>
+
+                            {/* Searchable Dropdown Popup Menu */}
+                            {isCityOpen && (
+                                <div className="absolute left-3 right-3 top-[calc(100%-8px)] mt-1.5 bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="p-2 border-b bg-gray-50">
+                                        <div className="relative">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={citySearchTerm}
+                                                onChange={(e) => setCitySearchTerm(e.target.value)}
+                                                placeholder="Type city name..."
+                                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            {citySearchTerm && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCitySearchTerm('')}
+                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                                >
+                                                    <X size={13} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="max-h-56 overflow-y-auto divide-y divide-gray-100">
+                                        {filteredCities.length > 0 ? (
+                                            filteredCities.map((c) => {
+                                                const isCurrent = selectedCityName?.trim().toLowerCase() === c.city_name?.trim().toLowerCase();
+                                                return (
+                                                    <button
+                                                        key={c.id}
+                                                        type="button"
+                                                        onClick={() => handleSelectCity(c)}
+                                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                                            isCurrent
+                                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                                : 'hover:bg-slate-50 text-black font-bold'
+                                                        }`}
+                                                    >
+                                                        <span className="flex items-center gap-1.5 truncate">
+                                                            <MapPin size={12} className="text-black shrink-0" />
+                                                            <span className="truncate text-black">{c.city_name}</span>
+                                                        </span>
+                                                        <span className="flex items-center gap-2 text-[11px] text-black font-bold shrink-0 ml-2">
+                                                            <span>Car: <strong className="text-black font-black">LKR {Number(c.sedan).toLocaleString()}</strong></span>
+                                                            <span className="text-black/40">•</span>
+                                                            <span>Van: <strong className="text-black font-black">LKR {Number(c.van).toLocaleString()}</strong></span>
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="p-4 text-center text-xs text-black font-bold">
+                                                No cities matching "{citySearchTerm}"
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Vehicle Type (Car or Van: 2 cards) */}
+                        <div className="lg:col-span-4 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90">
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="text-black">Vehicle Type <span className="text-red-600">*</span></span>
+                                <span className="text-[10px] text-black font-bold">Car or Van</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-2.5">
+                                {/* Car Card */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleVehicleTypeSelect('car')}
+                                    className={`p-2.5 rounded-xl border-2 transition-all text-left flex flex-col justify-between gap-1.5 ${
+                                        selectedVehicleType === 'car'
+                                            ? 'border-blue-600 bg-blue-50/90 text-black shadow-sm ring-1 ring-blue-500/30'
+                                            : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                            selectedVehicleType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
+                                        }`}>
+                                            <Car size={15} />
+                                        </div>
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border transition ${
+                                            selectedVehicleType === 'car' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                                        }`}>
+                                            {selectedVehicleType === 'car' && <Check size={10} className="stroke-[3]" />}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="font-extrabold text-xs text-black">Car</div>
+                                        <div className="text-[11px] font-black text-black mt-0.5">
+                                            {currentCityRate?.sedan ? (
+                                                <span className="text-black font-black">
+                                                    LKR {Number(currentCityRate.sedan).toLocaleString()}
+                                                </span>
+                                            ) : (
+                                                <span className="text-black/60 font-semibold text-[10px]">Choose city</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Van Card */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleVehicleTypeSelect('van')}
+                                    className={`p-2.5 rounded-xl border-2 transition-all text-left flex flex-col justify-between gap-1.5 ${
+                                        selectedVehicleType === 'van'
+                                            ? 'border-blue-600 bg-blue-50/90 text-black shadow-sm ring-1 ring-blue-500/30'
+                                            : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                            selectedVehicleType === 'van' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
+                                        }`}>
+                                            <Bus size={15} />
+                                        </div>
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border transition ${
+                                            selectedVehicleType === 'van' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                                        }`}>
+                                            {selectedVehicleType === 'van' && <Check size={10} className="stroke-[3]" />}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="font-extrabold text-xs text-black">Van</div>
+                                        <div className="text-[11px] font-black text-black mt-0.5">
+                                            {currentCityRate?.van ? (
+                                                <span className="text-black font-black">
+                                                    LKR {Number(currentCityRate.van).toLocaleString()}
+                                                </span>
+                                            ) : (
+                                                <span className="text-black/60 font-semibold text-[10px]">Choose city</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Editable Price (LKR) */}
+                        <div className="lg:col-span-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90">
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="text-black">Price (LKR) <span className="text-red-600">*</span></span>
+                                <span className="text-[10px] text-black font-bold">Editable</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                    LKR
+                                </span>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    required
+                                    value={form.data.price}
+                                    onChange={(e) => handlePriceChange(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-xl border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 3: Customer Name & Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
+                    </div>
+
+                    {/* Row 4: Email, Phone/WhatsApp & Language */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Languages size={13} className="text-black" />
+                                    <span>Language Preference</span>
+                                </span>
+                                <span className="text-[10px] text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <select
+                                value={form.data.language_preference || 'English'}
+                                onChange={(e) => form.setData('language_preference', e.target.value)}
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                            >
+                                <option value="English" className="text-black font-semibold">English (Default)</option>
+                                {dbLanguages && dbLanguages.filter((l) => l !== 'English').map((l) => (
+                                    <option key={l} value={l} className="text-black font-semibold">
+                                        {l}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* When Tours is selected: show Tour Details Form */}
+            {selectedType === 'Tours' && (
+                <form
+                    onSubmit={(e) => {
+                        if (tourDestinations.length === 0) {
+                            e.preventDefault();
+                            alert('Please select at least one tour destination.');
+                            return;
+                        }
+                        onSubmit(e);
+                    }}
+                    className="space-y-4 pt-1 text-black"
+                >
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Row 2: Customer Name & Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
+                    </div>
+
+                    {/* Row 3: Email, Phone/WhatsApp & Language */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Languages size={13} className="text-black" />
+                                    <span>Language Preference</span>
+                                </span>
+                                <span className="text-[10px] text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <select
+                                value={form.data.language_preference || 'English'}
+                                onChange={(e) => form.setData('language_preference', e.target.value)}
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                            >
+                                <option value="English" className="text-black font-semibold">English (Default)</option>
+                                {dbLanguages && dbLanguages.filter((l) => l !== 'English').map((l) => (
+                                    <option key={l} value={l} className="text-black font-semibold">
+                                        {l}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Row 4: Tour Destinations & Day Count */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <div className="lg:col-span-9">
+                            <TourDestinationsPicker
+                                selectedDestinations={tourDestinations}
+                                onChange={handleTourDestinationsChange}
+                                counterSellingRates={counterSellingRates}
+                            />
+                        </div>
+
+                        <div className="lg:col-span-3 flex flex-col justify-between">
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                    <Calendar size={13} className="text-black" />
+                                    <span>Day Count <span className="text-red-600">*</span></span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={form.data.days || 1}
+                                        onChange={(e) => form.setData('days', parseInt(e.target.value) || 1)}
+                                        placeholder="1"
+                                        className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
+                                        Days
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="text-[11px] font-semibold text-black/70 bg-white p-2.5 rounded-lg border border-gray-200 mt-2">
+                                Specify total itinerary duration in days.
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 5: Tour Selling Rate & Driver Rate */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            {/* Tour Selling Rate */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <CreditCard size={13} className="text-black" />
+                                        <span>Tour Selling Rate (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] text-black font-bold">Total Customer Price</span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.price}
+                                        onChange={(e) => handlePriceChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                    />
+                                </div>
+                                <p className="text-[11px] font-bold text-red-500 mt-1">
+                                    ENTER THE PRICE FOR THE WHOLE TOUR
+                                </p>
+                            </div>
+
+                            {/* Driver Rate */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <Car size={13} className="text-black" />
+                                        <span>Driver Rate (LKR / Day) <span className="text-red-600">*</span></span>
+                                    </span>
+                                    {standardDriverRate > 0 ? (
+                                        <span className="text-[10px] text-black font-bold">
+                                            Standard: LKR {standardDriverRate.toLocaleString()} / day
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-black font-bold">Driver Payout</span>
+                                    )}
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.driver_rate ?? ''}
+                                        onChange={(e) => form.setData('driver_rate', e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                    />
+                                </div>
+                                <div className="flex justify-between items-center text-[11px] font-bold mt-1">
+                                    {standardDriverRate > 0 && (
+                                        <span className="text-red-500">
+                                            Standard: LKR {standardDriverRate.toLocaleString()} / day
+                                        </span>
+                                    )}
+                                    <span className="text-emerald-700 ml-auto">
+                                        Total Driver Payout ({form.data.days || 1} {Number(form.data.days || 1) === 1 ? 'day' : 'days'}): LKR {Math.round((parseFloat(form.data.driver_rate) || 0) * (form.data.days || 1)).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Driver Rate Reason (shown when entered amount is lower than rate_settings.driver_rate) */}
+                        {isLowerRate && (
+                            <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <AlertCircle size={14} className="text-amber-700" />
+                                        <span>Reason for Lower Rate <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] text-amber-900 font-bold">
+                                        Entered rate is lower than standard (LKR {standardDriverRate.toLocaleString()} / day)
+                                    </span>
+                                </label>
+                                <textarea
+                                    required
+                                    rows={2}
+                                    value={form.data.driver_rate_reason ?? ''}
+                                    onChange={(e) => form.setData('driver_rate_reason', e.target.value)}
+                                    placeholder="Enter the reason why the driver rate is lower than standard..."
+                                    className="w-full text-xs font-bold text-black placeholder:text-gray-500 rounded-lg border-amber-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 p-2.5 bg-white shadow-sm"
+                                />
+                            </div>
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-red-900">
-                            Price : {agent?.currency ?? 'USD'} {Number(agent?.price ?? 0).toLocaleString()}
-                        </span>
-                        {(() => {
-                            const lkrVal = formatToLkrString(agent?.price, agent?.currency, eurRates);
-                            return lkrVal ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                                    ≈ {lkrVal}
-                                </span>
-                            ) : null;
-                        })()}
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* When Rent a Car is selected */}
+            {selectedType === 'Rent a Car' && (
+                <form
+                    onSubmit={(e) => {
+                        if (!form.data.external_vehicle_reg || !form.data.external_vehicle_reg.trim()) {
+                            e.preventDefault();
+                            alert('Please enter the vehicle number.');
+                            return;
+                        }
+                        if (!form.data.price || Number(form.data.price) <= 0) {
+                            e.preventDefault();
+                            alert('Please enter a valid price.');
+                            return;
+                        }
+                        onSubmit(e);
+                    }}
+                    className="space-y-4 pt-1 text-black"
+                >
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
-                    {isTour ? (
-                        <div className="flex flex-wrap items-center gap-4 text-purple-900 text-xs mt-1">
-                            <span className="font-semibold text-purple-950">
-                                📍 Destinations: <strong className="text-gray-900">{formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}</strong>
-                            </span>
-                            {hasKm && (
-                                <span>Distance: <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
-                            )}
-                            {hasDays && (
-                                <span>Duration: <strong className="text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</strong></span>
-                            )}
-                            {hasDriverRate && (
-                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-bold">
-                                    Tour Driver Rate: LKR {Number(agent?.driver_rate || 0).toLocaleString()}
-                                    {agent?.driver_rate_reason ? ` (${agent.driver_rate_reason})` : ''}
-                                </span>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-wrap gap-4 text-gray-600 text-xs mt-1">
-                            <span>Dropoff : <strong className="text-gray-900">{agent?.dropoff_location ?? '-'}</strong></span>
-                            {hasKm && (
-                                <span>Distance : <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
-                            )}
-                            {hasPax && (
-                                <span>Pax : <strong className="text-gray-900">{agent?.passenger_count}</strong></span>
-                            )}
-                            {hasLug && (
-                                <span>Luggage : <strong className="text-gray-900">{agent?.luggage_count}</strong></span>
-                            )}
-                        </div>
-                    )}
-
-                    <p className="text-gray-500 text-xs">Remarks : {agent?.remarks ?? '-'}</p>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <Field label="Customer Name" required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
-                <Field label="Email (Optional)" type="email" placeholder="Enter Email" autoComplete="off" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp (Optional)" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" autoComplete="off" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
-                <div>
-                    <label className="label">
-                        Country <span className="text-red-600 font-bold ml-1">*</span>
-                    </label>
-
-                    <input
-                        type="text"
-                        list="countries-list"
-                        className="input"
-                        autoComplete="off"
-                        value={form.data.country || ''}
-                        onChange={(e) => form.setData('country', e.target.value)}
-                        placeholder="Search country..."
-                    />
-
-                    <datalist id="countries-list">
-                        {(countries || []).map((country) => (
-                            <option
-                                key={country.id}
-                                value={country.country_name}
+                    {/* Row 2: Customer Name, Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
                             />
-                        ))}
-                    </datalist>
+                        </div>
 
-                    {form.errors.country && (
-                        <p className="text-red-600 text-sm mt-1">
-                            {form.errors.country}
-                        </p>
-                    )}
-                </div>
-                <Field label={isTour ? "Tour Destinations" : "Dropoff Location"} required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
-                {!isTour && (
-                    <>
-                        <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
-                        <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
-                    </>
-                )}
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
+                    </div>
 
-                <div>
-                    <label className="label">
-                        Language Preference <span className="text-red-600 font-bold ml-1">*</span>
-                    </label>
+                    {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport), Days */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
 
-                    <input
-                        type="text"
-                        list="language-list"
-                        className="input"
-                        value={form.data.language_preference ?? 'English'}
-                        onChange={(e) =>
-                            form.setData('language_preference', e.target.value)
-                        }
-                        placeholder="Select or type language"
-                    />
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
 
-                    <datalist id="language-list">
-                        {!dbLanguages?.includes('English') && <option value="English" />}
-                        {(dbLanguages || []).map((lang) => (
-                            <option key={lang} value={lang} />
-                        ))}
-                    </datalist>
-                </div>
-            </div>
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <MapPin size={13} className="text-black" />
+                                <span>Dropoff Location <span className="text-red-600">*</span></span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.dropoff_location || 'BIA Airport'}
+                                onChange={(e) => form.setData('dropoff_location', e.target.value)}
+                                placeholder="BIA Airport"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                            {/* <p className="text-[10px] font-bold text-black/60 mt-0.5">Default: BIA Airport</p> */}
+                        </div>
 
-            <div>
-                <label className="label">Remarks</label>
-                <textarea className="input" rows="2" value={form.data.remarks} onChange={(e) => form.setData('remarks', e.target.value)} />
-            </div>
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Calendar size={13} className="text-black" />
+                                <span>Days Count <span className="text-red-600">*</span></span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    required
+                                    value={form.data.days || 1}
+                                    onChange={(e) => handleRentDaysChange(e.target.value)}
+                                    placeholder="1"
+                                    className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
+                                    Days
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
-            <div className="flex justify-end gap-3 border-t pt-4">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-5 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
-                >
-                    Cancel
-                </button>
-                <button 
-                    disabled={form.processing || !form.data.name?.trim()} 
-                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                    {form.processing ? 'Saving...' : 'Save Customer & Continue'}
-                </button>
-            </div>
-        </form>
+                    {/* Row 4: Vehicle Details & Price */}
+                    <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
+                        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+                            <CarFront size={16} className="text-black" />
+                            <div>
+                                <h4 className="text-xs font-black text-black uppercase tracking-wide">
+                                    Vehicle Details & Pricing
+                                </h4>
+                                <p className="text-[11px] font-bold text-black/70">
+                                    Enter the vehicle number and set the price ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                            {/* Vehicle Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                                    <CarFront size={13} className="text-black" />
+                                    <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={form.data.external_vehicle_reg || ''}
+                                    onChange={(e) => {
+                                        const val = e.target.value.toUpperCase();
+                                        form.setData('external_vehicle_reg', val);
+                                        if (agent) {
+                                            agent.external_vehicle_reg = val;
+                                        }
+                                    }}
+                                    placeholder="e.g. CBV-1508"
+                                    className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2.5 px-3 bg-white"
+                                />
+                                <p className="text-[10px] font-bold text-black/60 mt-1">
+                                    Registration number of the vehicle to assign
+                                </p>
+                            </div>
+
+                            {/* Price (Pre-filled from rent_a_car_rates first price) */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={13} className="text-black" />
+                                        <span>Price (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                        Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()} / day
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.price}
+                                        onChange={(e) => handleRentPriceChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    />
+                                </div>
+                                <p className="text-[10px] font-bold text-black/60 mt-1">
+                                    Total for {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'} (Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()}/day)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
     );
 }
 
@@ -1767,16 +3320,28 @@ function PaymentTab({
 
         try {
             const custPayload = {
-                agent_id: agent.id,
-                name: customerForm?.data?.name?.trim() || agent?.name || 'Customer',
+                agent_id: agent?.id || null,
+                agent_user_id: agent?.user_id || customerForm?.data?.agent_user_id || null,
+                name: customerForm?.data?.name?.trim() || agent?.name || 'Walk-in Customer',
                 email: customerForm?.data?.email?.trim() || null,
                 mobile_number: customerForm?.data?.mobile_number?.trim() || null,
                 whatsapp_number: customerForm?.data?.whatsapp_number?.trim() || null,
                 country: customerForm?.data?.country?.trim() || null,
-                dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || 'Colombo',
+                dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || (customerForm?.data?.booking_type === 'Rent a Car' ? 'BIA Airport' : 'Colombo'),
                 passenger_count: Number(customerForm?.data?.passenger_count || agent?.passenger_count || 1),
                 luggage_count: Number(customerForm?.data?.luggage_count ?? agent?.luggage_count ?? 0),
                 language_preference: customerForm?.data?.language_preference || agent?.language_preference || 'English',
+                price: Number(form?.data?.price ?? customerForm?.data?.price ?? agent?.price ?? 0),
+                currency: form?.data?.currency || customerForm?.data?.currency || agent?.currency || 'LKR',
+                booking_type: customerForm?.data?.booking_type || agent?.booking_type || 'Transfer',
+                tour_destinations: customerForm?.data?.tour_destinations || agent?.tour_destinations || null,
+                days: Number(customerForm?.data?.days || agent?.days || 1),
+                driver_rate: customerForm?.data?.driver_rate || agent?.driver_rate || null,
+                driver_rate_reason: customerForm?.data?.driver_rate_reason || agent?.driver_rate_reason || null,
+                external_vehicle_make: customerForm?.data?.external_vehicle_make || agent?.external_vehicle_make || null,
+                external_vehicle_model: customerForm?.data?.external_vehicle_model || agent?.external_vehicle_model || null,
+                external_vehicle_reg: customerForm?.data?.external_vehicle_reg || agent?.external_vehicle_reg || null,
+                external_company_name: customerForm?.data?.external_company_name || agent?.external_company_name || null,
                 status: 'New',
                 remarks: customerForm?.data?.remarks || agent?.remarks || null,
             };
@@ -1785,6 +3350,10 @@ function PaymentTab({
                 headers: { 'Accept': 'application/json' }
             });
             const newId = res.data?.id;
+            const updatedAgent = res.data?.agent;
+            if (updatedAgent && agent) {
+                Object.assign(agent, updatedAgent);
+            }
             if (newId) {
                 if (typeof setCreatedCustomerId === 'function') {
                     setCreatedCustomerId(newId);
@@ -2149,7 +3718,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [] }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [], onRefreshVehicles = null }) {
     const { auth } = usePage().props;
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
@@ -2175,6 +3744,35 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
     const [showFinalConfirm, setShowFinalConfirm] = useState(false);
     const [isShortTrip, setIsShortTrip] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showOutsourceModal, setShowOutsourceModal] = useState(false);
+    const [outsourceSubmitting, setOutsourceSubmitting] = useState(false);
+    const [outsourceForm, setOutsourceForm] = useState({
+        vehicle_number: '',
+        price: '',
+        mobile_number: '',
+    });
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            if (onRefreshVehicles) {
+                await onRefreshVehicles();
+            } else {
+                await new Promise((resolve) => {
+                    router.reload({
+                        only: ['vehicles', 'ongoingTrips', 'shortTrips', 'lastReorderedAt'],
+                        preserveScroll: true,
+                        preserveState: true,
+                        onFinish: resolve,
+                    });
+                });
+            }
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
 
     const driverHasShortTripInCurrentSession = useMemo(() => {
         const vehicle = confirmModal?.vehicle || selectedVehicle;
@@ -2252,8 +3850,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const vehicleRateObj = (vehicleRates || []).find(r => r.vehicle_type === lookupType) ?? null;
     const vehicleRateValue = vehicleRateObj ? Number(vehicleRateObj.rate) : 0;
 
+    const tourDays = Math.max(1, Number(agent?.days || 1));
+
     const driverShare = isTourRate
-        ? Math.round(Number(agent?.driver_rate || 0))
+        ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
         : isPerKmRate
             ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
@@ -2357,8 +3957,9 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         if (!isRateAssigned) { alert('Please select a destination rate before assigning.'); return; }
 
         // Snapshot shares
+        const tourDays = Math.max(1, Number(agent?.days || 1));
         const finalDriverShare = isTourRate
-            ? Math.round(Number(agent?.driver_rate || 0))
+            ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
             : isPerKmRate
                 ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
                 : useCustomRate
@@ -2374,6 +3975,11 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const finalDriverRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultAgentRate;
 
+        if (!customerId) {
+            alert('Customer record not found. Please save customer details before assigning a vehicle.');
+            return;
+        }
+
         // Open invoice on trip assignment
         const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
         window.open(invoiceUrl, '_blank');
@@ -2387,7 +3993,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             `/customers/${customerId}/assign-trip`,
             {
                 driver_id: driverId,
-                agent_id: agent.id,
+                agent_id: agent?.id || null,
                 remarks: '',
                 selection_reason: isOutOfTurnVehicle(vehicle) ? (selectionReason.trim() || null) : null,
                 is_short_trip: isShortTrip,
@@ -2403,6 +4009,47 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 preserveState: true,
                 preserveScroll: true,
                 onFinish: () => setSubmitting(false),
+                onError: (errors) => {
+                    const msg = Object.values(errors).join('\n');
+                    alert('Failed to assign trip:\n' + (msg || 'An error occurred while assigning the trip.'));
+                },
+            }
+        );
+    };
+
+    const handleSaveOutsourceVehicle = (e) => {
+        e.preventDefault();
+        if (!customerId) {
+            alert('Customer not found. Please save customer details before assigning.');
+            return;
+        }
+        if (!outsourceForm.vehicle_number.trim()) {
+            alert('Please enter a vehicle number.');
+            return;
+        }
+
+        setOutsourceSubmitting(true);
+        router.post(
+            `/customers/${customerId}/assign-outsource-vehicle`,
+            {
+                vehicle_number: outsourceForm.vehicle_number.trim(),
+                price: Number(outsourceForm.price || 0),
+                mobile_number: outsourceForm.mobile_number?.trim() || null,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+                    window.open(invoiceUrl, '_blank');
+                    setShowOutsourceModal(false);
+                    onClose();
+                },
+                onError: (errors) => {
+                    const msg = Object.values(errors).join('\n');
+                    alert('Failed to save outsource vehicle:\n' + (msg || 'Please check the form inputs.'));
+                },
+                onFinish: () => setOutsourceSubmitting(false),
             }
         );
     };
@@ -2410,7 +4057,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     return (
         <div>
             {/* Filters Bar */}
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Languages Filter */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -2460,7 +4107,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                     </div>
                                     {count > 0 && (
                                         <span className={`text-[8px] px-1 rounded-full font-bold ${selectedLanguageFilter === lang ? 'bg-white/30' : 'bg-slate-100 text-slate-500'}`}>
-                                            {count}
+                                             {count}
                                         </span>
                                     )}
                                 </button>
@@ -2517,48 +4164,28 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         })}
                     </div>
                 </div>
-
-            {/* Service Categories Filter */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 md:col-span-1">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    <span>●</span>
-                    <span>Service Categories</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
-                    {[
-                        { key: null, label: 'All Services', count: vehicles.length },
-                        ...allServiceCategories.map(category => ({
-                            key: category.id,
-                            label: category.name,
-                            count: vehicles.filter(vehicle =>
-                                (vehicle.driver?.service_categories ?? vehicle.driver?.serviceCategories ?? [])
-                                    .some(item => item.id === category.id)
-                            ).length,
-                        })),
-                    ].map((option) => (
-                        <button
-                            key={option.key ?? 'all'}
-                            type="button"
-                            onClick={() => setSelectedServiceCategoryFilter(option.key)}
-                            className={`px-1.5 py-1 text-[9px] rounded border transition flex items-center justify-between gap-1 ${
-                                selectedServiceCategoryFilter === option.key
-                                    ? 'bg-slate-800 text-white border-slate-800 font-bold'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                            }`}
-                        >
-                            <span className="truncate">{option.label}</span>
-                            <span className={`text-[8px] px-1 rounded-full font-bold ${selectedServiceCategoryFilter === option.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
-                                {option.count}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </div>
             </div>
 
-            <div className="flex justify-between mb-3">
-                <h3 className="font-bold text-lg">Select Vehicle</h3>
-                <span className="text-sm text-gray-500">
+            {/* Select Vehicle Header with Integrated Queue Sync Button */}
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                    <h3 className="font-bold text-lg text-black">Select Vehicle</h3>
+                    <button
+                        type="button"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 active:scale-95 text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 cursor-pointer"
+                        title="Sync Vehicles Queue Data"
+                    >
+                        <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-600" : "text-gray-500"} />
+                        <span>{isRefreshing ? 'Syncing...' : 'Sync Queue'}</span>
+                    </button>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Live Queue</span>
+                    </span>
+                </div>
+                <span className="text-xs sm:text-sm text-gray-500 font-bold">
                     {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered
                 </span>
             </div>
@@ -2895,13 +4522,48 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         )}
                                     </button>
                                 )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setOutsourceForm({
+                                            vehicle_number: '',
+                                            price: '',
+                                            mobile_number: '',
+                                        });
+                                        setShowOutsourceModal(true);
+                                    }}
+                                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-lg text-[12px] font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                                    title="Assign outsource / third-party vehicle without internal driver"
+                                >
+                                    <span>📦</span>
+                                    <span>Outsource Vehicle</span>
+                                </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center p-6 text-center text-gray-400">
-                            <Car size={32} className="mb-2 opacity-50" />
-                            <p className="text-xs font-medium">No Vehicle Selected</p>
-                            <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                        <div className="h-full flex flex-col items-center justify-between p-6 text-center text-gray-400">
+                            <div className="flex-1 flex flex-col items-center justify-center">
+                                <Car size={32} className="mb-2 opacity-50" />
+                                <p className="text-xs font-medium">No Vehicle Selected</p>
+                                <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOutsourceForm({
+                                        vehicle_number: '',
+                                        price: '',
+                                        mobile_number: '',
+                                    });
+                                    setShowOutsourceModal(true);
+                                }}
+                                className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-lg text-[12px] font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                                title="Assign outsource / third-party vehicle without internal driver"
+                            >
+                                <span>📦</span>
+                                <span>Outsource Vehicle</span>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -3007,9 +4669,16 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                 <span>🏷️</span>
                                                 <span>Assigned Tour Driver Rate:</span>
                                             </span>
-                                            <span className="font-extrabold text-emerald-900 text-sm">
-                                                LKR {Number(agent?.driver_rate || 0).toLocaleString()}
-                                            </span>
+                                            <div className="text-right">
+                                                <span className="font-extrabold text-emerald-900 text-sm block">
+                                                    LKR {Math.round(Number(agent?.driver_rate || 0) * tourDays).toLocaleString()}
+                                                </span>
+                                                {tourDays > 1 && (
+                                                    <span className="text-[10px] text-emerald-700 font-semibold block">
+                                                        (LKR {Number(agent?.driver_rate || 0).toLocaleString()} / day × {tourDays} days)
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         {agent?.driver_rate_reason && (
                                             <p className="text-[11px] text-emerald-700 italic">
@@ -3291,6 +4960,126 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 Confirm Selection
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Outsource Vehicle Modal ── */}
+            {showOutsourceModal && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-4 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-2 bg-white/20 rounded-xl text-lg select-none">📦</span>
+                                <div>
+                                    <h3 className="text-base font-bold text-white">Outsource Vehicle</h3>
+                                    <p className="text-xs text-amber-100">Assign external vehicle without internal driver</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowOutsourceModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Customer Summary banner */}
+                        <div className="bg-amber-50/70 border-b border-amber-100 px-5 py-3 text-xs flex justify-between items-center text-amber-950">
+                            <div>
+                                <span className="font-bold block text-gray-900">{customerForm?.data?.name || agent?.name || 'Customer'}</span>
+                                <span className="text-gray-500 text-[11px] truncate max-w-[220px] block">
+                                    {customerForm?.data?.dropoff_location || agent?.dropoff_location || 'Colombo'}
+                                </span>
+                            </div>
+                            <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200">
+                                {agent?.booking_type || 'Transfer'}
+                            </span>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSaveOutsourceVehicle} className="p-5 space-y-4 text-black">
+                            {/* Vehicle Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center gap-1.5">
+                                    <CarFront size={14} className="text-black" />
+                                    <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    value={outsourceForm.vehicle_number}
+                                    onChange={(e) => setOutsourceForm(prev => ({ ...prev, vehicle_number: e.target.value.toUpperCase() }))}
+                                    placeholder="e.g. WP CAA-1234 / WP CBV-5678"
+                                    className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 py-2.5 px-3 bg-white"
+                                />
+                                <p className="text-[10px] font-medium text-gray-500 mt-1">
+                                    Enter the third-party vehicle registration number
+                                </p>
+                            </div>
+
+                            {/* Price */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={14} className="text-black" />
+                                        <span>Price (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={outsourceForm.price}
+                                        onChange={(e) => setOutsourceForm(prev => ({ ...prev, price: e.target.value }))}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Mobile Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center gap-1.5">
+                                    <Phone size={14} className="text-black" />
+                                    <span>Driver / Vendor Mobile Number</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={outsourceForm.mobile_number}
+                                    onChange={(e) => setOutsourceForm(prev => ({ ...prev, mobile_number: e.target.value }))}
+                                    placeholder="e.g. 077 123 4567"
+                                    className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 py-2.5 px-3 bg-white"
+                                />
+                            </div>
+
+                            {/* Modal Actions */}
+                            <div className="flex gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOutsourceModal(false)}
+                                    disabled={outsourceSubmitting}
+                                    className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50 transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={outsourceSubmitting}
+                                    className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-black transition shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                    {outsourceSubmitting ? 'Saving...' : 'Confirm Outsource'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -3753,20 +5542,28 @@ function Empty({ text }) {
     );
 }
 
-function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) {
+function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoicePath = null }) {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
 
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const initialStartDate = agent?.rent_start_date || new Date().toISOString().split('T')[0];
+    const initialEndDate = agent?.rent_end_date || (() => {
+        const d = new Date(initialStartDate);
+        d.setDate(d.getDate() + (parseInt(customerForm?.data?.days || agent?.days) || 1));
+        return d.toISOString().split('T')[0];
+    })();
 
-    useEffect(() => {
-        fetchVehicles();
-    }, [startDate, endDate]);
+    const [startDate, setStartDate] = useState(initialStartDate);
+    const [endDate, setEndDate] = useState(initialEndDate);
+
+    const targetReg = (
+        customerForm?.data?.external_vehicle_reg ||
+        agent?.external_vehicle_reg ||
+        ''
+    ).trim();
 
     const fetchVehicles = async () => {
         setLoading(true);
@@ -3790,6 +5587,31 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     useEffect(() => {
         fetchVehicles();
     }, [startDate, endDate]);
+
+    const matchedVehicle = useMemo(() => {
+        if (!targetReg) return null;
+        const cleanTarget = targetReg.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        return vehicles.find(v => {
+            const cleanReg = (v.reg_no || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return cleanReg === cleanTarget;
+        });
+    }, [vehicles, targetReg]);
+
+    const vehicleToShow = useMemo(() => {
+        if (matchedVehicle) return matchedVehicle;
+        if (targetReg) {
+            return {
+                id: 0,
+                reg_no: targetReg,
+                make: customerForm?.data?.external_vehicle_make || agent?.external_vehicle_make || 'Rent a Car',
+                model: customerForm?.data?.external_vehicle_model || agent?.external_vehicle_model || 'Vehicle',
+                company_id: 1,
+                company_name: customerForm?.data?.external_company_name || agent?.external_company_name || 'External Rental Fleet',
+                vehicle_type_name: 'Car'
+            };
+        }
+        return null;
+    }, [matchedVehicle, targetReg, agent, customerForm?.data?.external_vehicle_make, customerForm?.data?.external_vehicle_model, customerForm?.data?.external_company_name]);
 
     const confirmAssign = () => {
         if (!customerId) {
@@ -3819,6 +5641,12 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                 preserveState: true,
                 preserveScroll: true,
                 onSuccess: () => {
+                    if (agent) {
+                        agent.external_vehicle_reg = v.reg_no;
+                    }
+                    if (customerForm) {
+                        customerForm.setData('external_vehicle_reg', v.reg_no);
+                    }
                     setConfirmModal(null);
                     onClose();
                 },
@@ -3828,77 +5656,97 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-lg border">
-                <div>
-                    <label className="label">Start Date</label>
-                    <input type="date" className="input text-sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                </div>
-                <div>
-                    <label className="label">End Date</label>
-                    <input type="date" className="input text-sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                </div>
-                <div className="pt-5">
-                    <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Search</button>
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                    <label className="label">Search Vehicles</label>
-                    <input 
-                        type="text" 
-                        className="input text-sm w-full" 
-                        placeholder="Search by make, model, reg, or company..." 
-                        value={searchQuery} 
-                        onChange={e => setSearchQuery(e.target.value)} 
-                    />
-                </div>
-            </div>
-
-            {loading ? (
-                <div className="text-center py-10 text-gray-500">Loading external vehicles...</div>
-            ) : error ? (
-                <div className="text-center py-10 text-red-500 font-semibold">{error}</div>
-            ) : vehicles.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No vehicles available for these dates.</div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
-                    {vehicles.filter(v => {
-                        if (!searchQuery) return true;
-                        const query = searchQuery.toLowerCase();
-                        return (
-                            (v.make || '').toLowerCase().includes(query) ||
-                            (v.model || '').toLowerCase().includes(query) ||
-                            (v.reg_no || '').toLowerCase().includes(query) ||
-                            (v.company_name || '').toLowerCase().includes(query)
-                        );
-                    }).map(v => (
-                        <div key={v.id} className="border rounded-lg p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all" onClick={() => setConfirmModal({ vehicle: v })}>
-                            <div>
-                                <h4 className="font-bold text-gray-800">{v.make} {v.model}</h4>
-                                <p className="text-xs text-gray-500 mt-1">{v.vehicle_type_name}</p>
-                            </div>
-                            <div className="mt-3 text-sm">
-                                <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-mono font-bold">{v.reg_no}</span>
-                                <p className="text-xs text-gray-500 mt-2 line-clamp-1">{v.company_name}</p>
-                            </div>
-                        </div>
-                    ))}
+        <div className="space-y-4 text-black">
+            {/* Target Vehicle Banner */}
+            {targetReg && (
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-xs">
+                    <div className="flex items-center gap-2">
+                        <CarFront className="text-emerald-700" size={18} />
+                        <span className="text-xs font-bold text-gray-700">Assigned Vehicle Number:</span>
+                        <span className="font-mono font-black text-sm bg-yellow-100 text-yellow-900 px-2.5 py-0.5 rounded border border-yellow-300">
+                            {targetReg}
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium">
+                            ({agent?.days || 1} {Number(agent?.days) === 1 ? 'Day' : 'Days'} • Dropoff: {agent?.dropoff_location || 'BIA Airport'})
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={fetchVehicles}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 text-xs font-bold rounded-lg shadow-2xs transition disabled:opacity-50 cursor-pointer"
+                        title="Refresh Availability"
+                    >
+                        <RefreshCw size={12} className={loading ? "animate-spin text-blue-600" : "text-gray-500"} />
+                        <span>{loading ? 'Checking...' : 'Check Status'}</span>
+                    </button>
                 </div>
             )}
 
+            {/* Target Vehicle Card Only */}
+            {vehicleToShow ? (
+                <div className="max-w-xl mx-auto py-2">
+                    <div className="border-2 border-emerald-400 bg-white rounded-2xl p-5 shadow-md space-y-4 hover:shadow-lg transition">
+                        <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+                            <div>
+                                <span className="inline-block bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded border border-emerald-300 mb-1.5">
+                                    ✓ Designated Vehicle
+                                </span>
+                                <h3 className="font-black text-lg text-gray-900">{vehicleToShow.make} {vehicleToShow.model}</h3>
+                                <p className="text-xs text-gray-500 font-bold">{vehicleToShow.vehicle_type_name || 'Car'} • {vehicleToShow.company_name}</p>
+                            </div>
+                            <span className="font-mono font-black text-base bg-yellow-100 text-yellow-900 px-3 py-1 rounded-lg border border-yellow-300 shadow-2xs">
+                                {vehicleToShow.reg_no}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <div>
+                                <span className="text-[11px] font-bold text-gray-500 block">Rental Dates</span>
+                                <span className="font-black text-gray-800">{startDate} → {endDate}</span>
+                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">({customerForm?.data?.days || agent?.days || 1} {Number(customerForm?.data?.days || agent?.days) === 1 ? 'day' : 'days'})</span>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[11px] font-bold text-gray-500 block">Total Rent Price</span>
+                                <span className="font-black text-emerald-800 text-sm">LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()}</span>
+                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">No Driver</span>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setConfirmModal({ vehicle: vehicleToShow })}
+                            className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-black text-sm rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                        >
+                            <span>Assign Vehicle ({vehicleToShow.reg_no})</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+            ) : loading ? (
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">Loading vehicle details...</div>
+            ) : error ? (
+                <div className="text-center py-10 text-red-500 font-bold text-xs">{error}</div>
+            ) : (
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">No vehicle specified. Please enter a vehicle number in customer details.</div>
+            )}
+
+            {/* Confirmation Modal */}
             {confirmModal && (
                 <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
-                        <h3 className="text-lg font-bold">Assign External Vehicle</h3>
-                        <div className="bg-gray-50 p-3 rounded border text-sm">
-                            <p><strong>Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
-                            <p><strong>Reg No:</strong> {confirmModal.vehicle.reg_no}</p>
+                        <h3 className="text-base font-black text-gray-900">Assign External Vehicle</h3>
+                        <div className="bg-gray-50 p-3 rounded-lg border text-xs space-y-1.5 font-bold text-gray-800">
+                            <p><strong>Fleet Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
+                            <p><strong>Reg No:</strong> <span className="font-mono bg-yellow-100 px-1 rounded">{confirmModal.vehicle.reg_no}</span></p>
                             <p><strong>Company:</strong> {confirmModal.vehicle.company_name}</p>
-                            <p><strong>Dates:</strong> {startDate} to {endDate}</p>
+                            <p><strong>Dates:</strong> {startDate} to {endDate} ({customerForm?.data?.days || agent?.days || 1} Days)</p>
+                            <p className="text-emerald-700"><strong>Rate:</strong> LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()} (No Driver)</p>
                         </div>
                         <div className="flex gap-2 pt-2">
-                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">Cancel</button>
-                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
-                                {submitting ? 'Assigning...' : 'Confirm'}
+                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50 cursor-pointer">Cancel</button>
+                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-xs font-black hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+                                {submitting ? 'Assigning...' : 'Confirm Assignment'}
                             </button>
                         </div>
                     </div>

@@ -152,6 +152,7 @@ export default function AgentDriverModal({
             case 'Transfer':
                 return 'bg-blue-100 text-blue-800 border-blue-200';
             case 'Tour':
+            case 'Tours':
                 return 'bg-purple-100 text-purple-800 border-purple-200';
             case 'Rent a Car':
                 return 'bg-amber-100 text-amber-800 border-amber-200';

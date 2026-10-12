@@ -25,6 +25,7 @@ use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class CounterController extends Controller
 {
@@ -209,7 +210,9 @@ class CounterController extends Controller
                 ->orderBy('drivers.checked_in_at', 'asc')
                 ->get(),
                 
+            'queueVersion' => $this->computeQueueVersion(),
             'createdCustomerId' => session('created_customer_id'),
+            'createdAgentId' => session('created_agent_id'),
             'invoicePath' => session('invoice_path'),
             'countries' => Country::orderBy('country_name')->get(),
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
@@ -235,6 +238,19 @@ class CounterController extends Controller
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
             'pettyCash' => DB::table('petty_cash')->sum('amount'),
+            'agentUsers' => User::where('role_id', 2)
+                ->orWhereNotNull('agent_id')
+                ->orderBy('name')
+                ->get(['id', 'name', 'agent_id']),
+            'counterSellingRates' => DB::table('counter_selling_rate')
+                ->select('id', 'city_name', 'sedan', 'suv', 'van', 'luxury_sedan')
+                ->orderBy('city_name')
+                ->get(),
+            'rentACarRates' => DB::table('rent_a_car_rates')
+                ->select('id', 'vehicle_category', 'make', 'model', 'rate')
+                ->orderBy('vehicle_category')
+                ->orderBy('rate')
+                ->get(),
         ]);
     }
 
@@ -326,14 +342,45 @@ class CounterController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function newBooking(Request $request)
+    {
+        $user = Auth::user();
+        $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
+
+        $agent = Agent::create([
+            'user_id' => $user->id,
+            'name' => 'Walk-in Customer',
+            'status' => 'Pending',
+            'booking_type' => 'Transfer',
+            'currency' => 'LKR',
+            'price' => 0,
+            'passenger_count' => 1,
+            'luggage_count' => 0,
+            'booking_number' => $bookingNumber,
+            'processing_by' => $user->id,
+            'processing_at' => now(),
+        ]);
+
+        return response()->json([
+            'agent' => $agent->load(['user', 'customers']),
+        ]);
+    }
+
     public function unlockCustomer(Request $request)
     {
         $agentId = $request->input('agent_id');
         if ($agentId) {
-            Agent::where('id', $agentId)->update([
-                'processing_by' => null,
-                'processing_at' => null,
-            ]);
+            $agent = Agent::find($agentId);
+            if ($agent) {
+                if ($agent->customers()->count() === 0 && str_starts_with($agent->booking_number ?? '', 'CB-') && $agent->status === 'Pending') {
+                    $agent->forceDelete();
+                } else {
+                    $agent->update([
+                        'processing_by' => null,
+                        'processing_at' => null,
+                    ]);
+                }
+            }
         } else {
             Agent::where('processing_by', auth()->id())->update([
                 'processing_by' => null,
@@ -522,6 +569,59 @@ class CounterController extends Controller
         return Inertia::render('Counter/Converter', [
             'initialCurrency' => $request->query('currency', 'USD'),
             'initialAmount' => $request->query('amount', 0),
+        ]);
+    }
+
+    private function computeQueueVersion(): string
+    {
+        $driverMax = Driver::max('updated_at');
+        $tripMax = Trip::max('updated_at');
+        $cacheVer = Cache::get('counter_last_reordered_at', 0);
+        return md5("{$driverMax}_{$tripMax}_{$cacheVer}");
+    }
+
+    public function getQueueVersion()
+    {
+        return response()->json([
+            'version' => $this->computeQueueVersion(),
+        ]);
+    }
+
+    public function getVehiclesQueue()
+    {
+        $vehicles = Vehicle::with([
+                'driver.languages',
+                'driver.serviceCategories' => function ($q) {
+                    $q->whereNotIn('service_categories.id', [4, 8, 9, 10]);
+                },
+                'pictures',
+                'driver.trips' => function ($q) {
+                    $q->where('status', '!=', 'Completed');
+                }
+            ])
+            ->select('vehicles.*')
+            ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
+            ->where('drivers.driver_status', 'Active')
+            ->orderByRaw("
+                CASE
+                    WHEN drivers.duty_status = 'on_duty' THEN 0
+                    ELSE 1
+                END
+            ")
+            ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
+            ->orderBy('drivers.checked_in_at', 'asc')
+            ->get();
+
+        $ongoingTrips = Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy', 'shortTripBy'])
+            ->where('status', '!=', 'Completed')
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'vehicles' => $vehicles,
+            'ongoingTrips' => $ongoingTrips,
+            'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
+            'version' => $this->computeQueueVersion(),
         ]);
     }
 }

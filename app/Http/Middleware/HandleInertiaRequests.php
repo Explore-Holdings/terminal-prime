@@ -70,6 +70,8 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'invoice_path' => fn () => $request->session()->get('invoice_path'),
                 'created_customer_id' => fn () => $request->session()->get('created_customer_id'),
+                'created_agent_id' => fn () => $request->session()->get('created_agent_id'),
+                'agent' => fn () => $request->session()->get('agent'),
             ],
         ];
     }
