@@ -50,7 +50,7 @@ class CustomerController extends Controller
             'whatsapp_number' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:100',
             'dropoff_location' => 'nullable|string|max:255',
-            'passenger_count' => 'required|integer|min:1',
+            'passenger_count' => 'nullable|integer|min:1',
             'luggage_count' => 'nullable|integer|min:0',
             'price' => 'nullable|numeric|min:0',
             'currency' => 'nullable|string|max:10',
@@ -843,6 +843,72 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', 'External vehicle assigned successfully.')
+            ->with('invoice_path', $invoicePath);
+    }
+
+    public function assignOutsourceVehicle(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'vehicle_number' => 'required|string|max:100',
+            'price'          => 'required|numeric|min:0',
+            'mobile_number'  => 'nullable|string|max:50',
+        ]);
+
+        $agent = $customer->agent;
+        if (!$agent) {
+            return back()->withErrors(['agent' => 'Agent booking not found for this customer.']);
+        }
+
+        \App\Models\OutsourceVehicle::create([
+            'customer_id'    => $customer->id,
+            'agent_id'       => $agent->id,
+            'price'          => $data['price'],
+            'vehicle_number' => strtoupper(trim($data['vehicle_number'])),
+            'mobile_number'  => $data['mobile_number'] ?? null,
+            'created_by'     => auth()->id(),
+        ]);
+
+        $agent->update([
+            'status'               => 'Approved',
+            'external_vehicle_reg' => strtoupper(trim($data['vehicle_number'])),
+        ]);
+        Cache::forget('active_counter_processing_agent');
+
+        $customer->refresh();
+
+        $invoiceNumber = $customer->invoice_number ?: ('INV-' . str_pad($customer->id, 5, '0', STR_PAD_LEFT));
+        $invoiceDir    = storage_path('app/public/invoices');
+        if (!file_exists($invoiceDir)) {
+            mkdir($invoiceDir, 0755, true);
+        }
+        $savedFile     = "{$invoiceDir}/{$invoiceNumber}.pdf";
+
+        try {
+            $pdf = $this->generateInvoicePdf($customer, $invoiceNumber);
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            Log::error("Failed to save invoice PDF for outsource vehicle assignment on customer {$customer->id}: " . $e->getMessage());
+        }
+
+        $invoicePath   = "/customers/{$customer->id}/invoice/pdf";
+
+        $customer->update([
+            'invoice_number' => $invoiceNumber,
+            'invoice_path'   => $invoicePath,
+        ]);
+
+        if ($customer->email) {
+            try {
+                Mail::to($customer->email)
+                    ->queue(new CustomerInvoiceMail($customer->load('agent.user'), $invoiceNumber));
+            } catch (\Exception $e) {
+                Log::error("Failed to queue invoice email: " . $e->getMessage());
+            }
+        }
+
+        return redirect()
+            ->route('counter.index')
+            ->with('success', 'Outsource vehicle assigned successfully.')
             ->with('invoice_path', $invoicePath);
     }
 }

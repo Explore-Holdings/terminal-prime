@@ -161,6 +161,9 @@ Route::post('/customers/{customer}/assign-trip', [CustomerController::class, 'as
 Route::post('/customers/{customer}/assign-external-vehicle', [CustomerController::class, 'assignExternalVehicle'])
     ->name('customers.assign-external-vehicle');
 
+Route::post('/customers/{customer}/assign-outsource-vehicle', [CustomerController::class, 'assignOutsourceVehicle'])
+    ->name('customers.assign-outsource-vehicle');
+
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 

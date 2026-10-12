@@ -1,7 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle, Phone } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const isTourBooking = (agent) => {
@@ -2652,8 +2652,8 @@ function CustomerTab({
                         </div>
                     </div>
 
-                    {/* Row 3: Name, Pax, Luggage & Country */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Row 3: Customer Name & Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Customer Name <span className="text-red-600">*</span>
@@ -2665,37 +2665,6 @@ function CustomerTab({
                                 onChange={(e) => form.setData('name', e.target.value)}
                                 placeholder="Full Name"
                                 className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Users size={13} className="text-black" />
-                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                required
-                                value={form.data.passenger_count}
-                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
-                                placeholder="1"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Luggage size={13} className="text-black" />
-                                <span>Luggage</span>
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={form.data.luggage_count ?? 0}
-                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
                             />
                         </div>
 
@@ -2808,8 +2777,8 @@ function CustomerTab({
                         </select>
                     </div>
 
-                    {/* Row 2: Customer Name, Pax, Luggage & Country */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Row 2: Customer Name & Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Customer Name <span className="text-red-600">*</span>
@@ -2821,37 +2790,6 @@ function CustomerTab({
                                 onChange={(e) => form.setData('name', e.target.value)}
                                 placeholder="Full Name"
                                 className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Users size={13} className="text-black" />
-                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                required
-                                value={form.data.passenger_count}
-                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
-                                placeholder="1"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Luggage size={13} className="text-black" />
-                                <span>Luggage</span>
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={form.data.luggage_count ?? 0}
-                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
                             />
                         </div>
 
@@ -3106,8 +3044,8 @@ function CustomerTab({
                         </select>
                     </div>
 
-                    {/* Row 2: Customer Name, Country, Pax, Luggage */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Row 2: Customer Name, Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Customer Name <span className="text-red-600">*</span>
@@ -3127,37 +3065,6 @@ function CustomerTab({
                             onChange={(val) => form.setData('country', val)}
                             countries={countries}
                         />
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Users size={13} className="text-black" />
-                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
-                            </label>
-                            <input
-                                type="number"
-                                min="1"
-                                required
-                                value={form.data.passenger_count}
-                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
-                                placeholder="1"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Luggage size={13} className="text-black" />
-                                <span>Luggage</span>
-                            </label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={form.data.luggage_count ?? 0}
-                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
-                                placeholder="0"
-                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
-                            />
-                        </div>
                     </div>
 
                     {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport), Days */}
@@ -3838,6 +3745,13 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [showFinalConfirm, setShowFinalConfirm] = useState(false);
     const [isShortTrip, setIsShortTrip] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showOutsourceModal, setShowOutsourceModal] = useState(false);
+    const [outsourceSubmitting, setOutsourceSubmitting] = useState(false);
+    const [outsourceForm, setOutsourceForm] = useState({
+        vehicle_number: '',
+        price: '',
+        mobile_number: '',
+    });
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -4103,10 +4017,47 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         );
     };
 
+    const handleSaveOutsourceVehicle = (e) => {
+        e.preventDefault();
+        if (!customerId) {
+            alert('Customer not found. Please save customer details before assigning.');
+            return;
+        }
+        if (!outsourceForm.vehicle_number.trim()) {
+            alert('Please enter a vehicle number.');
+            return;
+        }
+
+        setOutsourceSubmitting(true);
+        router.post(
+            `/customers/${customerId}/assign-outsource-vehicle`,
+            {
+                vehicle_number: outsourceForm.vehicle_number.trim(),
+                price: Number(outsourceForm.price || 0),
+                mobile_number: outsourceForm.mobile_number?.trim() || null,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+                    window.open(invoiceUrl, '_blank');
+                    setShowOutsourceModal(false);
+                    onClose();
+                },
+                onError: (errors) => {
+                    const msg = Object.values(errors).join('\n');
+                    alert('Failed to save outsource vehicle:\n' + (msg || 'Please check the form inputs.'));
+                },
+                onFinish: () => setOutsourceSubmitting(false),
+            }
+        );
+    };
+
     return (
         <div>
             {/* Filters Bar */}
-            <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Languages Filter */}
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -4156,7 +4107,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                     </div>
                                     {count > 0 && (
                                         <span className={`text-[8px] px-1 rounded-full font-bold ${selectedLanguageFilter === lang ? 'bg-white/30' : 'bg-slate-100 text-slate-500'}`}>
-                                            {count}
+                                             {count}
                                         </span>
                                     )}
                                 </button>
@@ -4213,70 +4164,27 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         })}
                     </div>
                 </div>
-
-            {/* Service Categories Filter */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 md:col-span-1">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    <span>●</span>
-                    <span>Service Categories</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
-                    {[
-                        { key: null, label: 'All Services', count: vehicles.length },
-                        ...allServiceCategories.map(category => ({
-                            key: category.id,
-                            label: category.name,
-                            count: vehicles.filter(vehicle =>
-                                (vehicle.driver?.service_categories ?? vehicle.driver?.serviceCategories ?? [])
-                                    .some(item => item.id === category.id)
-                            ).length,
-                        })),
-                    ].map((option) => (
-                        <button
-                            key={option.key ?? 'all'}
-                            type="button"
-                            onClick={() => setSelectedServiceCategoryFilter(option.key)}
-                            className={`px-1.5 py-1 text-[9px] rounded border transition flex items-center justify-between gap-1 ${
-                                selectedServiceCategoryFilter === option.key
-                                    ? 'bg-slate-800 text-white border-slate-800 font-bold'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                            }`}
-                        >
-                            <span className="truncate">{option.label}</span>
-                            <span className={`text-[8px] px-1 rounded-full font-bold ${selectedServiceCategoryFilter === option.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
-                                {option.count}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </div>
             </div>
 
-            {/* Live Vehicle Queue Auto-Synced Banner */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 border border-emerald-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
-                <div className="flex items-center gap-2">
-                    <span className="flex h-2.5 w-2.5 relative shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
-                    </span>
-                    <span className="text-xs sm:text-sm font-bold text-emerald-800">
-                        Live Vehicle Queue (Auto-synced with database)
+            {/* Select Vehicle Header with Integrated Queue Sync Button */}
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                    <h3 className="font-bold text-lg text-black">Select Vehicle</h3>
+                    <button
+                        type="button"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 active:scale-95 text-xs font-bold rounded-lg shadow-xs transition disabled:opacity-50 cursor-pointer"
+                        title="Sync Vehicles Queue Data"
+                    >
+                        <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-600" : "text-gray-500"} />
+                        <span>{isRefreshing ? 'Syncing...' : 'Sync Queue'}</span>
+                    </button>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Live Queue</span>
                     </span>
                 </div>
-                <button
-                    type="button"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
-                    title="Sync Vehicles Queue Data"
-                >
-                    <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
-                    <span>{isRefreshing ? 'Syncing...' : 'Sync Now'}</span>
-                </button>
-            </div>
-
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-lg text-black">Select Vehicle</h3>
                 <span className="text-xs sm:text-sm text-gray-500 font-bold">
                     {vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered
                 </span>
@@ -4614,13 +4522,48 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         )}
                                     </button>
                                 )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setOutsourceForm({
+                                            vehicle_number: '',
+                                            price: '',
+                                            mobile_number: '',
+                                        });
+                                        setShowOutsourceModal(true);
+                                    }}
+                                    className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-lg text-[12px] font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                                    title="Assign outsource / third-party vehicle without internal driver"
+                                >
+                                    <span>📦</span>
+                                    <span>Outsource Vehicle</span>
+                                </button>
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center p-6 text-center text-gray-400">
-                            <Car size={32} className="mb-2 opacity-50" />
-                            <p className="text-xs font-medium">No Vehicle Selected</p>
-                            <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                        <div className="h-full flex flex-col items-center justify-between p-6 text-center text-gray-400">
+                            <div className="flex-1 flex flex-col items-center justify-center">
+                                <Car size={32} className="mb-2 opacity-50" />
+                                <p className="text-xs font-medium">No Vehicle Selected</p>
+                                <p className="text-[10px] mt-1">Click a slot from the grid on the left to view details</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOutsourceForm({
+                                        vehicle_number: '',
+                                        price: '',
+                                        mobile_number: '',
+                                    });
+                                    setShowOutsourceModal(true);
+                                }}
+                                className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-lg text-[12px] font-bold transition shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                                title="Assign outsource / third-party vehicle without internal driver"
+                            >
+                                <span>📦</span>
+                                <span>Outsource Vehicle</span>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -5017,6 +4960,126 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 Confirm Selection
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Outsource Vehicle Modal ── */}
+            {showOutsourceModal && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-4 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <span className="p-2 bg-white/20 rounded-xl text-lg select-none">📦</span>
+                                <div>
+                                    <h3 className="text-base font-bold text-white">Outsource Vehicle</h3>
+                                    <p className="text-xs text-amber-100">Assign external vehicle without internal driver</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowOutsourceModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Customer Summary banner */}
+                        <div className="bg-amber-50/70 border-b border-amber-100 px-5 py-3 text-xs flex justify-between items-center text-amber-950">
+                            <div>
+                                <span className="font-bold block text-gray-900">{customerForm?.data?.name || agent?.name || 'Customer'}</span>
+                                <span className="text-gray-500 text-[11px] truncate max-w-[220px] block">
+                                    {customerForm?.data?.dropoff_location || agent?.dropoff_location || 'Colombo'}
+                                </span>
+                            </div>
+                            <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200">
+                                {agent?.booking_type || 'Transfer'}
+                            </span>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleSaveOutsourceVehicle} className="p-5 space-y-4 text-black">
+                            {/* Vehicle Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center gap-1.5">
+                                    <CarFront size={14} className="text-black" />
+                                    <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    autoFocus
+                                    value={outsourceForm.vehicle_number}
+                                    onChange={(e) => setOutsourceForm(prev => ({ ...prev, vehicle_number: e.target.value.toUpperCase() }))}
+                                    placeholder="e.g. WP CAA-1234 / WP CBV-5678"
+                                    className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 py-2.5 px-3 bg-white"
+                                />
+                                <p className="text-[10px] font-medium text-gray-500 mt-1">
+                                    Enter the third-party vehicle registration number
+                                </p>
+                            </div>
+
+                            {/* Price */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={14} className="text-black" />
+                                        <span>Price (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={outsourceForm.price}
+                                        onChange={(e) => setOutsourceForm(prev => ({ ...prev, price: e.target.value }))}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Mobile Number */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center gap-1.5">
+                                    <Phone size={14} className="text-black" />
+                                    <span>Driver / Vendor Mobile Number</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={outsourceForm.mobile_number}
+                                    onChange={(e) => setOutsourceForm(prev => ({ ...prev, mobile_number: e.target.value }))}
+                                    placeholder="e.g. 077 123 4567"
+                                    className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 py-2.5 px-3 bg-white"
+                                />
+                            </div>
+
+                            {/* Modal Actions */}
+                            <div className="flex gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOutsourceModal(false)}
+                                    disabled={outsourceSubmitting}
+                                    className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50 transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={outsourceSubmitting}
+                                    className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-black transition shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                    {outsourceSubmitting ? 'Saving...' : 'Confirm Outsource'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
