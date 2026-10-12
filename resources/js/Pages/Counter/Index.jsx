@@ -1584,8 +1584,8 @@ function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLangua
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <Field label="Customer Name" required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
-                <Field label="Email" type="email" placeholder="Enter Email" required autoComplete="off" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" required autoComplete="off" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
+                <Field label="Email (Optional)" type="email" placeholder="Enter Email" autoComplete="off" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
+                <Field label="WhatsApp (Optional)" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" autoComplete="off" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
                 <div>
                     <label className="label">
                         Country <span className="text-red-600 font-bold ml-1">*</span>
@@ -1663,7 +1663,7 @@ function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLangua
                     Cancel
                 </button>
                 <button 
-                    disabled={form.processing || !form.data.name?.trim() || !form.data.email?.trim() || !form.data.whatsapp_number?.trim()} 
+                    disabled={form.processing || !form.data.name?.trim()} 
                     className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
                 >
                     {form.processing ? 'Saving...' : 'Save Customer & Continue'}
