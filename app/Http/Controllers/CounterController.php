@@ -25,6 +25,7 @@ use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class CounterController extends Controller
 {
@@ -235,6 +236,14 @@ class CounterController extends Controller
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
             'pettyCash' => DB::table('petty_cash')->sum('amount'),
+            'agentUsers' => User::where('role_id', 2)
+                ->orWhereNotNull('agent_id')
+                ->orderBy('name')
+                ->get(['id', 'name', 'agent_id']),
+            'counterSellingRates' => DB::table('counter_selling_rate')
+                ->select('id', 'city_name', 'sedan', 'suv', 'van', 'luxury_sedan')
+                ->orderBy('city_name')
+                ->get(),
         ]);
     }
 
@@ -326,14 +335,45 @@ class CounterController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function newBooking(Request $request)
+    {
+        $user = Auth::user();
+        $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
+
+        $agent = Agent::create([
+            'user_id' => $user->id,
+            'name' => 'Walk-in Customer',
+            'status' => 'Pending',
+            'booking_type' => 'Transfer',
+            'currency' => 'LKR',
+            'price' => 0,
+            'passenger_count' => 1,
+            'luggage_count' => 0,
+            'booking_number' => $bookingNumber,
+            'processing_by' => $user->id,
+            'processing_at' => now(),
+        ]);
+
+        return response()->json([
+            'agent' => $agent->load(['user', 'customers']),
+        ]);
+    }
+
     public function unlockCustomer(Request $request)
     {
         $agentId = $request->input('agent_id');
         if ($agentId) {
-            Agent::where('id', $agentId)->update([
-                'processing_by' => null,
-                'processing_at' => null,
-            ]);
+            $agent = Agent::find($agentId);
+            if ($agent) {
+                if ($agent->customers()->count() === 0 && str_starts_with($agent->booking_number ?? '', 'CB-') && $agent->status === 'Pending') {
+                    $agent->forceDelete();
+                } else {
+                    $agent->update([
+                        'processing_by' => null,
+                        'processing_at' => null,
+                    ]);
+                }
+            }
         } else {
             Agent::where('processing_by', auth()->id())->update([
                 'processing_by' => null,

@@ -42,6 +42,7 @@ class CustomerController extends Controller
     {
         $data = $request->validate([
             'agent_id' => 'required|exists:agents,id',
+            'agent_user_id' => 'nullable|exists:users,id',
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'mobile_number' => 'nullable|string|max:30',
@@ -49,6 +50,10 @@ class CustomerController extends Controller
             'country' => 'nullable|string|max:100',
             'dropoff_location' => 'nullable|string|max:255',
             'passenger_count' => 'required|integer|min:1',
+            'luggage_count' => 'nullable|integer|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|max:10',
+            'booking_type' => 'nullable|string|max:100',
             'language_preference' => 'nullable|string|max:100',
             'status' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
@@ -60,30 +65,55 @@ class CustomerController extends Controller
 
         $agent = Agent::findOrFail($data['agent_id']);
 
+        $customerData = [
+            'agent_id' => $data['agent_id'],
+            'name' => $data['name'] ?: $agent->name,
+            'email' => $data['email'] ?? null,
+            'mobile_number' => $data['mobile_number'] ?? null,
+            'whatsapp_number' => $data['whatsapp_number'] ?? null,
+            'country' => $data['country'] ?? null,
+            'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
+            'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
+            'language_preference' => $data['language_preference'],
+            'status' => $data['status'] ?? 'New',
+            'remarks' => $data['remarks'] ?: $agent->remarks,
+        ];
+
         $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
         if ($existing) {
-            $existing->update([
-                ...$data,
-                'name' => $data['name'] ?: $agent->name,
-                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-                'remarks' => $data['remarks'] ?: $agent->remarks,
-                'status' => $data['status'] ?? 'New',
-            ]);
+            $existing->update($customerData);
             $customer = $existing;
         } else {
             $customer = Customer::create([
-                ...$data,
+                ...$customerData,
                 'customer_code' => $this->generateCustomerCode(),
                 'passport_image' => $agent->customer_passport,
-                'name' => $data['name'] ?: $agent->name,
-                'dropoff_location' => $data['dropoff_location'] ?: $agent->dropoff_location,
-                'passenger_count' => $data['passenger_count'] ?: $agent->passenger_count,
-                'remarks' => $data['remarks'] ?: $agent->remarks,
-                'status' => $data['status'] ?? 'New',
                 'created_by' => Auth::id(),
             ]);
         }
+
+        $agentUpdates = [
+            'name' => $customer->name,
+            'dropoff_location' => $customer->dropoff_location,
+            'passenger_count' => $customer->passenger_count,
+        ];
+        if (!empty($data['agent_user_id'])) {
+            $agentUpdates['user_id'] = $data['agent_user_id'];
+        }
+        if (isset($data['luggage_count'])) {
+            $agentUpdates['luggage_count'] = $data['luggage_count'];
+        }
+        if (isset($data['price']) && (float)$data['price'] > 0) {
+            $agentUpdates['price'] = $data['price'];
+        }
+        if (!empty($data['currency'])) {
+            $agentUpdates['currency'] = $data['currency'];
+        }
+        if (!empty($data['booking_type'])) {
+            $agentUpdates['booking_type'] = $data['booking_type'];
+        }
+
+        $agent->update($agentUpdates);
 
         if ($request->wantsJson()) {
             return response()->json([

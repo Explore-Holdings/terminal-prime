@@ -1,6 +1,6 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const isTourBooking = (agent) => {
@@ -325,7 +325,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [] }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -375,27 +375,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             .catch(err => console.error('Failed to fetch currency rates:', err));
     }, []);
 
-    useEffect(() => {
-        let isFetching = false;
-        const interval = setInterval(() => {
-            if (isFetching) return;
-            isFetching = true;
-            router.reload({
-                only: ['pendingAgents', 'vehicles', 'ongoingTrips', 'myTrips', 'lastReorderedAt', 'pettyCash'],
-                preserveScroll: true,
-                preserveState: true,
-                onFinish: () => {
-                    isFetching = false;
-                },
-                onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-            });
-        }, 500); // 500ms for near-instant real-time sync without request stacking
 
-        return () => clearInterval(interval);
-    }, []);
 
     const customerForm = useForm({
         agent_id: '',
+        agent_user_id: '',
         name: '',
         email: '',
         mobile_number: '',
@@ -403,6 +387,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         country: '',
         dropoff_location: '',
         passenger_count: 1,
+        luggage_count: 0,
+        vehicle_type: 'car',
+        price: 0,
+        currency: 'LKR',
+        booking_type: 'Transfer',
         language_preference: 'English',
         status: 'New',
         remarks: '',
@@ -424,14 +413,19 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
 
         customerForm.setData({
             agent_id: agent.id,
-            name: existingCust?.name || agent.name || '',
-            email: '',
-            mobile_number: '',
-            whatsapp_number: '',
-            country: '',
+            agent_user_id: agent.user_id || '',
+            name: existingCust?.name || (agent.name !== 'Walk-in Customer' ? agent.name : '') || '',
+            email: existingCust?.email || '',
+            mobile_number: existingCust?.mobile_number || '',
+            whatsapp_number: existingCust?.whatsapp_number || '',
+            country: existingCust?.country || '',
             dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '',
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
+            vehicle_type: 'car',
+            price: agent.price ?? 0,
+            currency: agent.currency ?? 'LKR',
+            booking_type: agent.booking_type ?? 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             status: existingCust?.status || 'New',
             remarks: existingCust?.remarks || agent.remarks || '',
@@ -443,7 +437,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             payments: [{
                 method: 'Cash',
                 currency: agent.currency ?? 'LKR',
-                amount: 0,
+                amount: agent.price ?? 0,
                 notes: [{ amount: '', count: '', currency: agent.currency ?? 'LKR' }],
             }],
         });
@@ -462,6 +456,22 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     };
 
     const [processingAgentId, setProcessingAgentId] = useState(null);
+    const [creatingBooking, setCreatingBooking] = useState(false);
+    const [showPendingDropdown, setShowPendingDropdown] = useState(false);
+
+    const handleAddNewBooking = async () => {
+        try {
+            setCreatingBooking(true);
+            const res = await window.axios.post('/counter/new-booking');
+            if (res.data?.agent) {
+                openModal(res.data.agent, 'customer');
+            }
+        } catch (err) {
+            console.error('Failed to create new booking', err);
+        } finally {
+            setCreatingBooking(false);
+        }
+    };
 
     // Is a specific agent locked by another staff member?
     const isAgentLockedByOther = (agent) => {
@@ -622,23 +632,64 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                     </div>
                 </div>
 
-                <Section title="Pending Customers" icon={<Users className="text-blue-700" size={22} />}>
-                    {pendingAgents.length ? (
-                        <div className="flex gap-3 overflow-x-auto pb-2">
-                            {pendingAgents.map((agent) => (
-                                <CustomerCard 
-                                    key={agent.id} 
-                                    agent={agent} 
-                                    onOpen={openModal} 
-                                    paymentEnabled={paymentEnabledAgentId === agent.id} 
-                                    vehicleEnabled={vehicleEnabledAgentId === agent.id} 
-                                />
-                            ))}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
+                            <UserPlus size={24} />
                         </div>
-                    ) : (
-                        <Empty text="No pending customers found." />
-                    )}
-                </Section>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Counter Bookings</h2>
+                            <p className="text-xs text-gray-500">Create new walk-in customer booking, process payment, and assign driver</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                        {pendingAgents.length > 0 && (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPendingDropdown(prev => !prev)}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold transition"
+                                >
+                                    <ClipboardList size={16} className="text-amber-700" />
+                                    <span>Pending Inquiries ({pendingAgents.length})</span>
+                                    <ChevronDown size={14} />
+                                </button>
+                                {showPendingDropdown && (
+                                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-30 max-h-64 overflow-y-auto">
+                                        <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b">
+                                            Online & Agent Requests
+                                        </div>
+                                        {pendingAgents.map((ag) => (
+                                            <button
+                                                key={ag.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowPendingDropdown(false);
+                                                    openModal(ag, 'customer');
+                                                }}
+                                                className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs flex flex-col gap-0.5 border-b last:border-b-0"
+                                            >
+                                                <span className="font-bold text-gray-800">{ag.name || 'Customer'}</span>
+                                                <span className="text-[11px] text-gray-500 truncate">{ag.dropoff_location || ag.tour_destinations || '-'}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleAddNewBooking}
+                            disabled={creatingBooking}
+                            className="inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white px-6 py-2.5 rounded-xl font-bold shadow-md shadow-blue-700/20 hover:shadow-lg hover:shadow-blue-700/30 transition-all duration-150 text-sm disabled:opacity-50"
+                        >
+                            <UserPlus size={18} />
+                            <span>{creatingBooking ? 'Opening...' : 'Add New Booking'}</span>
+                        </button>
+                    </div>
+                </div>
 
                 <Section 
                     title={
@@ -1119,7 +1170,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} />
             )}
 
             {showCheckoutConfirm && (
@@ -1441,6 +1492,8 @@ function Modal({
     lastReorderedAt = null,
     pettyCash = 0,
     shortTrips = [],
+    agentUsers = [],
+    counterSellingRates = [],
 }) {
     if (!agent) return null;
 
@@ -1448,16 +1501,16 @@ function Modal({
     const effectiveInvoicePath = invoicePath || agent?.customers?.[agent.customers.length - 1]?.invoice_path || null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center p-4 border-b">
-                    <h3 className="text-lg font-bold">Pending Customer Process</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[92vh] max-h-[94vh] flex flex-col overflow-hidden border border-gray-100">
+                <div className="flex justify-between items-center px-5 py-3 border-b bg-gray-50/50 shrink-0">
+                    <h3 className="text-lg font-bold text-gray-900">Customer Booking Process</h3>
+                    <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="flex border-b">
+                <div className="flex border-b shrink-0 px-4 bg-white">
                     <TabButton active={activeTab === 'customer'} onClick={() => setActiveTab('customer')}>
                         Customer
                     </TabButton>
@@ -1477,9 +1530,20 @@ function Modal({
                     )}
                 </div>
 
-                <div className="p-4 min-h-[500px]">
+                <div className="p-5 flex-1 overflow-y-auto">
                     <div className={activeTab === 'customer' ? '' : 'hidden'}>
-                        <CustomerTab agent={agent} countries={countries || []} form={customerForm} onSubmit={saveCustomer} eurRates={eurRates} dbLanguages={dbLanguages} onClose={onClose} />
+                        <CustomerTab
+                            agent={agent}
+                            countries={countries || []}
+                            form={customerForm}
+                            paymentForm={paymentForm}
+                            onSubmit={saveCustomer}
+                            eurRates={eurRates}
+                            dbLanguages={dbLanguages}
+                            onClose={onClose}
+                            agentUsers={agentUsers}
+                            counterSellingRates={counterSellingRates}
+                        />
                     </div>
 
                     <div className={activeTab === 'payment' ? '' : 'hidden'}>
@@ -1501,175 +1565,678 @@ function Modal({
     );
 }
 
-function CustomerTab({ agent, form, onSubmit, countries = [], eurRates, dbLanguages = [], onClose }) {
-    const isTour = isTourBooking(agent);
-    const tourDestinations = formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-';
+function CustomerTab({
+    agent,
+    form,
+    paymentForm,
+    onSubmit,
+    countries = [],
+    eurRates,
+    dbLanguages = [],
+    onClose,
+    agentUsers = [],
+    counterSellingRates = [],
+}) {
+    const [selectedType, setSelectedType] = useState(() => {
+        const bt = (agent?.booking_type || '').toLowerCase();
+        if (bt.includes('tour')) return 'Tours';
+        if (bt.includes('rent')) return 'Rent a Car';
+        return 'Transfers';
+    });
 
-    const hasKm = agent?.distance_km != null && agent?.distance_km !== '' && Number(agent?.distance_km) > 0;
-    const hasLug = agent?.luggage_count != null && agent?.luggage_count !== '' && Number(agent?.luggage_count) > 0;
-    const hasPax = agent?.passenger_count != null && agent?.passenger_count !== '' && Number(agent?.passenger_count) > 0;
-    const hasDays = agent?.days != null && agent?.days !== '' && Number(agent?.days) > 0;
-    const hasDriverRate = agent?.driver_rate != null && Number(agent?.driver_rate) > 0;
-    const hasAnyTourMetrics = hasKm || hasLug || hasPax || hasDays;
+    const [selectedCityName, setSelectedCityName] = useState(form.data.dropoff_location || '');
+    const [citySearchTerm, setCitySearchTerm] = useState('');
+    const [isCityOpen, setIsCityOpen] = useState(false);
+    const [selectedVehicleType, setSelectedVehicleType] = useState(form.data.vehicle_type || 'car');
+    const cityDropdownRef = useRef(null);
+
+    const [countrySearchTerm, setCountrySearchTerm] = useState('');
+    const [isCountryOpen, setIsCountryOpen] = useState(false);
+    const countryDropdownRef = useRef(null);
+
+    // Close searchable city and country dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target)) {
+                setIsCityOpen(false);
+            }
+            if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target)) {
+                setIsCountryOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Find the matched city in counterSellingRates
+    const currentCityRate = useMemo(() => {
+        if (!selectedCityName) return null;
+        return counterSellingRates.find(
+            (c) => c.city_name?.trim().toLowerCase() === selectedCityName?.trim().toLowerCase()
+        ) || null;
+    }, [selectedCityName, counterSellingRates]);
+
+    // Rate helper: Car maps to 'sedan', Van maps to 'van'
+    const getVehiclePrice = (cityObj, vType) => {
+        if (!cityObj) return 0;
+        const field = vType === 'van' ? 'van' : 'sedan';
+        const rate = cityObj[field];
+        return rate ? Number(rate) : 0;
+    };
+
+    // Current price in LKR
+    const currentPrice = useMemo(() => {
+        return getVehiclePrice(currentCityRate, selectedVehicleType);
+    }, [currentCityRate, selectedVehicleType]);
+
+    // Filter cities based on search term
+    const filteredCities = useMemo(() => {
+        if (!citySearchTerm.trim()) {
+            return counterSellingRates.slice(0, 80);
+        }
+        const q = citySearchTerm.trim().toLowerCase();
+        return counterSellingRates.filter((c) =>
+            c.city_name?.toLowerCase().includes(q)
+        ).slice(0, 80);
+    }, [counterSellingRates, citySearchTerm]);
+
+    // Filter countries based on search term
+    const filteredCountries = useMemo(() => {
+        if (!countrySearchTerm.trim()) {
+            return countries.slice(0, 100);
+        }
+        const q = countrySearchTerm.trim().toLowerCase();
+        return countries.filter((c) => {
+            const name = typeof c === 'string' ? c : (c.country_name || '');
+            return name.toLowerCase().includes(q);
+        }).slice(0, 100);
+    }, [countries, countrySearchTerm]);
+
+    const handleSelectType = (type) => {
+        setSelectedType(type);
+        const resolvedType = type === 'Transfers' ? 'Transfer' : type;
+        if (agent) {
+            agent.booking_type = resolvedType;
+        }
+        if (form && typeof form.setData === 'function') {
+            form.setData('booking_type', resolvedType);
+        }
+    };
+
+    const updateCalculatedPrice = (cityObj, vType) => {
+        if (!cityObj) return;
+        const price = getVehiclePrice(cityObj, vType);
+        form.setData((prev) => ({
+            ...prev,
+            dropoff_location: cityObj.city_name,
+            vehicle_type: vType,
+            price: price,
+            currency: 'LKR',
+        }));
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: price,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: price,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    const handleSelectCity = (cityObj) => {
+        setSelectedCityName(cityObj.city_name);
+        setCitySearchTerm('');
+        setIsCityOpen(false);
+        updateCalculatedPrice(cityObj, selectedVehicleType);
+    };
+
+    const handleSelectCountry = (countryObj) => {
+        const name = typeof countryObj === 'string' ? countryObj : (countryObj.country_name || '');
+        form.setData('country', name);
+        setCountrySearchTerm('');
+        setIsCountryOpen(false);
+    };
+
+    const handleVehicleTypeSelect = (vType) => {
+        setSelectedVehicleType(vType);
+        form.setData('vehicle_type', vType);
+        if (currentCityRate) {
+            updateCalculatedPrice(currentCityRate, vType);
+        }
+    };
+
+    const handlePriceChange = (val) => {
+        form.setData('price', val);
+        const num = parseFloat(val) || 0;
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: num,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: num,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    const bookingTypes = [
+        { id: 'Tours', title: 'Tours', icon: Compass },
+        { id: 'Transfers', title: 'Transfers', icon: Car },
+        { id: 'Rent a Car', title: 'Rent a Car', icon: CarFront },
+    ];
 
     return (
-        <form onSubmit={onSubmit} autoComplete="off" className="space-y-5">
-            <div className={`rounded-lg border p-4 flex flex-col md:flex-row gap-4 ${isTour ? 'bg-purple-50/50 border-purple-200' : 'bg-slate-50 border-slate-200'}`}>
-                <ImageBox path={agent?.customer_passport} className="w-32 h-24 shrink-0" />
-                <div className="text-sm flex-1 space-y-1.5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-900 text-base">{agent?.name || 'Customer'}</span>
-                            <span className="text-xs text-gray-500 font-normal">({agent?.user?.name ? `Agent: ${agent.user.name}` : 'Direct Customer'})</span>
-                        </div>
-                        {agent?.booking_type && (
-                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
-                                isTour ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-200'
+        <div className="space-y-4 text-black">
+            {/* Top Compact Cards: Tours, Transfers, Rent a Car */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {bookingTypes.map(({ id, title, icon: Icon }) => {
+                    const isSelected = selectedType === id;
+                    return (
+                        <button
+                            key={id}
+                            type="button"
+                            onClick={() => handleSelectType(id)}
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all font-bold text-sm ${
+                                isSelected
+                                    ? 'border-blue-600 bg-blue-50/80 text-black shadow-sm ring-1 ring-blue-500/20'
+                                    : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
                             }`}>
-                                {agent.booking_type}
-                            </span>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-red-900">
-                            Price : {agent?.currency ?? 'USD'} {Number(agent?.price ?? 0).toLocaleString()}
-                        </span>
-                        {(() => {
-                            const lkrVal = formatToLkrString(agent?.price, agent?.currency, eurRates);
-                            return lkrVal ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
-                                    ≈ {lkrVal}
-                                </span>
-                            ) : null;
-                        })()}
-                    </div>
-
-                    {isTour ? (
-                        <div className="flex flex-wrap items-center gap-4 text-purple-900 text-xs mt-1">
-                            <span className="font-semibold text-purple-950">
-                                📍 Destinations: <strong className="text-gray-900">{formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || '-'}</strong>
-                            </span>
-                            {hasKm && (
-                                <span>Distance: <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
-                            )}
-                            {hasDays && (
-                                <span>Duration: <strong className="text-indigo-700">{agent?.days} {agent?.days === 1 ? 'Day' : 'Days'}</strong></span>
-                            )}
-                            {hasDriverRate && (
-                                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-bold">
-                                    Tour Driver Rate: LKR {Number(agent?.driver_rate || 0).toLocaleString()}
-                                    {agent?.driver_rate_reason ? ` (${agent.driver_rate_reason})` : ''}
-                                </span>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-wrap gap-4 text-gray-600 text-xs mt-1">
-                            <span>Dropoff : <strong className="text-gray-900">{agent?.dropoff_location ?? '-'}</strong></span>
-                            {hasKm && (
-                                <span>Distance : <strong className="text-red-600">{agent?.distance_km} KM</strong></span>
-                            )}
-                            {hasPax && (
-                                <span>Pax : <strong className="text-gray-900">{agent?.passenger_count}</strong></span>
-                            )}
-                            {hasLug && (
-                                <span>Luggage : <strong className="text-gray-900">{agent?.luggage_count}</strong></span>
-                            )}
-                        </div>
-                    )}
-
-                    <p className="text-gray-500 text-xs">Remarks : {agent?.remarks ?? '-'}</p>
-                </div>
+                                <Icon size={16} />
+                            </div>
+                            <span className="font-extrabold text-black flex-1 text-left">{title}</span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition ${
+                                isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                            }`}>
+                                {isSelected && <Check size={12} className="stroke-[3]" />}
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-                <Field label="Customer Name" required value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} error={form.errors.name} />
-                <Field label="Email (Optional)" type="email" placeholder="Enter Email" autoComplete="off" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} error={form.errors.email} />
-                <Field label="WhatsApp (Optional)" type="tel" pattern="^\+?[0-9]{7,15}$" placeholder="Enter WhatsApp Number" autoComplete="off" value={form.data.whatsapp_number} onChange={(e) => { const val = e.target.value.replace(/[^0-9+]/g, ''); form.setData('whatsapp_number', val); }} error={form.errors.whatsapp_number} />
-                <div>
-                    <label className="label">
-                        Country <span className="text-red-600 font-bold ml-1">*</span>
-                    </label>
+            {/* When Transfers is selected: show Transfer Details Form */}
+            {selectedType === 'Transfers' ? (
+                <form onSubmit={onSubmit} className="space-y-4 pt-1 text-black">
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                    <input
-                        type="text"
-                        list="countries-list"
-                        className="input"
-                        autoComplete="off"
-                        value={form.data.country || ''}
-                        onChange={(e) => form.setData('country', e.target.value)}
-                        placeholder="Search country..."
-                    />
+                    {/* Row 2: Select City + Vehicle Type (Car or Van) + Editable Price */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-end">
+                        {/* City Searchable Dropdown */}
+                        <div className="lg:col-span-5 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90 relative" ref={cityDropdownRef}>
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                    <MapPin size={14} className="text-black" />
+                                    <span>Destination City <span className="text-red-600">*</span></span>
+                                </span>
+                                {currentCityRate && (
+                                    <span className="text-[10px] text-black font-extrabold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <Check size={11} className="stroke-[3]" />
+                                        Rate Found
+                                    </span>
+                                )}
+                            </label>
 
-                    <datalist id="countries-list">
-                        {(countries || []).map((country) => (
-                            <option
-                                key={country.id}
-                                value={country.country_name}
+                            {/* Dropdown Trigger */}
+                            <div
+                                onClick={() => setIsCityOpen((prev) => !prev)}
+                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
+                                    isCityOpen
+                                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                                        : selectedCityName
+                                            ? 'border-gray-400 bg-white'
+                                            : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 truncate">
+                                    <MapPin size={15} className="text-black shrink-0" />
+                                    {selectedCityName ? (
+                                        <span className="font-extrabold text-black truncate">{selectedCityName}</span>
+                                    ) : (
+                                        <span className="text-black/60 font-medium">Search & select city from counter selling rates...</span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                    {selectedCityName && (
+                                        <span
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCityName('');
+                                                form.setData('dropoff_location', '');
+                                                handlePriceChange(0);
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
+                                            title="Clear city"
+                                        >
+                                            <X size={13} />
+                                        </span>
+                                    )}
+                                    <ChevronDown size={15} className={`text-black transition-transform ${isCityOpen ? 'rotate-180' : ''}`} />
+                                </div>
+                            </div>
+
+                            {/* Searchable Dropdown Popup Menu */}
+                            {isCityOpen && (
+                                <div className="absolute left-3 right-3 top-[calc(100%-8px)] mt-1.5 bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="p-2 border-b bg-gray-50">
+                                        <div className="relative">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={citySearchTerm}
+                                                onChange={(e) => setCitySearchTerm(e.target.value)}
+                                                placeholder="Type city name..."
+                                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            {citySearchTerm && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCitySearchTerm('')}
+                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                                >
+                                                    <X size={13} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="max-h-56 overflow-y-auto divide-y divide-gray-100">
+                                        {filteredCities.length > 0 ? (
+                                            filteredCities.map((c) => {
+                                                const isCurrent = selectedCityName?.trim().toLowerCase() === c.city_name?.trim().toLowerCase();
+                                                return (
+                                                    <button
+                                                        key={c.id}
+                                                        type="button"
+                                                        onClick={() => handleSelectCity(c)}
+                                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                                            isCurrent
+                                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                                : 'hover:bg-slate-50 text-black font-bold'
+                                                        }`}
+                                                    >
+                                                        <span className="flex items-center gap-1.5 truncate">
+                                                            <MapPin size={12} className="text-black shrink-0" />
+                                                            <span className="truncate text-black">{c.city_name}</span>
+                                                        </span>
+                                                        <span className="flex items-center gap-2 text-[11px] text-black font-bold shrink-0 ml-2">
+                                                            <span>Car: <strong className="text-black font-black">LKR {Number(c.sedan).toLocaleString()}</strong></span>
+                                                            <span className="text-black/40">•</span>
+                                                            <span>Van: <strong className="text-black font-black">LKR {Number(c.van).toLocaleString()}</strong></span>
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="p-4 text-center text-xs text-black font-bold">
+                                                No cities matching "{citySearchTerm}"
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Vehicle Type (Car or Van: 2 cards) */}
+                        <div className="lg:col-span-4 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90">
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="text-black">Vehicle Type <span className="text-red-600">*</span></span>
+                                <span className="text-[10px] text-black font-bold">Car or Van</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-2.5">
+                                {/* Car Card */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleVehicleTypeSelect('car')}
+                                    className={`p-2.5 rounded-xl border-2 transition-all text-left flex flex-col justify-between gap-1.5 ${
+                                        selectedVehicleType === 'car'
+                                            ? 'border-blue-600 bg-blue-50/90 text-black shadow-sm ring-1 ring-blue-500/30'
+                                            : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                            selectedVehicleType === 'car' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
+                                        }`}>
+                                            <Car size={15} />
+                                        </div>
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border transition ${
+                                            selectedVehicleType === 'car' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                                        }`}>
+                                            {selectedVehicleType === 'car' && <Check size={10} className="stroke-[3]" />}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="font-extrabold text-xs text-black">Car</div>
+                                        <div className="text-[11px] font-black text-black mt-0.5">
+                                            {currentCityRate?.sedan ? (
+                                                <span className="text-black font-black">
+                                                    LKR {Number(currentCityRate.sedan).toLocaleString()}
+                                                </span>
+                                            ) : (
+                                                <span className="text-black/60 font-semibold text-[10px]">Choose city</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Van Card */}
+                                <button
+                                    type="button"
+                                    onClick={() => handleVehicleTypeSelect('van')}
+                                    className={`p-2.5 rounded-xl border-2 transition-all text-left flex flex-col justify-between gap-1.5 ${
+                                        selectedVehicleType === 'van'
+                                            ? 'border-blue-600 bg-blue-50/90 text-black shadow-sm ring-1 ring-blue-500/30'
+                                            : 'border-gray-200 bg-white text-black hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                            selectedVehicleType === 'van' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-black'
+                                        }`}>
+                                            <Bus size={15} />
+                                        </div>
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center border transition ${
+                                            selectedVehicleType === 'van' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                                        }`}>
+                                            {selectedVehicleType === 'van' && <Check size={10} className="stroke-[3]" />}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="font-extrabold text-xs text-black">Van</div>
+                                        <div className="text-[11px] font-black text-black mt-0.5">
+                                            {currentCityRate?.van ? (
+                                                <span className="text-black font-black">
+                                                    LKR {Number(currentCityRate.van).toLocaleString()}
+                                                </span>
+                                            ) : (
+                                                <span className="text-black/60 font-semibold text-[10px]">Choose city</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Editable Price (LKR) */}
+                        <div className="lg:col-span-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/90">
+                            <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                <span className="text-black">Price (LKR) <span className="text-red-600">*</span></span>
+                                <span className="text-[10px] text-black font-bold">Editable</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                    LKR
+                                </span>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    min="0"
+                                    required
+                                    value={form.data.price}
+                                    onChange={(e) => handlePriceChange(e.target.value)}
+                                    placeholder="0.00"
+                                    className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-xl border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 3: Name, Pax, Luggage & Country (Searchable Dropdown) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
                             />
-                        ))}
-                    </datalist>
+                        </div>
 
-                    {form.errors.country && (
-                        <p className="text-red-600 text-sm mt-1">
-                            {form.errors.country}
-                        </p>
-                    )}
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Users size={13} className="text-black" />
+                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                required
+                                value={form.data.passenger_count}
+                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
+                                placeholder="1"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Luggage size={13} className="text-black" />
+                                <span>Luggage</span>
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={form.data.luggage_count ?? 0}
+                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        {/* Searchable Country Dropdown */}
+                        <div className="relative" ref={countryDropdownRef}>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Globe size={13} className="text-black" />
+                                <span>Country</span>
+                            </label>
+
+                            <div
+                                onClick={() => setIsCountryOpen((prev) => !prev)}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
+                                    isCountryOpen
+                                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                                        : form.data.country
+                                            ? 'border-gray-400 bg-white'
+                                            : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 truncate">
+                                    <Globe size={14} className="text-black shrink-0" />
+                                    {form.data.country ? (
+                                        <span className="font-extrabold text-black truncate">{form.data.country}</span>
+                                    ) : (
+                                        <span className="text-black/60 font-medium">Search country...</span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                    {form.data.country && (
+                                        <span
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                form.setData('country', '');
+                                            }}
+                                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
+                                            title="Clear country"
+                                        >
+                                            <X size={13} />
+                                        </span>
+                                    )}
+                                    <ChevronDown size={14} className={`text-black transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
+                                </div>
+                            </div>
+
+                            {/* Searchable Dropdown Popup Menu */}
+                            {isCountryOpen && (
+                                <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                    <div className="p-2 border-b bg-gray-50">
+                                        <div className="relative">
+                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={countrySearchTerm}
+                                                onChange={(e) => setCountrySearchTerm(e.target.value)}
+                                                placeholder="Type country name..."
+                                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            {countrySearchTerm && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCountrySearchTerm('')}
+                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                                >
+                                                    <X size={13} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                                        {filteredCountries.length > 0 ? (
+                                            filteredCountries.map((c) => {
+                                                const name = typeof c === 'string' ? c : (c.country_name || '');
+                                                const isCurrent = form.data.country?.trim().toLowerCase() === name?.trim().toLowerCase();
+                                                return (
+                                                    <button
+                                                        key={c.id || name}
+                                                        type="button"
+                                                        onClick={() => handleSelectCountry(name)}
+                                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                                            isCurrent
+                                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                                : 'hover:bg-slate-50 text-black font-bold'
+                                                        }`}
+                                                    >
+                                                        <span className="flex items-center gap-2 truncate">
+                                                            <Globe size={13} className="text-black shrink-0" />
+                                                            <span className="truncate text-black">{name}</span>
+                                                        </span>
+                                                        {isCurrent && <Check size={13} className="text-blue-700 stroke-[3]" />}
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="p-4 text-center text-xs text-black font-bold">
+                                                No countries matching "{countrySearchTerm}"
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Row 4: Email, Phone/WhatsApp & Language */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Languages size={13} className="text-black" />
+                                    <span>Language Preference</span>
+                                </span>
+                                <span className="text-[10px] text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <select
+                                value={form.data.language_preference || 'English'}
+                                onChange={(e) => form.setData('language_preference', e.target.value)}
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                            >
+                                <option value="English" className="text-black font-semibold">English (Default)</option>
+                                {dbLanguages && dbLanguages.filter((l) => l !== 'English').map((l) => (
+                                    <option key={l} value={l} className="text-black font-semibold">
+                                        {l}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
+            ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center text-amber-900">
+                    <p className="text-sm font-bold text-black">{selectedType} setup is currently being prepared.</p>
+                    <p className="text-xs text-black/80 font-medium mt-1">Please select "Transfers" to proceed with counter booking.</p>
                 </div>
-                <Field label={isTour ? "Tour Destinations" : "Dropoff Location"} required value={form.data.dropoff_location} onChange={(e) => form.setData('dropoff_location', e.target.value)} error={form.errors.dropoff_location} />
-                {!isTour && (
-                    <>
-                        <Field label="Passenger Count" required type="number" value={form.data.passenger_count} onChange={(e) => form.setData('passenger_count', e.target.value)} error={form.errors.passenger_count} />
-                        <Field label="Luggage Count" required type="number" value={form.data.luggage_count} onChange={(e) => form.setData('luggage_count', e.target.value)} error={form.errors.luggage_count} />
-                    </>
-                )}
-
-                <div>
-                    <label className="label">
-                        Language Preference <span className="text-red-600 font-bold ml-1">*</span>
-                    </label>
-
-                    <input
-                        type="text"
-                        list="language-list"
-                        className="input"
-                        value={form.data.language_preference ?? 'English'}
-                        onChange={(e) =>
-                            form.setData('language_preference', e.target.value)
-                        }
-                        placeholder="Select or type language"
-                    />
-
-                    <datalist id="language-list">
-                        {!dbLanguages?.includes('English') && <option value="English" />}
-                        {(dbLanguages || []).map((lang) => (
-                            <option key={lang} value={lang} />
-                        ))}
-                    </datalist>
-                </div>
-            </div>
-
-            <div>
-                <label className="label">Remarks</label>
-                <textarea className="input" rows="2" value={form.data.remarks} onChange={(e) => form.setData('remarks', e.target.value)} />
-            </div>
-
-            <div className="flex justify-end gap-3 border-t pt-4">
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-5 py-2 border border-gray-300 rounded-lg font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
-                >
-                    Cancel
-                </button>
-                <button 
-                    disabled={form.processing || !form.data.name?.trim()} 
-                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold disabled:opacity-50"
-                >
-                    {form.processing ? 'Saving...' : 'Save Customer & Continue'}
-                </button>
-            </div>
-        </form>
+            )}
+        </div>
     );
 }
 
