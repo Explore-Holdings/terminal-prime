@@ -1,6 +1,6 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const isTourBooking = (agent) => {
@@ -393,6 +393,10 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         currency: 'LKR',
         booking_type: 'Transfer',
         language_preference: 'English',
+        tour_destinations: [],
+        days: 1,
+        driver_rate: '',
+        driver_rate_reason: '',
         status: 'New',
         remarks: '',
     });
@@ -427,6 +431,10 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             currency: agent.currency ?? 'LKR',
             booking_type: agent.booking_type ?? 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
+            tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
+            days: agent.days ?? 1,
+            driver_rate: agent.driver_rate ? agent.driver_rate : (rateSetting?.driver_rate ?? ''),
+            driver_rate_reason: agent.driver_rate_reason ?? '',
             status: existingCust?.status || 'New',
             remarks: existingCust?.remarks || agent.remarks || '',
         });
@@ -1543,6 +1551,7 @@ function Modal({
                             onClose={onClose}
                             agentUsers={agentUsers}
                             counterSellingRates={counterSellingRates}
+                            rateSetting={rateSetting}
                         />
                     </div>
 
@@ -1565,6 +1574,344 @@ function Modal({
     );
 }
 
+function SearchableCountryDropdown({ value, onChange, countries = [] }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filtered = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return countries.slice(0, 100);
+        }
+        const q = searchTerm.trim().toLowerCase();
+        return countries.filter((c) => {
+            const name = typeof c === 'string' ? c : (c.country_name || '');
+            return name.toLowerCase().includes(q);
+        }).slice(0, 100);
+    }, [countries, searchTerm]);
+
+    const handleSelect = (name) => {
+        onChange(name);
+        setSearchTerm('');
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                <Globe size={13} className="text-black" />
+                <span>Country</span>
+            </label>
+
+            <div
+                onClick={() => setIsOpen((prev) => !prev)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
+                    isOpen
+                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                        : value
+                            ? 'border-gray-400 bg-white'
+                            : 'border-gray-300 hover:border-gray-400'
+                }`}
+            >
+                <div className="flex items-center gap-2 truncate">
+                    <Globe size={14} className="text-black shrink-0" />
+                    {value ? (
+                        <span className="font-extrabold text-black truncate">{value}</span>
+                    ) : (
+                        <span className="text-black/60 font-medium">Search country...</span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {value && (
+                        <span
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onChange('');
+                            }}
+                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
+                            title="Clear country"
+                        >
+                            <X size={13} />
+                        </span>
+                    )}
+                    <ChevronDown size={14} className={`text-black transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            {isOpen && (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="p-2 border-b bg-gray-50">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                            <input
+                                type="text"
+                                autoFocus
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Type country name..."
+                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            {searchTerm && (
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                        {filtered.length > 0 ? (
+                            filtered.map((c) => {
+                                const name = typeof c === 'string' ? c : (c.country_name || '');
+                                const isCurrent = value?.trim().toLowerCase() === name?.trim().toLowerCase();
+                                return (
+                                    <button
+                                        key={c.id || name}
+                                        type="button"
+                                        onClick={() => handleSelect(name)}
+                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                            isCurrent
+                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                : 'hover:bg-slate-50 text-black font-bold'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <Globe size={13} className="text-black shrink-0" />
+                                            <span className="truncate text-black">{name}</span>
+                                        </span>
+                                        {isCurrent && <Check size={13} className="text-blue-700 stroke-[3]" />}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-4 text-center text-xs text-black font-bold">
+                                No countries matching "{searchTerm}"
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TourDestinationsPicker({
+    selectedDestinations = [],
+    onChange,
+    counterSellingRates = [],
+}) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filtered = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return counterSellingRates.slice(0, 60);
+        }
+        const q = searchTerm.trim().toLowerCase();
+        return counterSellingRates.filter((c) =>
+            (c.city_name || '').toLowerCase().includes(q)
+        ).slice(0, 60);
+    }, [counterSellingRates, searchTerm]);
+
+    const addDestination = (cityName) => {
+        const clean = cityName.trim();
+        if (!clean) return;
+        if (!selectedDestinations.includes(clean)) {
+            onChange([...selectedDestinations, clean]);
+        }
+        setSearchTerm('');
+        setIsOpen(false);
+    };
+
+    const removeDestination = (idx) => {
+        onChange(selectedDestinations.filter((_, i) => i !== idx));
+    };
+
+    return (
+        <div className="space-y-2 relative" ref={dropdownRef}>
+            <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-black flex items-center gap-1.5">
+                    <MapPin size={14} className="text-black" />
+                    <span>Destinations (Pick one or more) <span className="text-red-600">*</span></span>
+                </label>
+                {selectedDestinations.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => onChange([])}
+                        className="text-[11px] font-bold text-red-600 hover:text-red-800 transition"
+                    >
+                        Clear All
+                    </button>
+                )}
+            </div>
+
+            {/* Search and Picker Bar */}
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setIsOpen(true);
+                        }}
+                        onFocus={() => setIsOpen(true)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (searchTerm.trim()) {
+                                    addDestination(searchTerm);
+                                }
+                            }
+                        }}
+                        placeholder="Search destination city or type custom and press Add..."
+                        className="w-full pl-8 pr-8 py-2 text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                        >
+                            <X size={13} />
+                        </button>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (searchTerm.trim()) {
+                            addDestination(searchTerm);
+                        } else {
+                            setIsOpen((prev) => !prev);
+                        }
+                    }}
+                    className="inline-flex items-center gap-1 bg-black text-white hover:bg-gray-800 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+                >
+                    <Plus size={14} />
+                    <span>Add</span>
+                </button>
+            </div>
+
+            {/* Dropdown Menu */}
+            {isOpen && (
+                <div className="absolute left-0 right-0 top-[calc(100%+2px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="px-3 py-1.5 bg-gray-50 border-b text-[10px] font-bold text-black/70 uppercase tracking-wider flex justify-between">
+                        <span>Select City from Counter Rates</span>
+                        <span>{filtered.length} Results</span>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                        {filtered.length > 0 ? (
+                            filtered.map((c) => {
+                                const isPicked = selectedDestinations.includes(c.city_name);
+                                return (
+                                    <button
+                                        key={c.id || c.city_name}
+                                        type="button"
+                                        onClick={() => addDestination(c.city_name)}
+                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
+                                            isPicked
+                                                ? 'bg-blue-50 text-black font-extrabold'
+                                                : 'hover:bg-slate-50 text-black font-bold'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-2 truncate">
+                                            <MapPin size={13} className="text-black shrink-0" />
+                                            <span className="truncate text-black">{c.city_name}</span>
+                                        </span>
+                                        {isPicked ? (
+                                            <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">
+                                                Added
+                                            </span>
+                                        ) : (
+                                            <span className="text-[11px] text-black/60 font-semibold flex items-center gap-1">
+                                                <Plus size={11} />
+                                                Select
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="p-3 text-center text-xs text-black font-bold">
+                                No cities matching "{searchTerm}". Click "Add" above to add as custom destination.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Selected Destinations Tags & Ordered Route Preview */}
+            {selectedDestinations.length > 0 ? (
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-300 space-y-2 mt-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-black">
+                        <span>Selected Tour Route ({selectedDestinations.length} Stops):</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {selectedDestinations.map((dest, idx) => (
+                            <div
+                                key={dest + idx}
+                                className="inline-flex items-center gap-1.5 bg-white border border-gray-400 px-3 py-1 rounded-lg shadow-sm text-xs font-black text-black"
+                            >
+                                <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                    {idx + 1}
+                                </span>
+                                <span>{dest}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => removeDestination(idx)}
+                                    className="p-0.5 hover:bg-red-50 hover:text-red-600 rounded text-black/60 transition ml-1"
+                                    title="Remove destination"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="text-[11px] font-bold text-black bg-white p-2 rounded-lg border border-gray-200 flex items-center gap-2">
+                        <Route size={14} className="text-black shrink-0" />
+                        <span className="truncate">
+                            <strong>Route:</strong> {selectedDestinations.join(' → ')}
+                        </span>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-[11px] font-semibold text-black/70 bg-amber-50/70 border border-amber-200/80 p-2 rounded-lg">
+                    Select one or more destinations from the cities list above to build the tour itinerary.
+                </div>
+            )}
+        </div>
+    );
+}
+
 function CustomerTab({
     agent,
     form,
@@ -1576,7 +1923,10 @@ function CustomerTab({
     onClose,
     agentUsers = [],
     counterSellingRates = [],
+    rateSetting = null,
 }) {
+    const standardDriverRate = Number(rateSetting?.driver_rate ?? 0);
+
     const [selectedType, setSelectedType] = useState(() => {
         const bt = (agent?.booking_type || '').toLowerCase();
         if (bt.includes('tour')) return 'Tours';
@@ -1590,18 +1940,28 @@ function CustomerTab({
     const [selectedVehicleType, setSelectedVehicleType] = useState(form.data.vehicle_type || 'car');
     const cityDropdownRef = useRef(null);
 
-    const [countrySearchTerm, setCountrySearchTerm] = useState('');
-    const [isCountryOpen, setIsCountryOpen] = useState(false);
-    const countryDropdownRef = useRef(null);
+    // Tour Destinations State
+    const [tourDestinations, setTourDestinations] = useState(() => {
+        return getTourDestinationsList(form.data.tour_destinations || agent?.tour_destinations || []);
+    });
 
-    // Close searchable city and country dropdowns when clicking outside
+    // Auto-populate default driver rate for tours if empty
+    useEffect(() => {
+        if (selectedType === 'Tours' && (form.data.driver_rate === '' || form.data.driver_rate == null) && standardDriverRate > 0) {
+            form.setData('driver_rate', standardDriverRate);
+        }
+    }, [selectedType, standardDriverRate]);
+
+    const enteredDriverRate = form.data.driver_rate !== '' && form.data.driver_rate != null
+        ? parseFloat(form.data.driver_rate)
+        : null;
+    const isLowerRate = standardDriverRate > 0 && enteredDriverRate !== null && !isNaN(enteredDriverRate) && enteredDriverRate < standardDriverRate;
+
+    // Close searchable city dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target)) {
                 setIsCityOpen(false);
-            }
-            if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target)) {
-                setIsCountryOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -1624,11 +1984,6 @@ function CustomerTab({
         return rate ? Number(rate) : 0;
     };
 
-    // Current price in LKR
-    const currentPrice = useMemo(() => {
-        return getVehiclePrice(currentCityRate, selectedVehicleType);
-    }, [currentCityRate, selectedVehicleType]);
-
     // Filter cities based on search term
     const filteredCities = useMemo(() => {
         if (!citySearchTerm.trim()) {
@@ -1640,21 +1995,9 @@ function CustomerTab({
         ).slice(0, 80);
     }, [counterSellingRates, citySearchTerm]);
 
-    // Filter countries based on search term
-    const filteredCountries = useMemo(() => {
-        if (!countrySearchTerm.trim()) {
-            return countries.slice(0, 100);
-        }
-        const q = countrySearchTerm.trim().toLowerCase();
-        return countries.filter((c) => {
-            const name = typeof c === 'string' ? c : (c.country_name || '');
-            return name.toLowerCase().includes(q);
-        }).slice(0, 100);
-    }, [countries, countrySearchTerm]);
-
     const handleSelectType = (type) => {
         setSelectedType(type);
-        const resolvedType = type === 'Transfers' ? 'Transfer' : type;
+        const resolvedType = type === 'Transfers' ? 'Transfer' : (type === 'Tours' ? 'Tour' : type);
         if (agent) {
             agent.booking_type = resolvedType;
         }
@@ -1695,13 +2038,6 @@ function CustomerTab({
         updateCalculatedPrice(cityObj, selectedVehicleType);
     };
 
-    const handleSelectCountry = (countryObj) => {
-        const name = typeof countryObj === 'string' ? countryObj : (countryObj.country_name || '');
-        form.setData('country', name);
-        setCountrySearchTerm('');
-        setIsCountryOpen(false);
-    };
-
     const handleVehicleTypeSelect = (vType) => {
         setSelectedVehicleType(vType);
         form.setData('vehicle_type', vType);
@@ -1726,6 +2062,15 @@ function CustomerTab({
                 }],
             }));
         }
+    };
+
+    const handleTourDestinationsChange = (dests) => {
+        setTourDestinations(dests);
+        form.setData((prev) => ({
+            ...prev,
+            tour_destinations: dests,
+            dropoff_location: dests.join(' → '),
+        }));
     };
 
     const bookingTypes = [
@@ -1768,7 +2113,7 @@ function CustomerTab({
             </div>
 
             {/* When Transfers is selected: show Transfer Details Form */}
-            {selectedType === 'Transfers' ? (
+            {selectedType === 'Transfers' && (
                 <form onSubmit={onSubmit} className="space-y-4 pt-1 text-black">
                     {/* Row 1: Select Agent */}
                     <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
@@ -2014,7 +2359,7 @@ function CustomerTab({
                         </div>
                     </div>
 
-                    {/* Row 3: Name, Pax, Luggage & Country (Searchable Dropdown) */}
+                    {/* Row 3: Name, Pax, Luggage & Country */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
@@ -2061,107 +2406,11 @@ function CustomerTab({
                             />
                         </div>
 
-                        {/* Searchable Country Dropdown */}
-                        <div className="relative" ref={countryDropdownRef}>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Globe size={13} className="text-black" />
-                                <span>Country</span>
-                            </label>
-
-                            <div
-                                onClick={() => setIsCountryOpen((prev) => !prev)}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-bold cursor-pointer transition bg-white shadow-sm ${
-                                    isCountryOpen
-                                        ? 'border-blue-500 ring-2 ring-blue-500/20'
-                                        : form.data.country
-                                            ? 'border-gray-400 bg-white'
-                                            : 'border-gray-300 hover:border-gray-400'
-                                }`}
-                            >
-                                <div className="flex items-center gap-2 truncate">
-                                    <Globe size={14} className="text-black shrink-0" />
-                                    {form.data.country ? (
-                                        <span className="font-extrabold text-black truncate">{form.data.country}</span>
-                                    ) : (
-                                        <span className="text-black/60 font-medium">Search country...</span>
-                                    )}
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0 ml-1">
-                                    {form.data.country && (
-                                        <span
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                form.setData('country', '');
-                                            }}
-                                            className="p-1 hover:bg-gray-100 rounded text-black/60 hover:text-black transition"
-                                            title="Clear country"
-                                        >
-                                            <X size={13} />
-                                        </span>
-                                    )}
-                                    <ChevronDown size={14} className={`text-black transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} />
-                                </div>
-                            </div>
-
-                            {/* Searchable Dropdown Popup Menu */}
-                            {isCountryOpen && (
-                                <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white rounded-xl shadow-2xl border border-gray-300 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                                    <div className="p-2 border-b bg-gray-50">
-                                        <div className="relative">
-                                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60" />
-                                            <input
-                                                type="text"
-                                                autoFocus
-                                                value={countrySearchTerm}
-                                                onChange={(e) => setCountrySearchTerm(e.target.value)}
-                                                placeholder="Type country name..."
-                                                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                            {countrySearchTerm && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setCountrySearchTerm('')}
-                                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
-                                                >
-                                                    <X size={13} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
-                                        {filteredCountries.length > 0 ? (
-                                            filteredCountries.map((c) => {
-                                                const name = typeof c === 'string' ? c : (c.country_name || '');
-                                                const isCurrent = form.data.country?.trim().toLowerCase() === name?.trim().toLowerCase();
-                                                return (
-                                                    <button
-                                                        key={c.id || name}
-                                                        type="button"
-                                                        onClick={() => handleSelectCountry(name)}
-                                                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition ${
-                                                            isCurrent
-                                                                ? 'bg-blue-50 text-black font-extrabold'
-                                                                : 'hover:bg-slate-50 text-black font-bold'
-                                                        }`}
-                                                    >
-                                                        <span className="flex items-center gap-2 truncate">
-                                                            <Globe size={13} className="text-black shrink-0" />
-                                                            <span className="truncate text-black">{name}</span>
-                                                        </span>
-                                                        {isCurrent && <Check size={13} className="text-blue-700 stroke-[3]" />}
-                                                    </button>
-                                                );
-                                            })
-                                        ) : (
-                                            <div className="p-4 text-center text-xs text-black font-bold">
-                                                No countries matching "{countrySearchTerm}"
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
                     </div>
 
                     {/* Row 4: Email, Phone/WhatsApp & Language */}
@@ -2230,10 +2479,301 @@ function CustomerTab({
                         </button>
                     </div>
                 </form>
-            ) : (
+            )}
+
+            {/* When Tours is selected: show Tour Details Form */}
+            {selectedType === 'Tours' && (
+                <form
+                    onSubmit={(e) => {
+                        if (tourDestinations.length === 0) {
+                            e.preventDefault();
+                            alert('Please select at least one tour destination.');
+                            return;
+                        }
+                        onSubmit(e);
+                    }}
+                    className="space-y-4 pt-1 text-black"
+                >
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Row 2: Customer Name, Pax, Luggage & Country */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Users size={13} className="text-black" />
+                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                required
+                                value={form.data.passenger_count}
+                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
+                                placeholder="1"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Luggage size={13} className="text-black" />
+                                <span>Luggage</span>
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={form.data.luggage_count ?? 0}
+                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
+                    </div>
+
+                    {/* Row 3: Email, Phone/WhatsApp & Language */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Languages size={13} className="text-black" />
+                                    <span>Language Preference</span>
+                                </span>
+                                <span className="text-[10px] text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <select
+                                value={form.data.language_preference || 'English'}
+                                onChange={(e) => form.setData('language_preference', e.target.value)}
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                            >
+                                <option value="English" className="text-black font-semibold">English (Default)</option>
+                                {dbLanguages && dbLanguages.filter((l) => l !== 'English').map((l) => (
+                                    <option key={l} value={l} className="text-black font-semibold">
+                                        {l}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Row 4: Tour Destinations & Day Count */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        <div className="lg:col-span-9">
+                            <TourDestinationsPicker
+                                selectedDestinations={tourDestinations}
+                                onChange={handleTourDestinationsChange}
+                                counterSellingRates={counterSellingRates}
+                            />
+                        </div>
+
+                        <div className="lg:col-span-3 flex flex-col justify-between">
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                    <Calendar size={13} className="text-black" />
+                                    <span>Day Count <span className="text-red-600">*</span></span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={form.data.days || 1}
+                                        onChange={(e) => form.setData('days', parseInt(e.target.value) || 1)}
+                                        placeholder="1"
+                                        className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
+                                        Days
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="text-[11px] font-semibold text-black/70 bg-white p-2.5 rounded-lg border border-gray-200 mt-2">
+                                Specify total itinerary duration in days.
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 5: Tour Selling Rate & Driver Rate */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            {/* Tour Selling Rate */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <CreditCard size={13} className="text-black" />
+                                        <span>Tour Selling Rate (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] text-black font-bold">Total Customer Price</span>
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.price}
+                                        onChange={(e) => handlePriceChange(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                    />
+                                </div>
+                                <p className="text-[11px] font-bold text-red-500 mt-1">
+                                    Enter the price for the whole tour
+                                </p>
+                            </div>
+
+                            {/* Driver Rate */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <Car size={13} className="text-black" />
+                                        <span>Driver Rate (LKR) <span className="text-red-600">*</span></span>
+                                    </span>
+                                    {standardDriverRate > 0 ? (
+                                        <span className="text-[10px] text-black font-bold">
+                                            Standard: LKR {standardDriverRate.toLocaleString()}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-black font-bold">Driver Payout</span>
+                                    )}
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        required
+                                        value={form.data.driver_rate ?? ''}
+                                        onChange={(e) => form.setData('driver_rate', e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                    />
+                                </div>
+                                {standardDriverRate > 0 && (
+                                    <p className="text-[11px] font-bold text-red-500 mt-1">
+                                        Standard rate: LKR {standardDriverRate.toLocaleString()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Driver Rate Reason (shown when entered amount is lower than rate_settings.driver_rate) */}
+                        {isLowerRate && (
+                            <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <AlertCircle size={14} className="text-amber-700" />
+                                        <span>Reason for Lower Rate <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] text-amber-900 font-bold">
+                                        Entered rate is lower than standard (LKR {standardDriverRate.toLocaleString()})
+                                    </span>
+                                </label>
+                                <textarea
+                                    required
+                                    rows={2}
+                                    value={form.data.driver_rate_reason ?? ''}
+                                    onChange={(e) => form.setData('driver_rate_reason', e.target.value)}
+                                    placeholder="Enter the reason why the driver rate is lower than standard..."
+                                    className="w-full text-xs font-bold text-black placeholder:text-gray-500 rounded-lg border-amber-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 p-2.5 bg-white shadow-sm"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {/* When Rent a Car is selected */}
+            {selectedType === 'Rent a Car' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center text-amber-900">
-                    <p className="text-sm font-bold text-black">{selectedType} setup is currently being prepared.</p>
-                    <p className="text-xs text-black/80 font-medium mt-1">Please select "Transfers" to proceed with counter booking.</p>
+                    <p className="text-sm font-bold text-black">Rent a Car setup is currently being prepared.</p>
+                    <p className="text-xs text-black/80 font-medium mt-1">Please select "Transfers" or "Tours" to proceed with counter booking.</p>
                 </div>
             )}
         </div>

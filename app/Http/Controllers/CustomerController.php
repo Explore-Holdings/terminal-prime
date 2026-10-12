@@ -54,6 +54,10 @@ class CustomerController extends Controller
             'price' => 'nullable|numeric|min:0',
             'currency' => 'nullable|string|max:10',
             'booking_type' => 'nullable|string|max:100',
+            'tour_destinations' => 'nullable',
+            'days' => 'nullable|integer|min:1',
+            'driver_rate' => 'nullable|numeric|min:0',
+            'driver_rate_reason' => 'nullable|string',
             'language_preference' => 'nullable|string|max:100',
             'status' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
@@ -103,7 +107,7 @@ class CustomerController extends Controller
         if (isset($data['luggage_count'])) {
             $agentUpdates['luggage_count'] = $data['luggage_count'];
         }
-        if (isset($data['price']) && (float)$data['price'] > 0) {
+        if (isset($data['price']) && (float)$data['price'] >= 0) {
             $agentUpdates['price'] = $data['price'];
         }
         if (!empty($data['currency'])) {
@@ -111,6 +115,25 @@ class CustomerController extends Controller
         }
         if (!empty($data['booking_type'])) {
             $agentUpdates['booking_type'] = $data['booking_type'];
+        }
+        if (isset($data['tour_destinations'])) {
+            $destStr = is_array($data['tour_destinations'])
+                ? implode(', ', array_filter($data['tour_destinations']))
+                : trim((string) $data['tour_destinations']);
+            $agentUpdates['tour_destinations'] = $destStr;
+            if (empty($data['dropoff_location']) && !empty($destStr)) {
+                $customer->update(['dropoff_location' => $destStr]);
+                $agentUpdates['dropoff_location'] = $destStr;
+            }
+        }
+        if (isset($data['days'])) {
+            $agentUpdates['days'] = (int) $data['days'];
+        }
+        if (isset($data['driver_rate'])) {
+            $agentUpdates['driver_rate'] = (float) $data['driver_rate'];
+        }
+        if (array_key_exists('driver_rate_reason', $data)) {
+            $agentUpdates['driver_rate_reason'] = $data['driver_rate_reason'];
         }
 
         $agent->update($agentUpdates);
