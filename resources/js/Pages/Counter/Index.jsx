@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import axios from 'axios';
 import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
@@ -325,9 +326,32 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [], rentACarRates = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips: initialOngoingTrips = [], vehicles: initialVehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt: initialLastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [], rentACarRates = [], queueVersion: initialQueueVersion = null }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
+    const [vehicles, setVehicles] = useState(initialVehicles);
+    const [ongoingTrips, setOngoingTrips] = useState(initialOngoingTrips);
+    const [lastReorderedAt, setLastReorderedAt] = useState(initialLastReorderedAt);
+    const currentVersionRef = useRef(initialQueueVersion);
+
+    useEffect(() => {
+        setVehicles(initialVehicles);
+    }, [initialVehicles]);
+
+    useEffect(() => {
+        setOngoingTrips(initialOngoingTrips);
+    }, [initialOngoingTrips]);
+
+    useEffect(() => {
+        setLastReorderedAt(initialLastReorderedAt);
+    }, [initialLastReorderedAt]);
+
+    useEffect(() => {
+        if (initialQueueVersion) {
+            currentVersionRef.current = initialQueueVersion;
+        }
+    }, [initialQueueVersion]);
+
     const [showModal, setShowModal] = useState(false);
     const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
     const [checkoutInput, setCheckoutInput] = useState('');
@@ -344,6 +368,65 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [reorderInput, setReorderInput] = useState('');
     const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     const [refreshingVehicles, setRefreshingVehicles] = useState(false);
+
+    // Fetch the updated queue only when a DB change is detected
+    const fetchVehiclesQueue = useCallback(async (silent = true) => {
+        if (!silent) setRefreshingVehicles(true);
+        try {
+            const res = await axios.get('/counter/vehicles-queue');
+            if (res.data?.vehicles) {
+                setVehicles(res.data.vehicles);
+                if (res.data.ongoingTrips !== undefined) {
+                    setOngoingTrips(res.data.ongoingTrips);
+                }
+                if (res.data.lastReorderedAt !== undefined) {
+                    setLastReorderedAt(res.data.lastReorderedAt);
+                }
+                if (res.data.version) {
+                    currentVersionRef.current = res.data.version;
+                }
+                setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            }
+        } catch (err) {
+            console.error('Failed to sync live vehicles queue:', err);
+        } finally {
+            if (!silent) setRefreshingVehicles(false);
+        }
+    }, []);
+
+    // DB Change Token: Checks a ~20-byte hash every 5 seconds.
+    // DOES NOTHING if the DB hasn't changed. Syncs immediately when a DB change occurs!
+    useEffect(() => {
+        const checkDbUpdate = async () => {
+            if (document.visibilityState === 'hidden') return;
+            if (showCheckoutConfirm || showReorderModal) return;
+
+            try {
+                const res = await axios.get('/counter/queue-version');
+                const serverVersion = res.data?.version;
+                if (serverVersion && serverVersion !== currentVersionRef.current) {
+                    currentVersionRef.current = serverVersion;
+                    fetchVehiclesQueue(true);
+                }
+            } catch (err) {
+                // silent network error tolerance
+            }
+        };
+
+        const timer = setInterval(checkDbUpdate, 5000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                checkDbUpdate();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [fetchVehiclesQueue, showCheckoutConfirm, showReorderModal]);
 
     const [showShortTripsModal, setShowShortTripsModal] = useState(false);
 
@@ -726,25 +809,17 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                             <span>Vehicles Checked In ({vehicles.filter(v => v.driver?.duty_status === 'on_duty').length} On Duty / {vehicles.length} Registered)</span>
                             <button 
                                 type="button"
-                                onClick={() => {
-                                    setRefreshingVehicles(true);
-                                    router.reload({
-                                        only: ['vehicles', 'pendingAgents', 'ongoingTrips', 'myTrips', 'lastReorderedAt'],
-                                        preserveScroll: true,
-                                        preserveState: true,
-                                        onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-                                        onFinish: () => setRefreshingVehicles(false)
-                                    });
-                                }}
+                                onClick={() => fetchVehiclesQueue(false)}
                                 disabled={refreshingVehicles}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 text-gray-700 active:scale-95 rounded-lg shadow-xs transition text-xs font-bold disabled:opacity-50"
-                                title="Refresh Vehicles Queue Data"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-50 border border-gray-300 hover:border-gray-400 text-gray-700 active:scale-95 rounded-lg shadow-xs transition text-xs font-bold disabled:opacity-50 cursor-pointer"
+                                title="Sync Vehicles Queue Data"
                             >
                                 <RefreshCw size={13} className={refreshingVehicles ? "animate-spin text-blue-600" : "text-gray-500"} />
-                                <span>{refreshingVehicles ? 'Refreshing...' : 'Refresh'}</span>
+                                {/* <span>{refreshingVehicles ? 'Syncing...' : 'Sync Queue'}</span> */}
                             </button>
-                            <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-                                Refresh before assigning a vehicle
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-md">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span>Live Queue  • {lastUpdated}</span>
                             </span>
                         </div>
                     } 
@@ -1213,7 +1288,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} onRefreshVehicles={() => fetchVehiclesQueue(false)} />
             )}
 
             {showCheckoutConfirm && (
@@ -1538,6 +1613,7 @@ function Modal({
     agentUsers = [],
     counterSellingRates = [],
     rentACarRates = [],
+    onRefreshVehicles = null,
 }) {
     if (!agent) return null;
 
@@ -1628,7 +1704,7 @@ function Modal({
 
                     {agent.booking_type !== 'Rent a Car' ? (
                         <div className={activeTab === 'vehicle' ? '' : 'hidden'}>
-                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} shortTrips={shortTrips} />
+                            <VehicleTab vehicles={vehicles} ongoingTrips={ongoingTrips} customerId={effectiveCustomerId} agent={agent} onClose={onClose} rateSetting={rateSetting} paymentForm={paymentForm} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} customerForm={customerForm} invoicePath={effectiveInvoicePath} lastReorderedAt={lastReorderedAt} shortTrips={shortTrips} onRefreshVehicles={onRefreshVehicles} />
                         </div>
                     ) : (
                         <div className={activeTab === 'rent_a_car_vehicle' ? '' : 'hidden'}>
@@ -3900,7 +3976,7 @@ function PaymentTab({
     );
 }
 
-function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [] }) {
+function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, rateSetting, paymentForm, locationVehiclePrices = [], vehicleRates = [], eurRates, dbLanguages = [], customerForm, invoicePath = null, lastReorderedAt = null, shortTrips = [], onRefreshVehicles = null }) {
     const { auth } = usePage().props;
     const nextInLineVehicle = getNextInLineVehicle(vehicles, ongoingTrips, lastReorderedAt);
     const nextInLineSlotNumber = getVehicleSlotNumber(nextInLineVehicle);
@@ -3928,17 +4004,31 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [isShortTrip, setIsShortTrip] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const handleRefresh = () => {
+    const handleRefresh = async () => {
         setIsRefreshing(true);
-        router.reload({
-            only: ['vehicles', 'ongoingTrips', 'shortTrips', 'lastReorderedAt'],
-            preserveScroll: true,
-            preserveState: true,
-            onFinish: () => {
-                setIsRefreshing(false);
+        try {
+            if (onRefreshVehicles) {
+                await onRefreshVehicles();
+            } else {
+                await new Promise((resolve) => {
+                    router.reload({
+                        only: ['vehicles', 'ongoingTrips', 'shortTrips', 'lastReorderedAt'],
+                        preserveScroll: true,
+                        preserveState: true,
+                        onFinish: resolve,
+                    });
+                });
             }
-        });
+        } finally {
+            setIsRefreshing(false);
+        }
     };
+
+    useEffect(() => {
+        if (onRefreshVehicles) {
+            onRefreshVehicles();
+        }
+    }, [onRefreshVehicles]);
 
     const driverHasShortTripInCurrentSession = useMemo(() => {
         const vehicle = confirmModal?.vehicle || selectedVehicle;
@@ -4332,26 +4422,26 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             </div>
             </div>
 
-            {/* Highlighted Refresh Banner before assigning vehicle */}
-            <div className="flex flex-wrap items-center gap-3 bg-red-50 border-2 border-red-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
+            {/* Live Vehicle Queue Auto-Synced Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 border border-emerald-300 p-2.5 sm:p-3 rounded-xl shadow-xs">
                 <div className="flex items-center gap-2">
                     <span className="flex h-2.5 w-2.5 relative shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
                     </span>
-                    <span className="text-xs sm:text-sm font-black text-red-600 uppercase tracking-wide">
-                        Refresh before assigning a vehicle
+                    <span className="text-xs sm:text-sm font-bold text-emerald-800">
+                        Live Vehicle Queue (Auto-synced with database)
                     </span>
                 </div>
                 <button
                     type="button"
                     onClick={handleRefresh}
                     disabled={isRefreshing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-xs sm:text-sm rounded-lg shadow-sm border border-red-700 transition disabled:opacity-50"
-                    title="Refresh Live Vehicle Queue"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs sm:text-sm rounded-lg shadow-sm transition disabled:opacity-50 cursor-pointer"
+                    title="Sync Vehicles Queue Data"
                 >
                     <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
-                    <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                    <span>{isRefreshing ? 'Syncing...' : 'Sync Now'}</span>
                 </button>
             </div>
 
