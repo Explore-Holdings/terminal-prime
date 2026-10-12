@@ -113,17 +113,17 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
     //     return (getVehicleSlotNumber(a) ?? 999) - (getVehicleSlotNumber(b) ?? 999);
     // });
 
-    React.useEffect(() => {
-        const intervalId = setInterval(() => {
-            router.reload({
-                preserveState: true,
-                preserveScroll: true,
-                onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-            });
-        }, 10000);
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-        return () => clearInterval(intervalId);
-    }, []);
+    const handleRefresh = () => {
+        setIsRefreshing(true);
+        router.reload({
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+            onFinish: () => setIsRefreshing(false)
+        });
+    };
 
     // Reusable Mini Card Component
     const MiniCard = ({ title, value, icon: Icon, colorClass, bgColorClass, subtitle }) => (
@@ -252,15 +252,14 @@ export default function DSSIndex({ vehicles = [], ongoingTrips = [], metrics = {
                             </select>
                             <span className="flex items-center"><ClockIcon className="w-4 h-4 mr-1" /> Last updated: {lastUpdated}</span>
                             <button 
-                                onClick={() => {
-                                    router.reload({
-                                        onSuccess: () => setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-                                    });
-                                }}
-                                className="flex items-center px-3 py-1.5 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 text-slate-700 transition-colors"
+                                type="button"
+                                onClick={handleRefresh}
+                                disabled={isRefreshing}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50 text-slate-700 active:scale-95 transition-all text-sm font-semibold disabled:opacity-50"
+                                title="Refresh Dashboard Data"
                             >
-                                <ArrowPathIcon className="w-4 h-4 mr-1.5" />
-                                Refresh
+                                <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-600' : 'text-slate-600'}`} />
+                                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
                             </button>
                         </div>
                     </div>
