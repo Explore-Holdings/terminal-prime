@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A5;
-            margin: 10mm 10mm 12mm 10mm;
+            margin: 7mm 8mm 8mm 8mm;
         }
 
         body {
@@ -21,7 +21,7 @@
         .header-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .header-table td {
@@ -65,7 +65,7 @@
         .address-block {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 18px;
+            margin-bottom: 10px;
         }
 
         .address-block td {
@@ -91,7 +91,7 @@
             font-size: 14px;
             font-weight: bold;
             color: #00703c;
-            margin: 16px 0 6px 0;
+            margin: 10px 0 4px 0;
             padding: 0;
         }
 
@@ -185,16 +185,16 @@
 
         /* ── Signature ── */
         .signature-block {
-            margin-top: 30px;
+            margin-top: 16px;
             text-align: right;
             padding-right: 20px;
         }
 
         /* ── Footer ── */
         .footer-section {
-            margin-top: 40px;
+            margin-top: 16px;
             border-top: 3px solid #00703c;
-            padding-top: 12px;
+            padding-top: 8px;
         }
 
         .footer-table {
@@ -276,7 +276,7 @@
     @php
         $agent = $customer->agent;
         $bookingType = strtolower(trim($agent->booking_type ?? ''));
-        $isTour = $agent && ($bookingType === 'tour' || $bookingType === 'tours' || !empty($agent->tour_destinations) || !empty($agent->days));
+        $isTour = $agent && ($bookingType === 'tour' || $bookingType === 'tours' || !empty($agent->tour_destinations));
         $tourDestinations = '';
         if ($agent && !empty($agent->tour_destinations)) {
             $rawDest = $agent->tour_destinations;
@@ -309,7 +309,7 @@
                 <td class="info-label">Counter Station</td>
                 <td class="info-value">BIA AIRPORT COUNTER</td>
                 <td class="info-label">Booking Type</td>
-                <td class="info-value"><strong style="color: #00703c;">TOUR PACKAGE</strong></td>
+                <td class="info-value"><strong style="color: #00703c;">{{ strtoupper($agent->booking_type ?? 'TOUR') }}</strong></td>
             </tr>
             <tr>
                 <td class="info-label">Tour Destinations</td>
@@ -333,8 +333,12 @@
             <tr>
                 <td class="info-label">Counter Station</td>
                 <td class="info-value">BIA AIRPORT COUNTER</td>
+                <td class="info-label">Booking Type</td>
+                <td class="info-value"><strong style="color: #00703c;">{{ strtoupper($agent->booking_type ?? 'TRANSFER') }}</strong></td>
+            </tr>
+            <tr>
                 <td class="info-label">Drop-off Location</td>
-                <td class="info-value">{{ strtoupper($customer->dropoff_location ?? '-') }}</td>
+                <td class="info-value" colspan="3">{{ strtoupper($customer->dropoff_location ?? '-') }}</td>
             </tr>
             <tr>
                 <td class="info-label">Service Date</td>
