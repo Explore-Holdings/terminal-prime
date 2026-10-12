@@ -325,7 +325,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [] }) {
+export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [], rentACarRates = [] }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [showModal, setShowModal] = useState(false);
@@ -397,6 +397,9 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         days: 1,
         driver_rate: '',
         driver_rate_reason: '',
+        external_vehicle_make: '',
+        external_vehicle_model: '',
+        rent_a_car_rate_id: '',
         status: 'New',
         remarks: '',
     });
@@ -423,7 +426,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             mobile_number: existingCust?.mobile_number || '',
             whatsapp_number: existingCust?.whatsapp_number || '',
             country: existingCust?.country || '',
-            dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || '',
+            dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || (agent.booking_type === 'Rent a Car' ? 'BIA Airport' : ''),
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
             vehicle_type: 'car',
@@ -433,8 +436,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
             days: agent.days ?? 1,
-            driver_rate: agent.driver_rate ? agent.driver_rate : (rateSetting?.driver_rate ?? ''),
-            driver_rate_reason: agent.driver_rate_reason ?? '',
+            driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate ? agent.driver_rate : (rateSetting?.driver_rate ?? '')),
+            driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
+            external_vehicle_make: agent.external_vehicle_make || '',
+            external_vehicle_model: agent.external_vehicle_model || '',
+            rent_a_car_rate_id: '',
             status: existingCust?.status || 'New',
             remarks: existingCust?.remarks || agent.remarks || '',
         });
@@ -1178,7 +1184,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} />
             )}
 
             {showCheckoutConfirm && (
@@ -1502,6 +1508,7 @@ function Modal({
     shortTrips = [],
     agentUsers = [],
     counterSellingRates = [],
+    rentACarRates = [],
 }) {
     if (!agent) return null;
 
@@ -1552,6 +1559,7 @@ function Modal({
                             agentUsers={agentUsers}
                             counterSellingRates={counterSellingRates}
                             rateSetting={rateSetting}
+                            rentACarRates={rentACarRates}
                         />
                     </div>
 
@@ -1924,6 +1932,7 @@ function CustomerTab({
     agentUsers = [],
     counterSellingRates = [],
     rateSetting = null,
+    rentACarRates = [],
 }) {
     const standardDriverRate = Number(rateSetting?.driver_rate ?? 0);
 
@@ -1944,6 +1953,161 @@ function CustomerTab({
     const [tourDestinations, setTourDestinations] = useState(() => {
         return getTourDestinationsList(form.data.tour_destinations || agent?.tour_destinations || []);
     });
+
+    // Rent a Car State
+    const [selectedRentVehicleId, setSelectedRentVehicleId] = useState(() => {
+        if (agent?.external_vehicle_make && agent?.external_vehicle_model) {
+            const found = rentACarRates.find(
+                (v) =>
+                    v.make?.toLowerCase() === agent.external_vehicle_make?.toLowerCase() &&
+                    v.model?.toLowerCase() === agent.external_vehicle_model?.toLowerCase()
+            );
+            if (found) return found.id;
+        }
+        return null;
+    });
+    const rentCategories = useMemo(() => {
+        return Array.from(new Set(rentACarRates.map((r) => r.vehicle_category).filter(Boolean)));
+    }, [rentACarRates]);
+
+    const [rentVehicleCategoryFilter, setRentVehicleCategoryFilter] = useState(() => {
+        if (agent?.remarks && rentACarRates.some((r) => r.vehicle_category === agent.remarks)) {
+            return agent.remarks;
+        }
+        if (agent?.external_vehicle_make) {
+            const found = rentACarRates.find(
+                (v) =>
+                    v.make?.toLowerCase() === agent.external_vehicle_make?.toLowerCase() &&
+                    v.model?.toLowerCase() === agent.external_vehicle_model?.toLowerCase()
+            );
+            if (found?.vehicle_category) return found.vehicle_category;
+        }
+        return rentACarRates[0]?.vehicle_category || '';
+    });
+    const [rentVehicleSearch, setRentVehicleSearch] = useState('');
+
+    useEffect(() => {
+        if (rentCategories.length > 0 && (!rentVehicleCategoryFilter || !rentCategories.includes(rentVehicleCategoryFilter))) {
+            setRentVehicleCategoryFilter(rentCategories[0]);
+        }
+    }, [rentCategories]);
+
+    const filteredRentVehicles = useMemo(() => {
+        return rentACarRates.filter((v) => {
+            const matchesCategory = !rentVehicleCategoryFilter || v.vehicle_category === rentVehicleCategoryFilter;
+            if (!matchesCategory) return false;
+            if (!rentVehicleSearch.trim()) return true;
+            const q = rentVehicleSearch.trim().toLowerCase();
+            return (
+                (v.vehicle_category || '').toLowerCase().includes(q) ||
+                (v.make || '').toLowerCase().includes(q) ||
+                (v.model || '').toLowerCase().includes(q)
+            );
+        });
+    }, [rentACarRates, rentVehicleCategoryFilter, rentVehicleSearch]);
+
+    const selectedRentVehicle = useMemo(() => {
+        return rentACarRates.find((v) => v.id === selectedRentVehicleId) || null;
+    }, [rentACarRates, selectedRentVehicleId]);
+
+    // Rent a Car Daily Rate (Editable)
+    const [rentDailyRate, setRentDailyRate] = useState(() => {
+        if (form.data.price && form.data.days) {
+            return Math.round(Number(form.data.price) / Number(form.data.days));
+        }
+        return '';
+    });
+
+    // Handle Rent a Car vehicle selection
+    const handleSelectRentVehicle = (vehicle) => {
+        setSelectedRentVehicleId(vehicle.id);
+        const dayCount = parseInt(form.data.days) || 1;
+        const dailyRate = Number(vehicle.rate) || 0;
+        setRentDailyRate(dailyRate);
+        const totalPrice = dailyRate * dayCount;
+
+        form.setData((prev) => ({
+            ...prev,
+            external_vehicle_make: vehicle.make,
+            external_vehicle_model: vehicle.model,
+            price: totalPrice,
+            currency: 'LKR',
+            remarks: prev.remarks || `${vehicle.vehicle_category} - ${vehicle.make} ${vehicle.model}`,
+        }));
+
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: totalPrice,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: totalPrice,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Handle Rent a Car daily rate change (Editable)
+    const handleRentDailyRateChange = (rateVal) => {
+        setRentDailyRate(rateVal);
+        const dayCount = parseInt(form.data.days) || 1;
+        const num = parseFloat(rateVal) || 0;
+        const totalPrice = num * dayCount;
+        form.setData('price', totalPrice);
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                currency: 'LKR',
+                price: totalPrice,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: totalPrice,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Handle Rent a Car days count change
+    const handleRentDaysChange = (newDays) => {
+        const d = Math.max(1, parseInt(newDays) || 1);
+        form.setData('days', d);
+        const rateToUse = rentDailyRate !== '' ? (parseFloat(rentDailyRate) || 0) : (selectedRentVehicle ? Number(selectedRentVehicle.rate) : 0);
+        const totalPrice = rateToUse * d;
+        form.setData('price', totalPrice);
+        if (paymentForm && typeof paymentForm.setData === 'function') {
+            paymentForm.setData((prev) => ({
+                ...prev,
+                price: totalPrice,
+                payments: [{
+                    method: 'Cash',
+                    currency: 'LKR',
+                    amount: totalPrice,
+                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                }],
+            }));
+        }
+    };
+
+    // Default dropoff to BIA Airport & clear driver rate when Rent a Car is active
+    useEffect(() => {
+        if (selectedType === 'Rent a Car') {
+            if (!form.data.dropoff_location || form.data.dropoff_location === '') {
+                form.setData('dropoff_location', 'BIA Airport');
+            }
+            if (form.data.driver_rate !== '' || form.data.driver_rate_reason !== '') {
+                form.setData((prev) => ({
+                    ...prev,
+                    driver_rate: '',
+                    driver_rate_reason: '',
+                }));
+            }
+        }
+    }, [selectedType]);
 
     // Auto-populate default driver rate for tours if empty
     useEffect(() => {
@@ -2003,6 +2167,9 @@ function CustomerTab({
         }
         if (form && typeof form.setData === 'function') {
             form.setData('booking_type', resolvedType);
+            if (resolvedType === 'Rent a Car' && (!form.data.dropoff_location || form.data.dropoff_location === '')) {
+                form.setData('dropoff_location', 'BIA Airport');
+            }
         }
     };
 
@@ -2771,10 +2938,394 @@ function CustomerTab({
 
             {/* When Rent a Car is selected */}
             {selectedType === 'Rent a Car' && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center text-amber-900">
-                    <p className="text-sm font-bold text-black">Rent a Car setup is currently being prepared.</p>
-                    <p className="text-xs text-black/80 font-medium mt-1">Please select "Transfers" or "Tours" to proceed with counter booking.</p>
-                </div>
+                <form
+                    onSubmit={(e) => {
+                        if (!selectedRentVehicle) {
+                            e.preventDefault();
+                            alert('Please select a vehicle from the Rent a Car rates.');
+                            return;
+                        }
+                        onSubmit(e);
+                    }}
+                    className="space-y-4 pt-1 text-black"
+                >
+                    {/* Row 1: Select Agent */}
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
+                        <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
+                            <UserCheck size={14} className="text-black" />
+                            <span>Select Agent <span className="text-red-600">*</span></span>
+                        </label>
+                        <select
+                            value={form.data.agent_user_id || agent?.user_id || ''}
+                            onChange={(e) => form.setData('agent_user_id', e.target.value)}
+                            required
+                            className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
+                        >
+                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
+                            {agentUsers.map((u) => (
+                                <option key={u.id} value={u.id} className="text-black font-semibold">
+                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Row 2: Customer Name, Country, Pax, Luggage */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Customer Name <span className="text-red-600">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.name}
+                                onChange={(e) => form.setData('name', e.target.value)}
+                                placeholder="Full Name"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <SearchableCountryDropdown
+                            value={form.data.country}
+                            onChange={(val) => form.setData('country', val)}
+                            countries={countries}
+                        />
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Users size={13} className="text-black" />
+                                <span>Pax (Passengers) <span className="text-red-600">*</span></span>
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                required
+                                value={form.data.passenger_count}
+                                onChange={(e) => form.setData('passenger_count', parseInt(e.target.value) || 1)}
+                                placeholder="1"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Luggage size={13} className="text-black" />
+                                <span>Luggage</span>
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={form.data.luggage_count ?? 0}
+                                onChange={(e) => form.setData('luggage_count', parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport), Days */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Email Address <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="email"
+                                value={form.data.email || ''}
+                                onChange={(e) => form.setData('email', e.target.value)}
+                                placeholder="customer@example.com (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1">
+                                Phone / WhatsApp <span className="text-black/70 font-semibold">(Optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={form.data.whatsapp_number || ''}
+                                onChange={(e) => {
+                                    form.setData('whatsapp_number', e.target.value);
+                                    form.setData('mobile_number', e.target.value);
+                                }}
+                                placeholder="+94 7X XXX XXXX (Optional)"
+                                className="w-full text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <MapPin size={13} className="text-black" />
+                                <span>Dropoff Location <span className="text-red-600">*</span></span>
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={form.data.dropoff_location || 'BIA Airport'}
+                                onChange={(e) => form.setData('dropoff_location', e.target.value)}
+                                placeholder="BIA Airport"
+                                className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                            />
+                            {/* <p className="text-[10px] font-bold text-black/60 mt-0.5">Default: BIA Airport</p> */}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                <Calendar size={13} className="text-black" />
+                                <span>Days Count <span className="text-red-600">*</span></span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    required
+                                    value={form.data.days || 1}
+                                    onChange={(e) => handleRentDaysChange(e.target.value)}
+                                    placeholder="1"
+                                    className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
+                                    Days
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 4: Vehicles from rent_a_car_rates */}
+                    <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/90 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-2.5">
+                            <div className="flex items-center gap-2">
+                                <CarFront size={16} className="text-black" />
+                                <div>
+                                    <h4 className="text-xs font-black text-black uppercase tracking-wide">
+                                        Select Vehicle from Rent a Car Rates <span className="text-red-600">*</span>
+                                    </h4>
+                                    <p className="text-[11px] font-bold text-black/70">
+                                        Rates are per day in LKR. Total calculated as Rate × Day Count ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Search filter for vehicles */}
+                            <div className="relative w-full sm:w-60">
+                                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-black/60" />
+                                <input
+                                    type="text"
+                                    value={rentVehicleSearch}
+                                    onChange={(e) => setRentVehicleSearch(e.target.value)}
+                                    placeholder="Search make or model..."
+                                    className="w-full pl-8 pr-7 py-1.5 text-xs font-bold text-black placeholder:text-gray-400 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                />
+                                {rentVehicleSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setRentVehicleSearch('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-black/60 hover:text-black"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Category tabs/filter */}
+                        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
+                            {rentCategories.map((cat) => {
+                                const active = rentVehicleCategoryFilter === cat;
+                                return (
+                                    <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => setRentVehicleCategoryFilter(cat)}
+                                        className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition whitespace-nowrap ${
+                                            active
+                                                ? 'bg-black text-white border-black shadow-sm'
+                                                : 'bg-white border-gray-300 text-black hover:border-black hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Vehicles Grid / List */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto p-1">
+                            {filteredRentVehicles.length > 0 ? (
+                                filteredRentVehicles.map((v) => {
+                                    const isSelected = selectedRentVehicleId === v.id;
+                                    const dailyRate = Number(v.rate) || 0;
+                                    const dayCount = parseInt(form.data.days) || 1;
+                                    const totalCalculated = dailyRate * dayCount;
+
+                                    return (
+                                        <button
+                                            key={v.id}
+                                            type="button"
+                                            onClick={() => handleSelectRentVehicle(v)}
+                                            className={`text-left p-2.5 rounded-xl border-2 transition relative flex flex-col justify-between gap-2 ${
+                                                isSelected
+                                                    ? 'border-blue-600 bg-blue-50/90 shadow-md ring-1 ring-blue-500/30'
+                                                    : 'border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between gap-1">
+                                                <div>
+                                                    <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-black border border-gray-300 mb-1">
+                                                        {v.vehicle_category}
+                                                    </span>
+                                                    <div className="text-xs font-black text-black">
+                                                        {v.make} <span className="uppercase">{v.model}</span>
+                                                    </div>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition shrink-0 ${
+                                                    isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'
+                                                }`}>
+                                                    {isSelected && <Check size={11} className="stroke-[3]" />}
+                                                </div>
+                                            </div>
+
+                                            <div className="border-t border-gray-100 pt-1.5 flex items-end justify-between">
+                                                <div>
+                                                    <span className="text-[10px] font-bold text-black/60 block">Daily Rate:</span>
+                                                    <span className="text-xs font-black text-black">
+                                                        LKR {dailyRate.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-[10px] font-bold text-black/60 block">{dayCount} {dayCount === 1 ? 'day' : 'days'}:</span>
+                                                    <span className="text-xs font-black text-blue-800">
+                                                        LKR {totalCalculated.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <div className="col-span-full p-4 text-center text-xs text-black font-bold bg-white rounded-xl border border-gray-200">
+                                    No vehicles found matching "{rentVehicleSearch}".
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Selected Vehicle Pricing & Editable Rate */}
+                        {selectedRentVehicle ? (
+                            <div className="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3.5 space-y-3 animate-in fade-in duration-150">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0">
+                                            <CarFront size={18} />
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                                                <span>{selectedRentVehicle.make} {selectedRentVehicle.model}</span>
+                                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded">
+                                                    {selectedRentVehicle.vehicle_category}
+                                                </span>
+                                            </div>
+                                            <div className="text-[11px] font-bold text-emerald-800 mt-0.5">
+                                                Catalog Rate: LKR {Number(selectedRentVehicle.rate).toLocaleString()} / day
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-[11px] font-bold text-emerald-900 bg-white/90 border border-emerald-200 px-3 py-1 rounded-lg">
+                                        Duration: <span className="font-black text-emerald-950">{form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Editable Rates Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 border-t border-emerald-200">
+                                    {/* Editable Daily Rate */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                            <span className="flex items-center gap-1">
+                                                <CreditCard size={13} className="text-emerald-800" />
+                                                <span>Daily Rate (LKR) <span className="text-red-600">*</span></span>
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                                Editable
+                                            </span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                                LKR
+                                            </span>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                min="0"
+                                                required
+                                                value={rentDailyRate}
+                                                onChange={(e) => handleRentDailyRateChange(e.target.value)}
+                                                placeholder="0.00"
+                                                className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-emerald-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                            />
+                                        </div>
+                                        <p className="text-[10px] font-bold text-black/70 mt-1">
+                                            Adjust rate per day (calculates total automatically)
+                                        </p>
+                                    </div>
+
+                                    {/* Editable Total Selling Price */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                            <span className="flex items-center gap-1">
+                                                <CreditCard size={13} className="text-emerald-800" />
+                                                <span>Total Rent Price (LKR) <span className="text-red-600">*</span></span>
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                                Editable
+                                            </span>
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                                LKR
+                                            </span>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                min="0"
+                                                required
+                                                value={form.data.price}
+                                                onChange={(e) => handlePriceChange(e.target.value)}
+                                                placeholder="0.00"
+                                                className="w-full pl-12 pr-3 py-2 text-xs font-black text-black rounded-lg border-emerald-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                                            />
+                                        </div>
+                                        <p className="text-[10px] font-bold text-emerald-800 mt-1">
+                                            Rate: LKR {Number(rentDailyRate || 0).toLocaleString()} × {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between gap-3 text-amber-900">
+                                <div className="flex items-center gap-2">
+                                    <CarFront size={16} className="text-amber-700 shrink-0" />
+                                    <span className="text-xs font-bold">
+                                        Please pick a vehicle from the rates list above to load and edit its rate.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-2 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={form.processing}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-black py-2.5 px-6 rounded-xl shadow-md transition disabled:opacity-50 text-xs sm:text-sm"
+                        >
+                            <span>Save Customer & Proceed to Payment</span>
+                            <span>→</span>
+                        </button>
+                    </div>
+                </form>
             )}
         </div>
     );
@@ -4866,14 +5417,17 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(agent?.external_vehicle_make || '');
 
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const initialStartDate = agent?.rent_start_date || new Date().toISOString().split('T')[0];
+    const initialEndDate = agent?.rent_end_date || (() => {
+        const d = new Date(initialStartDate);
+        d.setDate(d.getDate() + (parseInt(agent?.days) || 1));
+        return d.toISOString().split('T')[0];
+    })();
 
-    useEffect(() => {
-        fetchVehicles();
-    }, [startDate, endDate]);
+    const [startDate, setStartDate] = useState(initialStartDate);
+    const [endDate, setEndDate] = useState(initialEndDate);
 
     const fetchVehicles = async () => {
         setLoading(true);
@@ -4935,24 +5489,64 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-lg border">
+        <div className="space-y-4 text-black">
+            {/* Selected Vehicle Type to Assign */}
+            {agent?.external_vehicle_make && (
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-black bg-blue-50 border border-blue-200 p-3 rounded-xl shadow-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-gray-700 font-bold">Selected Type to Assign:</span>
+                        <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg font-black text-sm shadow-xs">
+                            {agent.external_vehicle_make} {agent.external_vehicle_model}
+                        </span>
+                        {agent?.remarks && (
+                            <span className="bg-white border border-blue-200 text-blue-900 px-2 py-0.5 rounded text-xs font-bold">
+                                {agent.remarks}
+                            </span>
+                        )}
+                        <span className="text-gray-500 font-normal">
+                            ({agent.days || 1} {Number(agent?.days) === 1 ? 'Day' : 'Days'} • Dropoff: {agent.dropoff_location || 'BIA Airport'})
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {searchQuery ? (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="text-xs bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 px-2.5 py-1 rounded-lg font-bold transition shadow-xs"
+                            >
+                                Show All Vehicles
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery(agent.external_vehicle_make)}
+                                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg font-bold transition shadow-xs"
+                            >
+                                Filter to {agent.external_vehicle_make}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Date and Search Bar */}
+            <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
                 <div>
-                    <label className="label">Start Date</label>
-                    <input type="date" className="input text-sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <label className="block text-xs font-bold text-black mb-1">Start Date</label>
+                    <input type="date" className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" value={startDate} onChange={e => setStartDate(e.target.value)} />
                 </div>
                 <div>
-                    <label className="label">End Date</label>
-                    <input type="date" className="input text-sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    <label className="block text-xs font-bold text-black mb-1">End Date</label>
+                    <input type="date" className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" value={endDate} onChange={e => setEndDate(e.target.value)} />
                 </div>
                 <div className="pt-5">
-                    <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700">Search</button>
+                    <button onClick={fetchVehicles} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black hover:bg-blue-700 transition">Search Fleet</button>
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                    <label className="label">Search Vehicles</label>
+                    <label className="block text-xs font-bold text-black mb-1">Search Fleet Vehicles</label>
                     <input 
                         type="text" 
-                        className="input text-sm w-full" 
+                        className="w-full text-xs font-bold text-black rounded-lg border-gray-300 bg-white p-2" 
                         placeholder="Search by make, model, reg, or company..." 
                         value={searchQuery} 
                         onChange={e => setSearchQuery(e.target.value)} 
@@ -4961,11 +5555,11 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
             </div>
 
             {loading ? (
-                <div className="text-center py-10 text-gray-500">Loading external vehicles...</div>
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">Loading external vehicles...</div>
             ) : error ? (
-                <div className="text-center py-10 text-red-500 font-semibold">{error}</div>
+                <div className="text-center py-10 text-red-500 font-bold text-xs">{error}</div>
             ) : vehicles.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No vehicles available for these dates.</div>
+                <div className="text-center py-10 text-gray-500 font-bold text-xs">No vehicles available for these dates.</div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
                     {vehicles.filter(v => {
@@ -4977,35 +5571,60 @@ function RentACarVehicleTab({ agent, customerId, onClose, invoicePath = null }) 
                             (v.reg_no || '').toLowerCase().includes(query) ||
                             (v.company_name || '').toLowerCase().includes(query)
                         );
-                    }).map(v => (
-                        <div key={v.id} className="border rounded-lg p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-400 cursor-pointer transition-all" onClick={() => setConfirmModal({ vehicle: v })}>
-                            <div>
-                                <h4 className="font-bold text-gray-800">{v.make} {v.model}</h4>
-                                <p className="text-xs text-gray-500 mt-1">{v.vehicle_type_name}</p>
+                    }).map(v => {
+                        const matchesSelected = Boolean(
+                            agent?.external_vehicle_make &&
+                            ((v.make || '').toLowerCase().includes(agent.external_vehicle_make.toLowerCase()) ||
+                             (v.model || '').toLowerCase().includes(agent.external_vehicle_model?.toLowerCase() || ''))
+                        );
+
+                        return (
+                            <div
+                                key={v.id}
+                                className={`border-2 rounded-xl p-3 shadow-sm bg-white flex flex-col justify-between hover:border-blue-500 cursor-pointer transition-all ${
+                                    matchesSelected ? 'border-emerald-400 bg-emerald-50/40' : 'border-gray-200'
+                                }`}
+                                onClick={() => setConfirmModal({ vehicle: v })}
+                            >
+                                <div>
+                                    {matchesSelected && (
+                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase px-1.5 py-0.5 rounded border border-emerald-300 mb-1.5">
+                                            ✓ Matches Selected Type
+                                        </span>
+                                    )}
+                                    <h4 className="font-black text-sm text-gray-900">{v.make} {v.model}</h4>
+                                    <p className="text-xs text-gray-600 font-semibold mt-0.5">{v.vehicle_type_name}</p>
+                                </div>
+                                <div className="mt-3 text-xs border-t border-gray-100 pt-2 flex items-center justify-between">
+                                    <span className="inline-block bg-yellow-100 text-yellow-900 px-2 py-0.5 rounded font-mono font-bold">{v.reg_no}</span>
+                                    <p className="text-[11px] text-gray-600 font-bold truncate max-w-[120px]">{v.company_name}</p>
+                                </div>
                             </div>
-                            <div className="mt-3 text-sm">
-                                <span className="inline-block bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-mono font-bold">{v.reg_no}</span>
-                                <p className="text-xs text-gray-500 mt-2 line-clamp-1">{v.company_name}</p>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
             {confirmModal && (
                 <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
-                        <h3 className="text-lg font-bold">Assign External Vehicle</h3>
-                        <div className="bg-gray-50 p-3 rounded border text-sm">
-                            <p><strong>Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
-                            <p><strong>Reg No:</strong> {confirmModal.vehicle.reg_no}</p>
+                        <h3 className="text-base font-black text-gray-900">Assign External Vehicle</h3>
+                        <div className="bg-gray-50 p-3 rounded-lg border text-xs space-y-1.5 font-bold text-gray-800">
+                            {agent?.external_vehicle_make && (
+                                <p className="text-blue-900">
+                                    <strong>Selected Spec:</strong> {agent.external_vehicle_make} {agent.external_vehicle_model}
+                                </p>
+                            )}
+                            <p><strong>Fleet Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
+                            <p><strong>Reg No:</strong> <span className="font-mono bg-yellow-100 px-1 rounded">{confirmModal.vehicle.reg_no}</span></p>
                             <p><strong>Company:</strong> {confirmModal.vehicle.company_name}</p>
-                            <p><strong>Dates:</strong> {startDate} to {endDate}</p>
+                            <p><strong>Dates:</strong> {startDate} to {endDate} ({agent?.days || 1} Days)</p>
+                            <p className="text-emerald-700"><strong>Rate:</strong> LKR {Number(agent?.price || 0).toLocaleString()} (No Driver)</p>
                         </div>
                         <div className="flex gap-2 pt-2">
-                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">Cancel</button>
-                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50">
-                                {submitting ? 'Assigning...' : 'Confirm'}
+                            <button type="button" onClick={() => setConfirmModal(null)} className="flex-1 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-bold hover:bg-gray-50">Cancel</button>
+                            <button type="button" disabled={submitting} onClick={confirmAssign} className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-xs font-black hover:bg-blue-800 disabled:opacity-50">
+                                {submitting ? 'Assigning...' : 'Confirm Assignment'}
                             </button>
                         </div>
                     </div>

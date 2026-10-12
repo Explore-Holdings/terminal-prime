@@ -58,6 +58,9 @@ class CustomerController extends Controller
             'days' => 'nullable|integer|min:1',
             'driver_rate' => 'nullable|numeric|min:0',
             'driver_rate_reason' => 'nullable|string',
+            'external_vehicle_make' => 'nullable|string|max:255',
+            'external_vehicle_model' => 'nullable|string|max:255',
+            'external_company_name' => 'nullable|string|max:255',
             'language_preference' => 'nullable|string|max:100',
             'status' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
@@ -134,6 +137,23 @@ class CustomerController extends Controller
         }
         if (array_key_exists('driver_rate_reason', $data)) {
             $agentUpdates['driver_rate_reason'] = $data['driver_rate_reason'];
+        }
+        if (isset($data['external_vehicle_make'])) {
+            $agentUpdates['external_vehicle_make'] = $data['external_vehicle_make'];
+        }
+        if (isset($data['external_vehicle_model'])) {
+            $agentUpdates['external_vehicle_model'] = $data['external_vehicle_model'];
+        }
+        if (isset($data['external_company_name'])) {
+            $agentUpdates['external_company_name'] = $data['external_company_name'];
+        }
+        if (($data['booking_type'] ?? '') === 'Rent a Car') {
+            $agentUpdates['driver_rate'] = null;
+            $agentUpdates['driver_rate_reason'] = null;
+            if (!empty($data['days'])) {
+                $agentUpdates['rent_start_date'] = now()->toDateString();
+                $agentUpdates['rent_end_date'] = now()->addDays((int) $data['days'])->toDateString();
+            }
         }
 
         $agent->update($agentUpdates);
