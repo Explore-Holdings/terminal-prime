@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Google\Auth\Credentials\ServiceAccountCredentials;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class CustomerController extends Controller
 {
@@ -41,9 +42,9 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'agent_id' => 'required|exists:agents,id',
+            'agent_id' => 'nullable|exists:agents,id',
             'agent_user_id' => 'nullable|exists:users,id',
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'mobile_number' => 'nullable|string|max:30',
             'whatsapp_number' => 'nullable|string|max:30',
@@ -70,7 +71,26 @@ class CustomerController extends Controller
             $data['language_preference'] = 'English';
         }
 
-        $agent = Agent::findOrFail($data['agent_id']);
+        if (empty($data['agent_id'])) {
+            $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
+            $agent = Agent::create([
+                'user_id' => $data['agent_user_id'] ?? Auth::id(),
+                'name' => $data['name'] ?: 'Walk-in Customer',
+                'status' => 'Pending',
+                'booking_type' => $data['booking_type'] ?: 'Transfer',
+                'currency' => $data['currency'] ?? 'LKR',
+                'price' => $data['price'] ?? 0,
+                'passenger_count' => $data['passenger_count'] ?? 1,
+                'luggage_count' => $data['luggage_count'] ?? 0,
+                'dropoff_location' => $data['dropoff_location'] ?? null,
+                'booking_number' => $bookingNumber,
+                'processing_by' => Auth::id(),
+                'processing_at' => now(),
+            ]);
+            $data['agent_id'] = $agent->id;
+        } else {
+            $agent = Agent::findOrFail($data['agent_id']);
+        }
 
         $customerData = [
             'agent_id' => $data['agent_id'],
@@ -167,7 +187,9 @@ class CustomerController extends Controller
 
         return redirect()
             ->route('counter.index')
-            ->with('created_customer_id', $customer->id);
+            ->with('created_customer_id', $customer->id)
+            ->with('created_agent_id', $agent->id)
+            ->with('agent', $agent->loadMissing(['user', 'customers']));
     }
 
     public function savePayment(Request $request, Customer $customer)
@@ -335,7 +357,7 @@ class CustomerController extends Controller
     {
         $data = $request->validate([
             'driver_id'      => 'required|exists:drivers,id',
-            'agent_id'       => 'required|exists:agents,id',
+            'agent_id'       => 'nullable|exists:agents,id',
             'remarks'        => 'nullable|string',
             'driver_rate'    => 'nullable|numeric|min:0|max:100',
             'agent_rate'     => 'nullable|numeric|min:0|max:100',
@@ -350,7 +372,14 @@ class CustomerController extends Controller
 
         $trip = null;
 
-        DB::transaction(function () use ($data, $customer, &$trip) {
+        $agentId = $data['agent_id'] ?? $customer->agent_id;
+        if (!$agentId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'agent_id' => 'Agent booking not found for this customer.',
+            ]);
+        }
+
+        DB::transaction(function () use ($data, $customer, &$trip, $agentId) {
 
             // ── Session Tracking: Initialize session_id for ALL drivers ──
             // When session_id is null (fresh start), session 1 applies to every
@@ -484,7 +513,7 @@ class CustomerController extends Controller
             $trip = Trip::create([
                 'driver_id'           => $data['driver_id'],
                 'customer_id'         => $customer->id,
-                'agent_id'            => $data['agent_id'],
+                'agent_id'            => $agentId,
                 'trip_assigned_at'    => now(),
                 'trip_assigned_by'    => auth()->id(),
                 'selection_reason'    => $selectionReason,

@@ -211,6 +211,7 @@ class CounterController extends Controller
                 ->get(),
                 
             'createdCustomerId' => session('created_customer_id'),
+            'createdAgentId' => session('created_agent_id'),
             'invoicePath' => session('invoice_path'),
             'countries' => Country::orderBy('country_name')->get(),
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),

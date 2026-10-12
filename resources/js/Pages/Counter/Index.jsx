@@ -420,7 +420,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         const existingCust = agent.customers?.length ? agent.customers[agent.customers.length - 1] : (agent.customer || null);
 
         customerForm.setData({
-            agent_id: agent.id,
+            agent_id: agent.id || '',
             agent_user_id: agent.user_id || '',
             name: existingCust?.name || (agent.name !== 'Walk-in Customer' ? agent.name : '') || '',
             email: existingCust?.email || '',
@@ -433,7 +433,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             vehicle_type: 'car',
             price: agent.price ?? 0,
             currency: agent.currency ?? 'LKR',
-            booking_type: agent.booking_type ?? 'Transfer',
+            booking_type: agent.booking_type || 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
             days: agent.days ?? 1,
@@ -474,18 +474,22 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
     const [creatingBooking, setCreatingBooking] = useState(false);
     const [showPendingDropdown, setShowPendingDropdown] = useState(false);
 
-    const handleAddNewBooking = async () => {
-        try {
-            setCreatingBooking(true);
-            const res = await window.axios.post('/counter/new-booking');
-            if (res.data?.agent) {
-                openModal(res.data.agent, 'customer');
-            }
-        } catch (err) {
-            console.error('Failed to create new booking', err);
-        } finally {
-            setCreatingBooking(false);
-        }
+    const handleAddNewBooking = () => {
+        const newBookingAgent = {
+            id: null,
+            is_new: true,
+            user_id: currentUserId || auth?.user?.id || '',
+            name: '',
+            status: 'Pending',
+            booking_type: 'Transfer',
+            currency: 'LKR',
+            price: 0,
+            passenger_count: 1,
+            luggage_count: 0,
+            country: '',
+            customers: [],
+        };
+        openModal(newBookingAgent, 'customer');
     };
 
     // Is a specific agent locked by another staff member?
@@ -497,7 +501,7 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
         if (!agent) return;
 
         setSelectedAgent(agent);
-        setProcessingAgentId(agent.id);
+        setProcessingAgentId(agent.id || null);
 
         try {
             resetCustomerForm(agent);
@@ -531,9 +535,18 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
-                const updatedAgent = page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
+                const createdAgentId = page.props.flash?.created_agent_id || page.props.createdAgentId;
+                const createdAgent = page.props.flash?.agent;
+                const updatedAgent = (createdAgentId ? page.props.pendingAgents?.find(a => a.id === createdAgentId) : null)
+                    || createdAgent
+                    || page.props.pendingAgents?.find(a => a.id === selectedAgent?.id);
+
                 if (updatedAgent) {
                     setSelectedAgent(updatedAgent);
+                    setPaymentEnabledAgentId(updatedAgent.id);
+                } else if (createdAgentId) {
+                    setSelectedAgent(prev => ({ ...(prev || {}), id: createdAgentId }));
+                    setPaymentEnabledAgentId(createdAgentId);
                 }
                 const id = page.props.flash?.created_customer_id
                     || page.props.createdCustomerId
@@ -543,10 +556,11 @@ export default function Index({ pendingAgents = [], ongoingTrips = [], vehicles 
                 if (id) {
                     setCreatedCustomerId(id);
                 }
-                if (selectedAgent?.id) {
-                    setPaymentEnabledAgentId(selectedAgent.id);
-                }
                 setActiveTab('payment');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).join('\n');
+                alert('Could not save customer details:\n' + (msg || 'Please check the form inputs.'));
             },
         });
     };
@@ -1545,16 +1559,46 @@ function Modal({
                         Customer
                     </TabButton>
 
-                    <TabButton active={activeTab === 'payment'} onClick={() => setActiveTab('payment')}>
+                    <TabButton
+                        active={activeTab === 'payment'}
+                        disabled={!effectiveCustomerId}
+                        onClick={() => {
+                            if (!effectiveCustomerId) {
+                                alert('Please save customer details first before proceeding to payment.');
+                                return;
+                            }
+                            setActiveTab('payment');
+                        }}
+                    >
                         Payment
                     </TabButton>
 
                     {agent.booking_type !== 'Rent a Car' ? (
-                        <TabButton active={activeTab === 'vehicle'} onClick={() => setActiveTab('vehicle')}>
+                        <TabButton
+                            active={activeTab === 'vehicle'}
+                            disabled={!effectiveCustomerId}
+                            onClick={() => {
+                                if (!effectiveCustomerId) {
+                                    alert('Please save customer details first before assigning a vehicle.');
+                                    return;
+                                }
+                                setActiveTab('vehicle');
+                            }}
+                        >
                             Vehicle
                         </TabButton>
                     ) : (
-                        <TabButton active={activeTab === 'rent_a_car_vehicle'} onClick={() => setActiveTab('rent_a_car_vehicle')}>
+                        <TabButton
+                            active={activeTab === 'rent_a_car_vehicle'}
+                            disabled={!effectiveCustomerId}
+                            onClick={() => {
+                                if (!effectiveCustomerId) {
+                                    alert('Please save customer details first before assigning a vehicle.');
+                                    return;
+                                }
+                                setActiveTab('rent_a_car_vehicle');
+                            }}
+                        >
                             External Vehicles
                         </TabButton>
                     )}
@@ -1952,11 +1996,18 @@ function CustomerTab({
     const standardDriverRate = Number(rateSetting?.driver_rate ?? 0);
 
     const [selectedType, setSelectedType] = useState(() => {
-        const bt = (agent?.booking_type || '').toLowerCase();
+        const bt = (agent?.booking_type || form.data.booking_type || '').toLowerCase();
         if (bt.includes('tour')) return 'Tours';
         if (bt.includes('rent')) return 'Rent a Car';
         return 'Transfers';
     });
+
+    useEffect(() => {
+        const bt = (agent?.booking_type || form.data.booking_type || '').toLowerCase();
+        if (bt.includes('tour')) setSelectedType('Tours');
+        else if (bt.includes('rent')) setSelectedType('Rent a Car');
+        else setSelectedType('Transfers');
+    }, [agent?.id, agent?.booking_type]);
 
     const [selectedCityName, setSelectedCityName] = useState(form.data.dropoff_location || '');
     const [citySearchTerm, setCitySearchTerm] = useState('');
@@ -2293,6 +2344,19 @@ function CustomerTab({
                     );
                 })}
             </div>
+
+            {/* If no booking type is selected yet */}
+            {!selectedType && (
+                <div className="p-8 sm:p-12 text-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/40 my-6 flex flex-col items-center justify-center">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center mb-3 shadow-inner">
+                        <Sparkles size={28} />
+                    </div>
+                    <h4 className="text-base font-extrabold text-slate-800">Please Select a Booking Type</h4>
+                    <p className="text-xs text-slate-500 max-w-md mt-1 font-medium">
+                        Click on <strong>Tours</strong>, <strong>Transfers</strong>, or <strong>Rent a Car</strong> above to configure this booking.
+                    </p>
+                </div>
+            )}
 
             {/* When Transfers is selected: show Transfer Details Form */}
             {selectedType === 'Transfers' && (
@@ -4060,6 +4124,11 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         const finalDriverRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultAgentRate;
 
+        if (!customerId) {
+            alert('Customer record not found. Please save customer details before assigning a vehicle.');
+            return;
+        }
+
         // Open invoice on trip assignment
         const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
         window.open(invoiceUrl, '_blank');
@@ -4073,7 +4142,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             `/customers/${customerId}/assign-trip`,
             {
                 driver_id: driverId,
-                agent_id: agent.id,
+                agent_id: agent?.id || null,
                 remarks: '',
                 selection_reason: isOutOfTurnVehicle(vehicle) ? (selectionReason.trim() || null) : null,
                 is_short_trip: isShortTrip,
@@ -4089,6 +4158,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 preserveState: true,
                 preserveScroll: true,
                 onFinish: () => setSubmitting(false),
+                onError: (errors) => {
+                    const msg = Object.values(errors).join('\n');
+                    alert('Failed to assign trip:\n' + (msg || 'An error occurred while assigning the trip.'));
+                },
             }
         );
     };
