@@ -2944,7 +2944,7 @@ function CustomerTab({
                                     />
                                 </div>
                                 <p className="text-[11px] font-bold text-red-500 mt-1">
-                                    Enter the price for the whole tour
+                                    ENTER THE PRICE FOR THE WHOLE TOUR
                                 </p>
                             </div>
 
