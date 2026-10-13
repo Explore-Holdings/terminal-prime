@@ -70,7 +70,7 @@ export default function Dashboard({
 
                 {canViewDrivers && (
                     <DashboardCard
-                        title="Active Drivers"
+                        title="Drivers"
                         value={stats.totalDrivers}
                         subtitle="Registered drivers"
                         href="/drivers"
