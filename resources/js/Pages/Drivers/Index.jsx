@@ -27,10 +27,12 @@ export default function Index({ drivers = [] }) {
 
     const columns = [
         {
+            id: 'id',
             name: '#',
-            selector: row => row.id ?? '-',
-            width: '60px',
-            sortable: false,
+            selector: row => Number(row.id) || 0,
+            cell: row => row.id ?? '-',
+            width: '70px',
+            sortable: true,
         },
         {
             name: 'Reg No',
@@ -176,6 +178,8 @@ export default function Index({ drivers = [] }) {
                     pagination
                     paginationPerPage={25}
                     paginationRowsPerPageOptions={[10, 25, 50, 100, 200, 500]}
+                    defaultSortFieldId="id"
+                    defaultSortAsc={true}
                     highlightOnHover
                     striped
                     responsive
