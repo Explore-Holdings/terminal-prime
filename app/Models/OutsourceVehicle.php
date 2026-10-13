@@ -10,6 +10,7 @@ class OutsourceVehicle extends Model
         'customer_id',
         'agent_id',
         'price',
+        'advance_payment',
         'vehicle_number',
         'mobile_number',
         'created_by',

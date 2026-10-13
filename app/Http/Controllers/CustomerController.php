@@ -849,9 +849,10 @@ class CustomerController extends Controller
     public function assignOutsourceVehicle(Request $request, Customer $customer)
     {
         $data = $request->validate([
-            'vehicle_number' => 'required|string|max:100',
-            'price'          => 'required|numeric|min:0',
-            'mobile_number'  => 'nullable|string|max:50',
+            'vehicle_number'  => 'required|string|max:100',
+            'price'           => 'required|numeric|min:0',
+            'advance_payment' => 'nullable|numeric|min:0|lte:price',
+            'mobile_number'   => 'nullable|string|max:50',
         ]);
 
         $agent = $customer->agent;
@@ -860,12 +861,13 @@ class CustomerController extends Controller
         }
 
         \App\Models\OutsourceVehicle::create([
-            'customer_id'    => $customer->id,
-            'agent_id'       => $agent->id,
-            'price'          => $data['price'],
-            'vehicle_number' => strtoupper(trim($data['vehicle_number'])),
-            'mobile_number'  => $data['mobile_number'] ?? null,
-            'created_by'     => auth()->id(),
+            'customer_id'     => $customer->id,
+            'agent_id'        => $agent->id,
+            'price'           => $data['price'],
+            'advance_payment' => $data['advance_payment'] ?? 0,
+            'vehicle_number'  => strtoupper(trim($data['vehicle_number'])),
+            'mobile_number'   => $data['mobile_number'] ?? null,
+            'created_by'      => auth()->id(),
         ]);
 
         $agent->update([

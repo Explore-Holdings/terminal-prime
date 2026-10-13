@@ -3743,6 +3743,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [outsourceForm, setOutsourceForm] = useState({
         vehicle_number: '',
         price: '',
+        advance_payment: '',
         mobile_number: '',
     });
 
@@ -4021,6 +4022,19 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             return;
         }
 
+        const priceNum = Number(outsourceForm.price || 0);
+        const advanceNum = Number(outsourceForm.advance_payment || 0);
+
+        if (advanceNum < 0) {
+            alert('Advance payment cannot be negative.');
+            return;
+        }
+
+        if (advanceNum > priceNum) {
+            alert(`Advance payment (LKR ${advanceNum.toLocaleString()}) cannot be more than the price (LKR ${priceNum.toLocaleString()}).`);
+            return;
+        }
+
         // Open invoice immediately on outsource vehicle assignment (before async POST to prevent browser popup blocking)
         const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
         window.open(invoiceUrl, '_blank');
@@ -4033,7 +4047,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             `/customers/${customerId}/assign-outsource-vehicle`,
             {
                 vehicle_number: outsourceForm.vehicle_number.trim(),
-                price: Number(outsourceForm.price || 0),
+                price: priceNum,
+                advance_payment: advanceNum,
                 mobile_number: outsourceForm.mobile_number?.trim() || null,
             },
             {
@@ -4523,6 +4538,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         setOutsourceForm({
                                             vehicle_number: '',
                                             price: '',
+                                            advance_payment: '',
                                             mobile_number: '',
                                         });
                                         setShowOutsourceModal(true);
@@ -4548,6 +4564,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                     setOutsourceForm({
                                         vehicle_number: '',
                                         price: '',
+                                        advance_payment: '',
                                         mobile_number: '',
                                     });
                                     setShowOutsourceModal(true);
@@ -5038,6 +5055,54 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Advance Payment */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={14} className="text-black" />
+                                        <span>Advance Payment (LKR)</span>
+                                    </span>
+                                    {Number(outsourceForm.price || 0) > 0 && (
+                                        <span className="text-[10px] text-gray-500 font-semibold">
+                                            Max: LKR {Number(outsourceForm.price || 0).toLocaleString()}
+                                        </span>
+                                    )}
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        max={outsourceForm.price !== '' ? Number(outsourceForm.price) : undefined}
+                                        value={outsourceForm.advance_payment}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setOutsourceForm(prev => ({ ...prev, advance_payment: val }));
+                                        }}
+                                        placeholder="0.00"
+                                        className={`w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border focus:ring-1 bg-white ${
+                                            Number(outsourceForm.advance_payment || 0) > Number(outsourceForm.price || 0)
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                                : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500'
+                                        }`}
+                                    />
+                                </div>
+                                {Number(outsourceForm.advance_payment || 0) > Number(outsourceForm.price || 0) ? (
+                                    <p className="text-[10px] font-bold text-red-600 mt-1">
+                                        ⚠️ Advance payment cannot be more than the price (LKR {Number(outsourceForm.price || 0).toLocaleString()})
+                                    </p>
+                                ) : (
+                                    Number(outsourceForm.price || 0) > 0 && (
+                                        <p className="text-[10px] font-medium text-gray-500 mt-1">
+                                            Remaining Balance: LKR {(Number(outsourceForm.price || 0) - Number(outsourceForm.advance_payment || 0)).toLocaleString()}
+                                        </p>
+                                    )
+                                )}
                             </div>
 
                             {/* Mobile Number */}
