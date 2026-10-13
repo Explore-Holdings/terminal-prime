@@ -177,44 +177,20 @@ class CounterController extends Controller
             ]);
 
         return Inertia::render('Counter/Index', [
-            'pendingAgents' => Agent::with(['user', 'processor', 'customers'])
+            'pendingAgents' => Agent::with(['user:id,name', 'processor:id,name', 'customers'])
                 ->where('status', 'Pending')
                 ->latest()
                 ->get(),
 
-            'ongoingTrips' => Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy', 'shortTripBy'])
-                ->where('status', '!=', 'Completed')
-                ->latest()
-                ->get(),
+            'ongoingTrips' => $this->getOngoingTripsQuery()->get(),
 
-            'vehicles' => Vehicle::with([
-                    'driver.languages',
-                    'driver.serviceCategories' => function ($q) {
-                        $q->whereNotIn('service_categories.id', [4, 8, 9, 10]);
-                    },
-                    'pictures',
-                    'driver.trips' => function ($q) {
-                        $q->where('status', '!=', 'Completed');
-                    }
-                ])
-                ->select('vehicles.*')
-                ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
-                ->where('drivers.driver_status', 'Active')
-                ->orderByRaw("
-                    CASE
-                        WHEN drivers.duty_status = 'on_duty' THEN 0
-                        ELSE 1
-                    END
-                ")
-                ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
-                ->orderBy('drivers.checked_in_at', 'asc')
-                ->get(),
+            'vehicles' => $this->getVehiclesQueueQuery()->get(),
                 
             'queueVersion' => $this->computeQueueVersion(),
             'createdCustomerId' => session('created_customer_id'),
             'createdAgentId' => session('created_agent_id'),
             'invoicePath' => session('invoice_path'),
-            'countries' => Country::orderBy('country_name')->get(),
+            'countries' => Country::select('id', 'country_name')->orderBy('country_name')->get(),
             'rateSetting' => RateSetting::where('is_active', true)->latest()->first(),
             'locationVehiclePrices' => LocationVehiclePrice::orderBy('city')->get(),
             'vehicleRates' => DB::table('vehicle_rates')->get(),
@@ -225,9 +201,17 @@ class CounterController extends Controller
                 ->orderBy('language_name')
                 ->pluck('language_name'),
 
-            'myTrips' => Trip::with(['driver.vehicle', 'customer', 'agent.user', 'tripFinance', 'selectionReasonBy', 'shortTripBy'])
+            'myTrips' => Trip::with([
+                    'driver' => function ($q) {
+                        $q->select('id', 'first_name', 'last_name', 'mobile_number');
+                    },
+                    'driver.vehicle:id,driver_id,registration_number',
+                    'customer',
+                    'tripFinance'
+                ])
                 ->where('trip_assigned_by', Auth::id())
                 ->latest('trip_assigned_at')
+                ->take(50)
                 ->get(),
 
             'shortTrips' => \App\Models\ShortTrip::with(['trip.customer', 'driver.vehicle', 'assignedBy', 'checkedInBy'])
@@ -587,19 +571,33 @@ class CounterController extends Controller
         ]);
     }
 
-    public function getVehiclesQueue()
+    protected function getVehiclesQueueQuery()
     {
-        $vehicles = Vehicle::with([
+        return Vehicle::with([
+                'driver' => function ($q) {
+                    $q->select([
+                        'id', 'registration_number', 'first_name', 'last_name', 'full_name',
+                        'mobile_number', 'driver_photo', 'driver_status',
+                        'duty_status', 'checked_in_at', 'session_id'
+                    ]);
+                },
                 'driver.languages',
                 'driver.serviceCategories' => function ($q) {
                     $q->whereNotIn('service_categories.id', [4, 8, 9, 10]);
                 },
-                'pictures',
+                'pictures' => function ($q) {
+                    $q->select('id', 'vehicle_id', 'front_view');
+                },
                 'driver.trips' => function ($q) {
-                    $q->where('status', '!=', 'Completed');
+                    $q->select('id', 'driver_id', 'status')->where('status', '!=', 'Completed');
                 }
             ])
-            ->select('vehicles.*')
+            ->select([
+                'vehicles.id', 'vehicles.driver_id', 'vehicles.registration_number',
+                'vehicles.vehicle_type', 'vehicles.brand', 'vehicles.model',
+                'vehicles.vehicle_year', 'vehicles.color', 'vehicles.seating_capacity',
+                'vehicles.luggage_capacity'
+            ])
             ->join('drivers', 'drivers.id', '=', 'vehicles.driver_id')
             ->where('drivers.driver_status', 'Active')
             ->orderByRaw("
@@ -609,17 +607,28 @@ class CounterController extends Controller
                 END
             ")
             ->orderByRaw("COALESCE(drivers.session_id, 0) ASC")
-            ->orderBy('drivers.checked_in_at', 'asc')
-            ->get();
+            ->orderBy('drivers.checked_in_at', 'asc');
+    }
 
-        $ongoingTrips = Trip::with(['driver', 'customer', 'agent', 'driver.vehicle', 'selectionReasonBy', 'shortTripBy'])
+    protected function getOngoingTripsQuery()
+    {
+        return Trip::with([
+                'driver' => function ($q) {
+                    $q->select('id', 'first_name', 'last_name', 'mobile_number');
+                },
+                'customer',
+                'agent.user:id,name',
+                'driver.vehicle:id,driver_id,registration_number'
+            ])
             ->where('status', '!=', 'Completed')
-            ->latest()
-            ->get();
+            ->latest();
+    }
 
+    public function getVehiclesQueue()
+    {
         return response()->json([
-            'vehicles' => $vehicles,
-            'ongoingTrips' => $ongoingTrips,
+            'vehicles' => $this->getVehiclesQueueQuery()->get(),
+            'ongoingTrips' => $this->getOngoingTripsQuery()->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
             'version' => $this->computeQueueVersion(),
         ]);

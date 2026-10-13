@@ -516,7 +516,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
             vehicle_type: 'car',
-            price: agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0),
+            price: agent.price ?? '',
             currency: agent.currency ?? 'LKR',
             booking_type: agent.booking_type || 'Transfer',
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
@@ -532,7 +532,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             remarks: existingCust?.remarks || agent.remarks || '',
         });
 
-        const initialRentPrice = agent.price ?? (agent.booking_type === 'Rent a Car' ? ((Number(rentACarRates?.[0]?.rate) || 14000) * (agent.days ?? 1)) : 0);
+        const initialRentPrice = agent.price ?? '';
         paymentForm.setData({
             currency: agent.currency ?? 'LKR',
             price: initialRentPrice,
@@ -2109,18 +2109,18 @@ function CustomerTab({
     // Rent a Car State & Pricing
     const firstRentRate = Number(rentACarRates?.[0]?.rate || 14000);
     const [rentDailyRate, setRentDailyRate] = useState(() => {
-        if (form.data.price && form.data.days) {
+        if (form.data.price && form.data.days && Number(form.data.days) > 0) {
             return Math.round(Number(form.data.price) / Number(form.data.days));
         }
-        return firstRentRate;
+        return '';
     });
 
     // Handle Rent a Car price change directly
     const handleRentPriceChange = (priceVal) => {
+        form.setData('price', priceVal);
         const p = parseFloat(priceVal) || 0;
         const dayCount = parseInt(form.data.days) || 1;
-        form.setData('price', p);
-        setRentDailyRate(Math.round(p / dayCount));
+        setRentDailyRate(p > 0 ? Math.round(p / dayCount) : '');
         if (paymentForm && typeof paymentForm.setData === 'function') {
             paymentForm.setData((prev) => ({
                 ...prev,
@@ -2141,17 +2141,17 @@ function CustomerTab({
         setRentDailyRate(rateVal);
         const dayCount = parseInt(form.data.days) || 1;
         const num = parseFloat(rateVal) || 0;
-        const totalPrice = num * dayCount;
+        const totalPrice = num > 0 ? num * dayCount : '';
         form.setData('price', totalPrice);
         if (paymentForm && typeof paymentForm.setData === 'function') {
             paymentForm.setData((prev) => ({
                 ...prev,
                 currency: 'LKR',
-                price: totalPrice,
+                price: parseFloat(totalPrice) || 0,
                 payments: [{
                     method: 'Cash',
                     currency: 'LKR',
-                    amount: totalPrice,
+                    amount: parseFloat(totalPrice) || 0,
                     notes: [{ amount: '', count: '', currency: 'LKR' }],
                 }],
             }));
@@ -2162,20 +2162,21 @@ function CustomerTab({
     const handleRentDaysChange = (newDays) => {
         const d = Math.max(1, parseInt(newDays) || 1);
         form.setData('days', d);
-        const rateToUse = rentDailyRate !== '' ? (parseFloat(rentDailyRate) || 0) : firstRentRate;
-        const totalPrice = rateToUse * d;
-        form.setData('price', totalPrice);
-        if (paymentForm && typeof paymentForm.setData === 'function') {
-            paymentForm.setData((prev) => ({
-                ...prev,
-                price: totalPrice,
-                payments: [{
-                    method: 'Cash',
-                    currency: 'LKR',
-                    amount: totalPrice,
-                    notes: [{ amount: '', count: '', currency: 'LKR' }],
-                }],
-            }));
+        if (rentDailyRate !== '' && parseFloat(rentDailyRate) > 0) {
+            const totalPrice = Math.round(parseFloat(rentDailyRate) * d);
+            form.setData('price', totalPrice);
+            if (paymentForm && typeof paymentForm.setData === 'function') {
+                paymentForm.setData((prev) => ({
+                    ...prev,
+                    price: totalPrice,
+                    payments: [{
+                        method: 'Cash',
+                        currency: 'LKR',
+                        amount: totalPrice,
+                        notes: [{ amount: '', count: '', currency: 'LKR' }],
+                    }],
+                }));
+            }
         }
     };
 
@@ -2184,24 +2185,6 @@ function CustomerTab({
         if (selectedType === 'Rent a Car') {
             if (!form.data.dropoff_location || form.data.dropoff_location === '') {
                 form.setData('dropoff_location', 'BIA Airport');
-            }
-            if (!form.data.price || Number(form.data.price) === 0) {
-                const dayCount = parseInt(form.data.days) || 1;
-                const totalPrice = firstRentRate * dayCount;
-                form.setData('price', totalPrice);
-                if (paymentForm && typeof paymentForm.setData === 'function') {
-                    paymentForm.setData((prev) => ({
-                        ...prev,
-                        price: totalPrice,
-                        currency: 'LKR',
-                        payments: [{
-                            method: 'Cash',
-                            currency: 'LKR',
-                            amount: totalPrice,
-                            notes: [{ amount: '', count: '', currency: 'LKR' }],
-                        }],
-                    }));
-                }
             }
             if (form.data.driver_rate !== '' || form.data.driver_rate_reason !== '') {
                 form.setData((prev) => ({
@@ -3067,8 +3050,8 @@ function CustomerTab({
                         />
                     </div>
 
-                    {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport), Days */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Email Address <span className="text-black/70 font-semibold">(Optional)</span>
@@ -3113,30 +3096,9 @@ function CustomerTab({
                             />
                             {/* <p className="text-[10px] font-bold text-black/60 mt-0.5">Default: BIA Airport</p> */}
                         </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                <Calendar size={13} className="text-black" />
-                                <span>Days Count <span className="text-red-600">*</span></span>
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    required
-                                    value={form.data.days || 1}
-                                    onChange={(e) => handleRentDaysChange(e.target.value)}
-                                    placeholder="1"
-                                    className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
-                                    Days
-                                </span>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* Row 4: Vehicle Details & Price */}
+                    {/* Row 4: Vehicle Details, Price & Day Count */}
                     <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/90 space-y-3">
                         <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
                             <CarFront size={16} className="text-black" />
@@ -3145,12 +3107,12 @@ function CustomerTab({
                                     Vehicle Details & Pricing
                                 </h4>
                                 <p className="text-[11px] font-bold text-black/70">
-                                    Enter the vehicle number and set the price ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
+                                    Enter the vehicle number, set the price, and adjust days count ({form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}).
                                 </p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                             {/* Vehicle Number */}
                             <div>
                                 <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
@@ -3172,20 +3134,22 @@ function CustomerTab({
                                     className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2.5 px-3 bg-white"
                                 />
                                 <p className="text-[10px] font-bold text-black/60 mt-1">
-                                    Registration number of the vehicle to assign
+                                    Registration number of vehicle
                                 </p>
                             </div>
 
-                            {/* Price (Pre-filled from rent_a_car_rates first price) */}
+                            {/* Price */}
                             <div>
                                 <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
                                     <span className="flex items-center gap-1.5">
                                         <CreditCard size={13} className="text-black" />
-                                        <span>Price (LKR) <span className="text-red-600">*</span></span>
+                                        <span>Price (LKR) : Enter Price per day <span className="text-red-600">*</span></span>
                                     </span>
-                                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                        Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()} / day
-                                    </span>
+                                    {rentDailyRate ? (
+                                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                            Rate: LKR {Number(rentDailyRate).toLocaleString()} / day
+                                        </span>
+                                    ) : null}
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
@@ -3196,14 +3160,43 @@ function CustomerTab({
                                         step="any"
                                         min="0"
                                         required
-                                        value={form.data.price}
+                                        value={form.data.price ?? ''}
                                         onChange={(e) => handleRentPriceChange(e.target.value)}
-                                        placeholder="0.00"
+                                        placeholder="Enter rental price..."
                                         className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
                                     />
                                 </div>
                                 <p className="text-[10px] font-bold text-black/60 mt-1">
-                                    Total for {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'} (Rate: LKR {Number(rentDailyRate || firstRentRate).toLocaleString()}/day)
+                                    {form.data.price && Number(form.data.price) > 0 ? (
+                                        <>Total for {form.data.days || 1} {Number(form.data.days) === 1 ? 'day' : 'days'}</>
+                                    ) : (
+                                        <>Agreed rental price</>
+                                    )}
+                                </p>
+                            </div>
+
+                            {/* Day Count (Placed after Price) */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
+                                    <Calendar size={13} className="text-black" />
+                                    <span>Days Count <span className="text-red-600">*</span></span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        required
+                                        value={form.data.days || 1}
+                                        onChange={(e) => handleRentDaysChange(e.target.value)}
+                                        placeholder="1"
+                                        className="w-full pl-3 pr-12 py-2.5 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
+                                        Days
+                                    </span>
+                                </div>
+                                <p className="text-[10px] font-bold text-black/60 mt-1">
+                                    Total rental duration
                                 </p>
                             </div>
                         </div>
@@ -3750,6 +3743,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [outsourceForm, setOutsourceForm] = useState({
         vehicle_number: '',
         price: '',
+        advance_payment: '',
         mobile_number: '',
     });
 
@@ -4028,23 +4022,38 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             return;
         }
 
+        const priceNum = Number(outsourceForm.price || 0);
+        const advanceNum = Number(outsourceForm.advance_payment || 0);
+
+        if (advanceNum < 0) {
+            alert('Advance payment cannot be negative.');
+            return;
+        }
+
+        if (advanceNum > priceNum) {
+            alert(`Advance payment (LKR ${advanceNum.toLocaleString()}) cannot be more than the price (LKR ${priceNum.toLocaleString()}).`);
+            return;
+        }
+
+        // Open invoice immediately on outsource vehicle assignment (before async POST to prevent browser popup blocking)
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
+
         setOutsourceSubmitting(true);
+        setShowOutsourceModal(false);
+        onClose();
+
         router.post(
             `/customers/${customerId}/assign-outsource-vehicle`,
             {
                 vehicle_number: outsourceForm.vehicle_number.trim(),
-                price: Number(outsourceForm.price || 0),
+                price: priceNum,
+                advance_payment: advanceNum,
                 mobile_number: outsourceForm.mobile_number?.trim() || null,
             },
             {
                 preserveScroll: true,
                 preserveState: true,
-                onSuccess: () => {
-                    const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
-                    window.open(invoiceUrl, '_blank');
-                    setShowOutsourceModal(false);
-                    onClose();
-                },
                 onError: (errors) => {
                     const msg = Object.values(errors).join('\n');
                     alert('Failed to save outsource vehicle:\n' + (msg || 'Please check the form inputs.'));
@@ -4529,6 +4538,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         setOutsourceForm({
                                             vehicle_number: '',
                                             price: '',
+                                            advance_payment: '',
                                             mobile_number: '',
                                         });
                                         setShowOutsourceModal(true);
@@ -4554,6 +4564,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                     setOutsourceForm({
                                         vehicle_number: '',
                                         price: '',
+                                        advance_payment: '',
                                         mobile_number: '',
                                     });
                                     setShowOutsourceModal(true);
@@ -5044,6 +5055,54 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                         className="w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border-gray-300 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 bg-white"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Advance Payment */}
+                            <div>
+                                <label className="block text-xs font-bold text-black mb-1.5 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CreditCard size={14} className="text-black" />
+                                        <span>Advance Payment (LKR)</span>
+                                    </span>
+                                    {Number(outsourceForm.price || 0) > 0 && (
+                                        <span className="text-[10px] text-gray-500 font-semibold">
+                                            Max: LKR {Number(outsourceForm.price || 0).toLocaleString()}
+                                        </span>
+                                    )}
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-black select-none">
+                                        LKR
+                                    </span>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        max={outsourceForm.price !== '' ? Number(outsourceForm.price) : undefined}
+                                        value={outsourceForm.advance_payment}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setOutsourceForm(prev => ({ ...prev, advance_payment: val }));
+                                        }}
+                                        placeholder="0.00"
+                                        className={`w-full pl-12 pr-3 py-2.5 text-xs font-black text-black rounded-xl border focus:ring-1 bg-white ${
+                                            Number(outsourceForm.advance_payment || 0) > Number(outsourceForm.price || 0)
+                                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                                : 'border-gray-300 focus:border-amber-500 focus:ring-amber-500'
+                                        }`}
+                                    />
+                                </div>
+                                {Number(outsourceForm.advance_payment || 0) > Number(outsourceForm.price || 0) ? (
+                                    <p className="text-[10px] font-bold text-red-600 mt-1">
+                                        ⚠️ Advance payment cannot be more than the price (LKR {Number(outsourceForm.price || 0).toLocaleString()})
+                                    </p>
+                                ) : (
+                                    Number(outsourceForm.price || 0) > 0 && (
+                                        <p className="text-[10px] font-medium text-gray-500 mt-1">
+                                            Remaining Balance: LKR {(Number(outsourceForm.price || 0) - Number(outsourceForm.advance_payment || 0)).toLocaleString()}
+                                        </p>
+                                    )
+                                )}
                             </div>
 
                             {/* Mobile Number */}
