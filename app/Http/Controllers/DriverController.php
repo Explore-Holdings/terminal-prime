@@ -30,7 +30,7 @@ class DriverController extends Controller
     {
         return Inertia::render('Drivers/Index', [
             'drivers' => Driver::with('vehicle')
-                ->latest()
+                ->orderBy('id', 'asc')
                 ->get()
         ]);
     }
