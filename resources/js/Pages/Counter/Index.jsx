@@ -4021,7 +4021,14 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             return;
         }
 
+        // Open invoice immediately on outsource vehicle assignment (before async POST to prevent browser popup blocking)
+        const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
+        window.open(invoiceUrl, '_blank');
+
         setOutsourceSubmitting(true);
+        setShowOutsourceModal(false);
+        onClose();
+
         router.post(
             `/customers/${customerId}/assign-outsource-vehicle`,
             {
@@ -4032,12 +4039,6 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             {
                 preserveScroll: true,
                 preserveState: true,
-                onSuccess: () => {
-                    const invoiceUrl = `/customers/${customerId}/invoice/pdf`;
-                    window.open(invoiceUrl, '_blank');
-                    setShowOutsourceModal(false);
-                    onClose();
-                },
                 onError: (errors) => {
                     const msg = Object.values(errors).join('\n');
                     alert('Failed to save outsource vehicle:\n' + (msg || 'Please check the form inputs.'));

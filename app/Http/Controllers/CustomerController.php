@@ -906,8 +906,7 @@ class CustomerController extends Controller
             }
         }
 
-        return redirect()
-            ->route('counter.index')
+        return back()
             ->with('success', 'Outsource vehicle assigned successfully.')
             ->with('invoice_path', $invoicePath);
     }
