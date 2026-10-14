@@ -21,9 +21,47 @@ import {
     Eye,
 } from 'lucide-react';
 
+const FALLBACK_PERMISSIONS = [
+    { key: 'dashboard', label: 'Dashboard', path: '/dashboard', group: 'Core Operations', description: 'System metrics, counters, and overall operational KPIs' },
+    { key: 'counter', label: 'Counter Desk', path: '/counter', group: 'Core Operations', description: 'Live vehicle queue, customer check-ins, and desk bookings' },
+    { key: 'trips', label: 'Tours & Trips', path: '/trips', group: 'Core Operations', description: 'Tour assignments, vehicle bookings, and dispatch logs' },
+    { key: 'drivers', label: 'Drivers Directory', path: '/drivers', group: 'Fleet & Logistics', description: 'Driver profiles, duty shifts, and assigned vehicles' },
+    { key: 'customers', label: 'Customers', path: '/customers', group: 'Customer Relations', description: 'Customer directory, bookings history, and invoicing' },
+    { key: 'chats', label: 'Customer Chats', path: '/chats', group: 'Customer Relations', description: 'Live chat inquiries and instant messaging' },
+    { key: 'customer_surveys', label: 'Customer Surveys', path: '/customer-surveys', group: 'Customer Relations', description: 'Customer feedback ratings and satisfaction surveys' },
+    { key: 'finance', label: 'Finance & Petty Cash', path: '/finance', group: 'Finance & Payouts', description: 'Cash flow, driver payouts, and shift balances' },
+    { key: 'accountant', label: 'Accountant Hub', path: '/accountant', group: 'Finance & Payouts', description: 'Payment slips verification and accountant approvals' },
+    { key: 'pricing_data', label: 'Pricing Data', path: '/pricing-data', group: 'Finance & Payouts', description: 'Vehicle fare rates, distance matrices, and tariff import' },
+    { key: 'manager_reports', label: 'Counter Manager', path: '/manager-reports', group: 'Reporting & Analytics', description: 'Managerial shift reports and printable tour summaries' },
+    { key: 'agent_driver', label: 'Agent & Driver Insights', path: '/agent-driver-insights', group: 'Reporting & Analytics', description: 'Performance analytics for ticketing agents and drivers' },
+    { key: 'reports', label: 'Executive Overview', path: '/reports', group: 'Reporting & Analytics', description: 'Executive business reports and graphical charts' },
+    { key: 'reports_hub', label: 'Reports Hub', path: '/reports-hub', group: 'Reporting & Analytics', description: 'Universal data exporter for trips, revenue, and audits' },
+    { key: 'dss', label: 'DSS (Decision Support)', path: '/dss', group: 'System Administration', description: 'Decision Support System and automated allocation insights' },
+    { key: 'users', label: 'Users & Permissions', path: '/users', group: 'System Administration', description: 'User management, role assignment, and access control' },
+    { key: 'admin', label: 'Admin Audit Panel', path: '/admin', group: 'System Administration', description: 'Full system audit logs, device trackers, and database changes' },
+];
+
+export const parseRolePermissions = (perms) => {
+    if (Array.isArray(perms)) return perms;
+    if (typeof perms === 'string') {
+        try {
+            const parsed = JSON.parse(perms);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (e) {}
+    }
+    return [];
+};
+
 export default function Index({ users = [], roles = [], availablePermissions = [] }) {
     const { auth } = usePage().props;
     const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
+
+    // Use availablePermissions from backend if supplied, otherwise fallback to system definitions
+    const effectivePermissions = useMemo(() => {
+        return (availablePermissions && availablePermissions.length > 0)
+            ? availablePermissions
+            : FALLBACK_PERMISSIONS;
+    }, [availablePermissions]);
 
     // Tabs: 'users' | 'permissions'
     const [activeTab, setActiveTab] = useState('users');
@@ -82,7 +120,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
     // Group available permissions by group
     const groupedPermissions = useMemo(() => {
         const groups = {};
-        availablePermissions.forEach((perm) => {
+        effectivePermissions.forEach((perm) => {
             const groupName = perm.group || 'General';
             if (!groups[groupName]) {
                 groups[groupName] = [];
@@ -90,7 +128,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
             groups[groupName].push(perm);
         });
         return groups;
-    }, [availablePermissions]);
+    }, [effectivePermissions]);
 
     // User modal handlers
     const openCreateUser = () => {
@@ -157,7 +195,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
         setEditingRole(role);
         roleForm.setData({
             name: role.name ?? '',
-            permissions: Array.isArray(role.permissions) ? [...role.permissions] : [],
+            permissions: parseRolePermissions(role.permissions),
         });
         setShowRoleModal(true);
     };
@@ -192,8 +230,9 @@ export default function Index({ users = [], roles = [], availablePermissions = [
             return;
         }
 
-        if (role.users_count > 0) {
-            alert(`Cannot delete role "${roleName}" because it currently has ${role.users_count} user(s) assigned.`);
+        const count = Number(role.users_count) || 0;
+        if (count > 0) {
+            alert(`Cannot delete role "${roleName}" because it currently has ${count} user(s) assigned.`);
             return;
         }
 
@@ -208,7 +247,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
     const toggleMatrixPermission = (role, permissionKey) => {
         if (role.name.toLowerCase() === 'admin') return;
 
-        const currentPerms = Array.isArray(role.permissions) ? [...role.permissions] : [];
+        const currentPerms = parseRolePermissions(role.permissions);
         const exists = currentPerms.includes(permissionKey);
         const updatedPerms = exists
             ? currentPerms.filter(k => k !== permissionKey)
@@ -233,7 +272,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
     const toggleAllRolePermissions = (role, selectAll) => {
         if (role.name.toLowerCase() === 'admin') return;
 
-        const allKeys = availablePermissions.map(p => p.key);
+        const allKeys = effectivePermissions.map(p => p.key);
         const updatedPerms = selectAll ? allKeys : [];
 
         setSavingRoleId(role.id);
@@ -447,7 +486,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                                 <option value="">All Roles ({roles.length})</option>
                                 {roles.map((role) => (
                                     <option key={role.id} value={role.id}>
-                                        {role.name} ({role.users_count ?? 0})
+                                        {role.name} ({Number(role.users_count) || 0})
                                     </option>
                                 ))}
                             </select>
@@ -527,7 +566,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                             </div>
                             <div className="bg-slate-50 rounded-xl p-3">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Available Modules</span>
-                                <p className="text-xl font-black text-slate-800 mt-0.5">{availablePermissions.length}</p>
+                                <p className="text-xl font-black text-slate-800 mt-0.5">{effectivePermissions.length}</p>
                             </div>
                             <div className="bg-slate-50 rounded-xl p-3">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Registered Users</span>
@@ -555,8 +594,8 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                                         {filteredRoles.map((role) => {
                                             const isAdmin = role.name.toLowerCase() === 'admin';
                                             const isSystem = ['admin', 'staff', 'counter staff', 'driver', 'agent'].includes(role.name.toLowerCase());
-                                            const rolePerms = Array.isArray(role.permissions) ? role.permissions : [];
-                                            const isFull = rolePerms.length === availablePermissions.length;
+                                            const rolePerms = parseRolePermissions(role.permissions);
+                                            const isFull = rolePerms.length === effectivePermissions.length;
 
                                             return (
                                                 <th
@@ -570,7 +609,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                                                         </div>
 
                                                         <span className="text-[11px] text-gray-400 font-medium mb-2">
-                                                            {role.users_count ?? 0} assigned user{role.users_count === 1 ? '' : 's'}
+                                                            {Number(role.users_count) || 0} assigned user{Number(role.users_count) === 1 ? '' : 's'}
                                                         </span>
 
                                                         {/* Role Action Controls */}
@@ -666,7 +705,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                                                     {/* Role Checkbox Cells */}
                                                     {filteredRoles.map((role) => {
                                                         const isAdmin = role.name.toLowerCase() === 'admin';
-                                                        const rolePerms = Array.isArray(role.permissions) ? role.permissions : [];
+                                                        const rolePerms = parseRolePermissions(role.permissions);
                                                         const isAllowed = isAdmin || rolePerms.includes(perm.key);
 
                                                         return (
@@ -889,7 +928,7 @@ export default function Index({ users = [], roles = [], availablePermissions = [
                                         onClick={() =>
                                             roleForm.setData(
                                                 'permissions',
-                                                availablePermissions.map((p) => p.key)
+                                                effectivePermissions.map((p) => p.key)
                                             )
                                         }
                                         className="text-blue-600 hover:underline font-bold"
