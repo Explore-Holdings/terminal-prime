@@ -16,7 +16,8 @@ class UserController extends Controller
     {
         return Inertia::render('Users/Index', [
             'users' => User::with('role')->latest()->get(),
-            'roles' => Role::orderBy('name')->get(),
+            'roles' => Role::withCount('users')->orderBy('name')->get(),
+            'availablePermissions' => RoleController::AVAILABLE_PERMISSIONS,
         ]);
     }
 

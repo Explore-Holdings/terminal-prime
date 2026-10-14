@@ -326,7 +326,7 @@ function LanguageBadge({ language, className = '', size = 'md', active = false, 
     );
 }
 
-export default function Index({ pendingAgents = [], ongoingTrips: initialOngoingTrips = [], vehicles: initialVehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt: initialLastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterSellingRates = [], rentACarRates = [], queueVersion: initialQueueVersion = null }) {
+export default function Index({ pendingAgents = [], ongoingTrips: initialOngoingTrips = [], vehicles: initialVehicles = [], countries = [], rateSetting = null, locationVehiclePrices = [], vehicleRates = [], dbLanguages = [], myTrips = [], serviceCategories = [], lastReorderedAt: initialLastReorderedAt = null, pettyCash = 0, shortTrips = [], agentUsers = [], counterStaffUsers = [], counterSellingRates = [], rentACarRates = [], queueVersion: initialQueueVersion = null }) {
     const { auth } = usePage().props;
     const currentUserId = auth?.user?.id;
     const [vehicles, setVehicles] = useState(initialVehicles);
@@ -464,6 +464,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
     const customerForm = useForm({
         agent_id: '',
         agent_user_id: '',
+        counter_staff_id: currentUserId || '',
         name: '',
         email: '',
         mobile_number: '',
@@ -507,6 +508,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
         customerForm.setData({
             agent_id: agent.id || '',
             agent_user_id: agent.user_id || '',
+            counter_staff_id: agent.processing_by || currentUserId || '',
             name: existingCust?.name || (agent.name !== 'Walk-in Customer' ? agent.name : '') || '',
             email: existingCust?.email || '',
             mobile_number: existingCust?.mobile_number || '',
@@ -1299,7 +1301,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             </div>
 
             {showModal && selectedAgent && (
-                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} onRefreshVehicles={() => fetchVehiclesQueue(false)} />
+                <Modal activeTab={activeTab} setActiveTab={setActiveTab} agent={selectedAgent} customerForm={customerForm} paymentForm={paymentForm} saveCustomer={saveCustomer} customerId={createdCustomerId} setCreatedCustomerId={setCreatedCustomerId} invoicePath={invoicePath} setInvoicePath={setInvoicePath} vehicles={vehicles} ongoingTrips={ongoingTrips} countries={countries} setVehicleEnabledAgentId={setVehicleEnabledAgentId} onClose={closeModal} rateSetting={rateSetting} locationVehiclePrices={locationVehiclePrices} vehicleRates={vehicleRates} eurRates={eurRates} dbLanguages={dbLanguages} lastReorderedAt={lastReorderedAt} pettyCash={pettyCash} shortTrips={shortTrips} agentUsers={agentUsers} counterStaffUsers={counterStaffUsers} counterSellingRates={counterSellingRates} rentACarRates={rentACarRates} onRefreshVehicles={() => fetchVehiclesQueue(false)} />
             )}
 
             {showCheckoutConfirm && (
@@ -1622,6 +1624,7 @@ function Modal({
     pettyCash = 0,
     shortTrips = [],
     agentUsers = [],
+    counterStaffUsers = [],
     counterSellingRates = [],
     rentACarRates = [],
     onRefreshVehicles = null,
@@ -1703,6 +1706,7 @@ function Modal({
                             dbLanguages={dbLanguages}
                             onClose={onClose}
                             agentUsers={agentUsers}
+                            counterStaffUsers={counterStaffUsers}
                             counterSellingRates={counterSellingRates}
                             rateSetting={rateSetting}
                             rentACarRates={rentACarRates}
@@ -2076,6 +2080,7 @@ function CustomerTab({
     dbLanguages = [],
     onClose,
     agentUsers = [],
+    counterStaffUsers = [],
     counterSellingRates = [],
     rateSetting = null,
     rentACarRates = [],
@@ -2391,11 +2396,11 @@ function CustomerTab({
             {/* When Transfers is selected: show Transfer Details Form */}
             {selectedType === 'Transfers' && (
                 <form onSubmit={onSubmit} className="space-y-4 pt-1 text-black">
-                    {/* Row 1: Select Agent */}
+                    {/* Row 1: Select Agent / Staff */}
                     <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
                         <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
                             <UserCheck size={14} className="text-black" />
-                            <span>Select Agent <span className="text-red-600">*</span></span>
+                            <span>Select Agent / Staff <span className="text-red-600">*</span></span>
                         </label>
                         <select
                             value={form.data.agent_user_id || agent?.user_id || ''}
@@ -2403,12 +2408,23 @@ function CustomerTab({
                             required
                             className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
                         >
-                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
-                            {agentUsers.map((u) => (
-                                <option key={u.id} value={u.id} className="text-black font-semibold">
-                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
-                                </option>
-                            ))}
+                            <option value="" className="text-black font-semibold">-- Choose Agent / Staff Member --</option>
+                            {agentUsers.map((u) => {
+                                const roleName = u.role?.name ? u.role.name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+                                let roleBadge = '';
+                                if (u.agent_id) {
+                                    roleBadge = ` (Agent - ${u.agent_id})`;
+                                } else if (roleName) {
+                                    roleBadge = ` (${roleName}${u.designation ? ' - ' + u.designation : ''})`;
+                                } else if (u.designation) {
+                                    roleBadge = ` (${u.designation})`;
+                                }
+                                return (
+                                    <option key={u.id} value={u.id} className="text-black font-semibold">
+                                        {u.name}{roleBadge}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
@@ -2739,11 +2755,11 @@ function CustomerTab({
                     }}
                     className="space-y-4 pt-1 text-black"
                 >
-                    {/* Row 1: Select Agent */}
+                    {/* Row 1: Select Agent / Staff */}
                     <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
                         <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
                             <UserCheck size={14} className="text-black" />
-                            <span>Select Agent <span className="text-red-600">*</span></span>
+                            <span>Select Agent / Staff <span className="text-red-600">*</span></span>
                         </label>
                         <select
                             value={form.data.agent_user_id || agent?.user_id || ''}
@@ -2751,12 +2767,23 @@ function CustomerTab({
                             required
                             className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
                         >
-                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
-                            {agentUsers.map((u) => (
-                                <option key={u.id} value={u.id} className="text-black font-semibold">
-                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
-                                </option>
-                            ))}
+                            <option value="" className="text-black font-semibold">-- Choose Agent / Staff Member --</option>
+                            {agentUsers.map((u) => {
+                                const roleName = u.role?.name ? u.role.name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+                                let roleBadge = '';
+                                if (u.agent_id) {
+                                    roleBadge = ` (Agent - ${u.agent_id})`;
+                                } else if (roleName) {
+                                    roleBadge = ` (${roleName}${u.designation ? ' - ' + u.designation : ''})`;
+                                } else if (u.designation) {
+                                    roleBadge = ` (${u.designation})`;
+                                }
+                                return (
+                                    <option key={u.id} value={u.id} className="text-black font-semibold">
+                                        {u.name}{roleBadge}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
@@ -3006,11 +3033,11 @@ function CustomerTab({
                     }}
                     className="space-y-4 pt-1 text-black"
                 >
-                    {/* Row 1: Select Agent */}
+                    {/* Row 1: Select Agent / Staff */}
                     <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/90">
                         <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
                             <UserCheck size={14} className="text-black" />
-                            <span>Select Agent <span className="text-red-600">*</span></span>
+                            <span>Select Agent / Staff <span className="text-red-600">*</span></span>
                         </label>
                         <select
                             value={form.data.agent_user_id || agent?.user_id || ''}
@@ -3018,12 +3045,23 @@ function CustomerTab({
                             required
                             className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-2.5 bg-white"
                         >
-                            <option value="" className="text-black font-semibold">-- Choose Agent --</option>
-                            {agentUsers.map((u) => (
-                                <option key={u.id} value={u.id} className="text-black font-semibold">
-                                    {u.name} {u.agent_id ? `(${u.agent_id})` : ''}
-                                </option>
-                            ))}
+                            <option value="" className="text-black font-semibold">-- Choose Agent / Staff Member --</option>
+                            {agentUsers.map((u) => {
+                                const roleName = u.role?.name ? u.role.name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '';
+                                let roleBadge = '';
+                                if (u.agent_id) {
+                                    roleBadge = ` (Agent - ${u.agent_id})`;
+                                } else if (roleName) {
+                                    roleBadge = ` (${roleName}${u.designation ? ' - ' + u.designation : ''})`;
+                                } else if (u.designation) {
+                                    roleBadge = ` (${u.designation})`;
+                                }
+                                return (
+                                    <option key={u.id} value={u.id} className="text-black font-semibold">
+                                        {u.name}{roleBadge}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 

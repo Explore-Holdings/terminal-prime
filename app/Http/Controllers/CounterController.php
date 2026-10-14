@@ -222,10 +222,20 @@ class CounterController extends Controller
             'serviceCategories' => ServiceCategory::whereNotIn('id', [4, 8, 9, 10])->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
             'pettyCash' => DB::table('petty_cash')->sum('amount'),
-            'agentUsers' => User::where('role_id', 2)
-                ->orWhereNotNull('agent_id')
+            'agentUsers' => User::with('role:id,name')
+                ->where(function ($q) {
+                    $q->whereHas('role', function ($rq) {
+                        $rq->whereIn(DB::raw('LOWER(TRIM(roles.name))'), ['agent', 'counter staff', 'staff', 'manager']);
+                    })
+                    ->orWhereIn('role_id', [2, 3, 5, 6])
+                    ->orWhereNotNull('agent_id');
+                })
+                ->whereDoesntHave('role', function ($rq) {
+                    $rq->whereIn(DB::raw('LOWER(TRIM(roles.name))'), ['driver', 'admin']);
+                })
                 ->orderBy('name')
-                ->get(['id', 'name', 'agent_id']),
+                ->get(['id', 'name', 'agent_id', 'role_id', 'designation']),
+            'counterStaffUsers' => [],
             'counterSellingRates' => DB::table('counter_selling_rate')
                 ->select('id', 'city_name', 'sedan', 'suv', 'van', 'luxury_sedan')
                 ->orderBy('city_name')
