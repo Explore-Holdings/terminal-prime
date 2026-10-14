@@ -72,28 +72,39 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
     );
 
     const menuItems = [
-        { label: 'Dashboard', path: '/dashboard', roles: ['admin','coperate', 'finance', 'counter staff','staff', 'executive', 'manager'] },
-        { label: 'DSS', path: '/dss', roles: ['admin', 'coperate', 'executive'] },
-        { label: 'Counter', path: '/counter', roles: ['admin', 'coperate', 'counter staff','staff', 'manager', 'executive'] },
-        { label: 'Counter Manager', path: '/manager-reports', roles: ['admin', 'manager','executive'] },
-        { label: 'Finance', path: '/finance', roles: ['admin', 'coperate', 'finance', 'executive'] },
-        { label: 'Accountant', path: '/accountant', roles: ['admin', 'coperate', 'accountant', 'finance', 'executive'] },
-        { label: 'Drivers', path: '/drivers', roles: ['admin','coperate', 'executive','accountant',] },
-        { label: 'Customers', path: '/customers', roles: ['admin','coperate', 'counter staff','staff', 'executive','accountant', 'finance'] },
-        { label: 'Chats', path: '/chats', roles: ['admin','coperate', 'executive'] },
-        { label: 'Agent & Driver', path: '/agent-driver-insights', roles: ['admin','coperate','executive','finance', 'accountant'] },
-        { label: 'Tours', path: '/trips', roles: ['admin','coperate', 'counter staff','staff', 'executive', 'manager'] },
-        { label: 'Customer Surveys', path: '/customer-surveys', roles: ['admin','coperate', 'executive'] },
-        { label: 'Overview', path: '/reports', roles: ['admin','coperate', 'executive'] },
-        { label: 'Reports Hub', path: '/reports-hub', roles: ['admin','coperate', 'executive'] },
-        { label: 'Pricing Data', path: '/pricing-data', roles: ['admin','coperate', 'executive'] },
-        { label: 'Users', path: '/users', roles: ['admin'] },
-        { label: 'Admin', path: '/admin', roles: ['admin'] },
+        { label: 'Dashboard', path: '/dashboard', permission: 'dashboard', roles: ['admin','coperate', 'finance', 'counter staff','staff', 'executive', 'manager'] },
+        { label: 'DSS', path: '/dss', permission: 'dss', roles: ['admin', 'coperate', 'executive'] },
+        { label: 'Counter', path: '/counter', permission: 'counter', roles: ['admin', 'coperate', 'counter staff','staff', 'manager', 'executive'] },
+        { label: 'Counter Manager', path: '/manager-reports', permission: 'manager_reports', roles: ['admin', 'manager','executive'] },
+        { label: 'Finance', path: '/finance', permission: 'finance', roles: ['admin', 'coperate', 'finance', 'executive'] },
+        { label: 'Accountant', path: '/accountant', permission: 'accountant', roles: ['admin', 'coperate', 'accountant', 'finance', 'executive'] },
+        { label: 'Drivers', path: '/drivers', permission: 'drivers', roles: ['admin','coperate', 'executive','accountant'] },
+        { label: 'Customers', path: '/customers', permission: 'customers', roles: ['admin','coperate', 'counter staff','staff', 'executive','accountant', 'finance'] },
+        { label: 'Chats', path: '/chats', permission: 'chats', roles: ['admin','coperate', 'executive'] },
+        { label: 'Agent & Driver', path: '/agent-driver-insights', permission: 'agent_driver', roles: ['admin','coperate','executive','finance', 'accountant'] },
+        { label: 'Tours', path: '/trips', permission: 'trips', roles: ['admin','coperate', 'counter staff','staff', 'executive', 'manager'] },
+        { label: 'Customer Surveys', path: '/customer-surveys', permission: 'customer_surveys', roles: ['admin','coperate', 'executive'] },
+        { label: 'Overview', path: '/reports', permission: 'reports', roles: ['admin','coperate', 'executive'] },
+        { label: 'Reports Hub', path: '/reports-hub', permission: 'reports_hub', roles: ['admin','coperate', 'executive'] },
+        { label: 'Pricing Data', path: '/pricing-data', permission: 'pricing_data', roles: ['admin','coperate', 'executive'] },
+        { label: 'Users', path: '/users', permission: 'users', roles: ['admin'] },
+        { label: 'Admin', path: '/admin', permission: 'admin', roles: ['admin'] },
     ];
 
-    const visibleMenuItems = menuItems.filter((item) =>
-        role.includes('executive') || item.roles.includes(role)
-    );
+    const userPermissions = user?.permissions;
+
+    const visibleMenuItems = menuItems.filter((item) => {
+        // Admin role always has access to all modules
+        if (role === 'admin') return true;
+
+        // Dynamic database permission check
+        if (Array.isArray(userPermissions) && userPermissions.length > 0) {
+            return userPermissions.includes(item.permission);
+        }
+
+        // Backward-compatible fallback
+        return role.includes('executive') || item.roles.includes(role);
+    });
 
     const isActive = (path) => url === path || url.startsWith(path + '/');
 

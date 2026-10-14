@@ -42,6 +42,9 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('users', UserController::class);
     Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    Route::post('/roles/sync-permissions', [RoleController::class, 'syncPermissions'])->name('roles.sync-permissions');
 });
 
 Route::get('/dashboard', function () {
