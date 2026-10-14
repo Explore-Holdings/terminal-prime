@@ -44,6 +44,7 @@ class CustomerController extends Controller
         $data = $request->validate([
             'agent_id' => 'nullable|exists:agents,id',
             'agent_user_id' => 'nullable|exists:users,id',
+            'counter_staff_id' => 'nullable|exists:users,id',
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'mobile_number' => 'nullable|string|max:30',
@@ -76,6 +77,8 @@ class CustomerController extends Controller
             $data['booking_type'] = 'Tours';
         }
 
+        $handledByStaffId = !empty($data['counter_staff_id']) ? $data['counter_staff_id'] : Auth::id();
+
         if (empty($data['agent_id'])) {
             $bookingNumber = 'CB-' . date('ymd') . '-' . strtoupper(Str::random(4));
             $agent = Agent::create([
@@ -89,7 +92,7 @@ class CustomerController extends Controller
                 'luggage_count' => $data['luggage_count'] ?? 0,
                 'dropoff_location' => $data['dropoff_location'] ?? null,
                 'booking_number' => $bookingNumber,
-                'processing_by' => Auth::id(),
+                'processing_by' => $handledByStaffId,
                 'processing_at' => now(),
                 'external_vehicle_reg' => $data['external_vehicle_reg'] ?? null,
                 'external_vehicle_make' => $data['external_vehicle_make'] ?? null,
@@ -125,7 +128,7 @@ class CustomerController extends Controller
                 ...$customerData,
                 'customer_code' => $this->generateCustomerCode(),
                 'passport_image' => $agent->customer_passport,
-                'created_by' => Auth::id(),
+                'created_by' => $handledByStaffId,
             ]);
         }
 
@@ -133,6 +136,7 @@ class CustomerController extends Controller
             'name' => $customer->name,
             'dropoff_location' => $customer->dropoff_location,
             'passenger_count' => $customer->passenger_count,
+            'processing_by' => $handledByStaffId,
         ];
         if (!empty($data['agent_user_id'])) {
             $agentUpdates['user_id'] = $data['agent_user_id'];
