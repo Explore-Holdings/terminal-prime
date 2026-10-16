@@ -54,24 +54,37 @@ export default function Index({ trips = [] }) {
             ),
         },
         {
-            name: 'Type',
-            selector: row => row.is_short_trip ? 'Short' : 'Standard',
-            sortable: true,
+            name: 'Invoice',
+            selector: row => row.id,
+            sortable: false,
             width: '120px',
-            cell: row => row.is_short_trip ? (
-                <div>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                        ⚡ Short Tour
-                    </span>
-                    {row.short_trip_by?.name && (
-                        <span className="block text-[10px] text-gray-500 mt-0.5 truncate" title={`Assigned by ${row.short_trip_by.name}`}>
-                            By: {row.short_trip_by.name}
-                        </span>
-                    )}
-                </div>
-            ) : (
-                <span className="text-gray-400 text-xs">Standard</span>
-            ),
+            cell: row => {
+                const bookingType = (row.agent?.booking_type || '').toLowerCase();
+                const isRentACar = bookingType === 'rent a car' || bookingType.includes('rent');
+
+                if (isRentACar) {
+                    return <span className="text-gray-400 text-xs italic">-</span>;
+                }
+
+                const invoiceUrl = row.is_outsource && row.outsource_id
+                    ? `/trips/outsource/${row.outsource_id}/invoice`
+                    : `/trips/${row.id}/invoice`;
+
+                return (
+                    <a
+                        href={invoiceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs transition"
+                        title="View / Print Trip Invoice"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Invoice</span>
+                    </a>
+                );
+            },
         },
         {
             name: 'Customer',
@@ -88,9 +101,29 @@ export default function Index({ trips = [] }) {
             ),
         },
         {
-            name: 'Driver',
-            selector: row => `${row.driver?.first_name ?? ''} ${row.driver?.last_name ?? ''}`.trim() || '-',
+            name: 'Driver / Vehicle',
+            selector: row => `${row.driver?.first_name ?? ''} ${row.driver?.last_name ?? ''}`.trim() || row.driver?.full_name || '-',
             sortable: true,
+            wrap: true,
+            cell: row => {
+                const driverName = `${row.driver?.first_name ?? ''} ${row.driver?.last_name ?? ''}`.trim() || row.driver?.full_name || '-';
+                const vehReg = row.driver?.vehicle?.registration_number || row.driver?.vehicle_registration_number || row.vehicle_number;
+                return (
+                    <div className="py-1">
+                        <div className="font-semibold text-gray-900">{driverName}</div>
+                        {vehReg && (
+                            <div className="text-[11px] font-bold text-gray-500">
+                                {vehReg}
+                            </div>
+                        )}
+                        {row.is_outsource && (
+                            <span className="inline-block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1">
+                                Outside Vehicle
+                            </span>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             name: 'Agent',
@@ -151,19 +184,19 @@ export default function Index({ trips = [] }) {
     };
 
     return (
-        <AppSidebarLayout title="Tours">
-            <Head title="Tours" />
+        <AppSidebarLayout title="Tour Invoices">
+            <Head title="Tour Invoices" />
 
             <div className="p-6">
                 <div className="bg-white rounded-xl shadow overflow-hidden">
                     <div className="flex justify-between items-center p-6 border-b">
                         <div>
                             <h1 className="text-2xl font-bold">
-                                Tour Management
+                                Tour Invoices
                             </h1>
 
                             <p className="text-gray-500 text-sm mt-1">
-                                View all assigned and completed tours
+                                View all assigned tours & transfers and generate driver/vehicle invoices
                             </p>
                         </div>
 

@@ -171,6 +171,14 @@ Route::post('/customers/{customer}/assign-outsource-vehicle', [CustomerControlle
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
+Route::get('/trips/{trip}/invoice', [TripController::class, 'downloadInvoice'])
+    ->name('trips.invoice');
+Route::get('/trips/{trip}/invoice/pdf', [TripController::class, 'downloadInvoice']);
+
+Route::get('/trips/outsource/{outsourceVehicle}/invoice', [TripController::class, 'downloadOutsourceInvoice'])
+    ->name('trips.outsource-invoice');
+Route::get('/trips/outsource/{outsourceVehicle}/invoice/pdf', [TripController::class, 'downloadOutsourceInvoice']);
+
 Route::post('/trips/{trip}/check-in', [TripController::class, 'checkIn'])
     ->name('trips.check-in');
 
