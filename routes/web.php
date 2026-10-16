@@ -190,6 +190,10 @@ Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->na
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
 Route::get('/finance/export', [FinanceController::class, 'exportProfitLoss'])->name('finance.export');
+Route::post('/finance/rent-a-car-rates', [FinanceController::class, 'storeRentACarRate'])->name('finance.rent-a-car-rates.store');
+Route::match(['put', 'patch', 'post'], '/finance/rent-a-car-rates/category-bulk-update', [FinanceController::class, 'bulkUpdateCategoryRate'])->name('finance.rent-a-car-rates.bulk-update');
+Route::match(['put', 'patch', 'post'], '/finance/rent-a-car-rates/{id}', [FinanceController::class, 'updateRentACarRate'])->name('finance.rent-a-car-rates.update');
+Route::delete('/finance/rent-a-car-rates/{id}', [FinanceController::class, 'destroyRentACarRate'])->name('finance.rent-a-car-rates.destroy');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])

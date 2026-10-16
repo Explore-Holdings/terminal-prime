@@ -236,9 +236,8 @@ class CounterController extends Controller
                 ->orderBy('city_name')
                 ->get(),
             'rentACarRates' => DB::table('rent_a_car_rates')
-                ->select('id', 'vehicle_category', 'make', 'model', 'rate')
-                ->orderBy('vehicle_category')
-                ->orderBy('rate')
+                ->select('id', 'vehicle_category', 'rate')
+                ->orderBy('id')
                 ->get(),
         ]);
     }

@@ -111,6 +111,10 @@ class FinanceController extends Controller
             'pettyCashReturns' => $pettyCashReturns,
             'pettyCashBalance' => $pettyCashBalance,
             'pettyCashRequests' => $pettyCashRequests,
+            'rentACarRates' => DB::table('rent_a_car_rates')
+                ->select('id', 'vehicle_category', 'rate', 'updated_by', 'created_at', 'updated_at')
+                ->orderBy('id')
+                ->get(),
         ]);
     }
 
@@ -523,5 +527,94 @@ class FinanceController extends Controller
         ]);
 
         return back()->with('success', 'Petty cash replenishment request submitted to Finance.');
+    }
+
+    public function storeRentACarRate(Request $request)
+    {
+        $data = $request->validate([
+            'vehicle_category' => 'required|string|max:100',
+            'rate' => 'required|numeric|min:0',
+        ]);
+
+        $user = Auth::user();
+        $updatedBy = $user ? ($user->name ?? $user->email ?? 'User #' . $user->id) : 'Admin';
+
+        // If category already exists, update its rate, otherwise insert
+        $existing = DB::table('rent_a_car_rates')
+            ->where('vehicle_category', trim($data['vehicle_category']))
+            ->first();
+
+        if ($existing) {
+            DB::table('rent_a_car_rates')->where('id', $existing->id)->update([
+                'rate' => $data['rate'],
+                'updated_by' => $updatedBy,
+                'updated_at' => now(),
+            ]);
+            $id = $existing->id;
+        } else {
+            $id = DB::table('rent_a_car_rates')->insertGetId([
+                'vehicle_category' => trim($data['vehicle_category']),
+                'rate' => $data['rate'],
+                'updated_by' => $updatedBy,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rent a Car rate saved successfully.',
+                'rate' => DB::table('rent_a_car_rates')->where('id', $id)->first(),
+            ]);
+        }
+
+        return back()->with('success', 'Rent a Car rate saved successfully.');
+    }
+
+    public function updateRentACarRate(Request $request, $id)
+    {
+        $data = $request->validate([
+            'vehicle_category' => 'nullable|string|max:100',
+            'rate' => 'required|numeric|min:0',
+        ]);
+
+        $user = Auth::user();
+        $updatedBy = $user ? ($user->name ?? $user->email ?? 'User #' . $user->id) : 'Admin';
+
+        $updateData = [
+            'rate' => $data['rate'],
+            'updated_by' => $updatedBy,
+            'updated_at' => now(),
+        ];
+        if (!empty($data['vehicle_category'])) {
+            $updateData['vehicle_category'] = trim($data['vehicle_category']);
+        }
+
+        DB::table('rent_a_car_rates')->where('id', $id)->update($updateData);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rent a Car rate updated successfully.',
+                'rate' => DB::table('rent_a_car_rates')->where('id', $id)->first(),
+            ]);
+        }
+
+        return back()->with('success', 'Rent a Car rate updated successfully.');
+    }
+
+    public function destroyRentACarRate(Request $request, $id)
+    {
+        DB::table('rent_a_car_rates')->where('id', $id)->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Rent a Car rate removed successfully.',
+            ]);
+        }
+
+        return back()->with('success', 'Rent a Car rate removed successfully.');
     }
 }

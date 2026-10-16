@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
+import { CarFront } from 'lucide-react';
+import RentACarRatesPanel from './RentACarRatesPanel';
 
 const getAmountInLkr = (amount, currency, rates) => {
     const fromCurrency = (currency ?? 'LKR').toLowerCase();
@@ -28,6 +30,7 @@ export default function Index({
     pettyCashReturns = [],
     pettyCashBalance = 0,
     pettyCashRequests = [],
+    rentACarRates = [],
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
@@ -141,6 +144,12 @@ export default function Index({
                     <MainTabCard active={mainTab === 'expenses'} onClick={() => setMainTab('expenses')}>
                         Expenses
                     </MainTabCard>
+                    <MainTabCard active={mainTab === 'rent_a_car'} onClick={() => setMainTab('rent_a_car')}>
+                        <span className="flex items-center gap-2">
+                            <CarFront size={16} />
+                            <span>Rent a Car</span>
+                        </span>
+                    </MainTabCard>
                     <MainTabCard active={mainTab === 'reports'} onClick={() => setMainTab('reports')}>
                         Reports
                     </MainTabCard>
@@ -217,6 +226,10 @@ export default function Index({
 
                     {mainTab === 'expenses' && (
                         <ExpensesPanel expenses={expenses} />
+                    )}
+
+                    {mainTab === 'rent_a_car' && (
+                        <RentACarRatesPanel rentACarRates={rentACarRates} isReadOnly={isReadOnly} />
                     )}
 
                     {mainTab === 'accountant_auth' && (
