@@ -7,6 +7,7 @@ export default function Index({ trips = [] }) {
     const { auth } = usePage().props;
     const isReadOnly = auth?.user?.isExecutiveStaff ?? false;
     const [search, setSearch] = useState('');
+    const [generatedInvoiceIds, setGeneratedInvoiceIds] = useState({});
 
     const filteredTrips = useMemo(() => {
         return trips.filter((trip) => {
@@ -15,6 +16,8 @@ export default function Index({ trips = [] }) {
                 trip.customer?.name,
                 trip.customer?.customer_code,
                 trip.driver?.full_name,
+                trip.driver?.first_name,
+                trip.driver?.last_name,
                 trip.agent?.user?.name,
                 trip.status,
             ].join(' ').toLowerCase();
@@ -57,7 +60,7 @@ export default function Index({ trips = [] }) {
             name: 'Invoice',
             selector: row => row.id,
             sortable: false,
-            width: '120px',
+            width: '145px',
             cell: row => {
                 const bookingType = (row.agent?.booking_type || '').toLowerCase();
                 const isRentACar = bookingType === 'rent a car' || bookingType.includes('rent');
@@ -70,18 +73,39 @@ export default function Index({ trips = [] }) {
                     ? `/trips/outsource/${row.outsource_id}/invoice`
                     : `/trips/${row.id}/invoice`;
 
+                const isGenerated = Boolean(row.has_invoice || row.invoice_path || row.invoice_generated_at || generatedInvoiceIds[row.id]);
+
                 return (
                     <a
                         href={invoiceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs transition"
-                        title="View / Print Trip Invoice"
+                        onClick={() => {
+                            setGeneratedInvoiceIds(prev => ({ ...prev, [row.id]: true }));
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-xs transition ${
+                            isGenerated
+                                ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                                : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
+                        }`}
+                        title={isGenerated ? 'View generated trip invoice' : 'Generate trip invoice'}
                     >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span>Invoice</span>
+                        {isGenerated ? (
+                            <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <span>View</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Invoice</span>
+                            </>
+                        )}
                     </a>
                 );
             },

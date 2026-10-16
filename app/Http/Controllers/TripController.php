@@ -25,7 +25,14 @@ class TripController extends Controller
             'tripFinance',
         ])
         ->latest()
-        ->get();
+        ->get()
+        ->map(function ($trip) {
+            $hasInvoice = !empty($trip->invoice_path)
+                || !empty($trip->invoice_generated_at)
+                || (file_exists(storage_path("app/public/trip_invoices/{$trip->id}")) && count(glob(storage_path("app/public/trip_invoices/{$trip->id}/*.pdf"))) > 0);
+            $trip->has_invoice = (bool) $hasInvoice;
+            return $trip;
+        });
 
         $outsourceTrips = OutsourceVehicle::with([
             'customer',
@@ -35,10 +42,17 @@ class TripController extends Controller
         ->latest()
         ->get()
         ->map(function ($ov) {
+            $hasInvoice = !empty($ov->invoice_path)
+                || !empty($ov->invoice_generated_at)
+                || (file_exists(storage_path("app/public/trip_invoices/OV-{$ov->id}")) && count(glob(storage_path("app/public/trip_invoices/OV-{$ov->id}/*.pdf"))) > 0);
+
             return [
                 'id' => 'OV-' . $ov->id,
                 'outsource_id' => $ov->id,
                 'is_outsource' => true,
+                'has_invoice' => (bool) $hasInvoice,
+                'invoice_path' => $ov->invoice_path,
+                'invoice_generated_at' => $ov->invoice_generated_at ? $ov->invoice_generated_at->toIso8601String() : null,
                 'driver' => [
                     'first_name' => 'Outside Driver',
                     'last_name' => '',
@@ -353,6 +367,23 @@ class TripController extends Controller
             'outsourceAdvance'  => $outsourceAdvance,
         ]);
 
+        // Save invoice in trip_invoices/{trip_id} folder
+        $tripInvoiceDir = storage_path("app/public/trip_invoices/{$trip->id}");
+        if (!file_exists($tripInvoiceDir)) {
+            mkdir($tripInvoiceDir, 0755, true);
+        }
+        $savedFile = "{$tripInvoiceDir}/{$invoiceNumber}.pdf";
+        try {
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to save trip invoice PDF: " . $e->getMessage());
+        }
+
+        $trip->update([
+            'invoice_path'         => "/storage/trip_invoices/{$trip->id}/{$invoiceNumber}.pdf",
+            'invoice_generated_at' => now(),
+        ]);
+
         return $pdf->stream("{$invoiceNumber}.pdf");
     }
 
@@ -415,6 +446,23 @@ class TripController extends Controller
             'dailyRate'         => null,
             'driverRatePercent' => null,
             'outsourceAdvance'  => (float) ($outsourceVehicle->advance_payment ?? 0),
+        ]);
+
+        // Save invoice in trip_invoices/OV-{id} folder
+        $outsourceInvoiceDir = storage_path("app/public/trip_invoices/OV-{$outsourceVehicle->id}");
+        if (!file_exists($outsourceInvoiceDir)) {
+            mkdir($outsourceInvoiceDir, 0755, true);
+        }
+        $savedFile = "{$outsourceInvoiceDir}/{$invoiceNumber}.pdf";
+        try {
+            $pdf->save($savedFile);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to save outsource invoice PDF: " . $e->getMessage());
+        }
+
+        $outsourceVehicle->update([
+            'invoice_path'         => "/storage/trip_invoices/OV-{$outsourceVehicle->id}/{$invoiceNumber}.pdf",
+            'invoice_generated_at' => now(),
         ]);
 
         return $pdf->stream("{$invoiceNumber}.pdf");
