@@ -10,6 +10,14 @@ body {
     user-select: none;
 }
 
+body.role-admin,
+body.role-admin * {
+    -webkit-user-select: auto !important;
+    -moz-user-select: auto !important;
+    -ms-user-select: auto !important;
+    user-select: auto !important;
+}
+
 /* Allow text focus and typing in interactive form controls */
 input, textarea, select {
     -webkit-user-select: text;
