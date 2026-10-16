@@ -93,7 +93,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
 
     const userPermissions = user?.permissions;
 
-    const visibleMenuItems = menuItems.filter((item) => {
+    const checkItemAccess = (item) => {
         // Admin role always has access to all modules
         if (role === 'admin') return true;
 
@@ -104,7 +104,7 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
 
         // Backward-compatible fallback
         return role.includes('executive') || item.roles.includes(role);
-    });
+    };
 
     const isActive = (path) => url === path || url.startsWith(path + '/');
 
@@ -181,10 +181,28 @@ export default function AppSidebarLayout({ children, title = 'Airport Counter', 
                     </div>
 
                     <nav className="px-3 space-y-0.5 flex-1 overflow-y-auto">
-                        {visibleMenuItems.map((item) => {
+                        {menuItems.map((item) => {
                             const Icon = iconMap[item.label] || Squares2X2Icon;
                             const active = isActive(item.path);
+                            const hasAccess = checkItemAccess(item);
                             const isAdminItem = item.label === 'Admin';
+
+                            // If user role does not have access, display module as disabled/locked
+                            if (!hasAccess) {
+                                return (
+                                    <div
+                                        key={item.path}
+                                        title={`${item.label} (Disabled for your role)`}
+                                        className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400/80 opacity-45 cursor-not-allowed select-none transition-none"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Icon className="w-[18px] h-[18px] shrink-0 text-gray-400" />
+                                            <span>{item.label}</span>
+                                        </div>
+                                        <LockClosedIcon className="w-3.5 h-3.5 text-gray-400/80 shrink-0" />
+                                    </div>
+                                );
+                            }
 
                             if (isAdminItem) {
                                 return (
