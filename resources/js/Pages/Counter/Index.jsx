@@ -1,7 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Route, AlertCircle, Phone } from 'lucide-react';
+import { ArrowLeft, UserPlus, CreditCard, Car, Users, CarFront, Trash2, X, ClipboardList, RefreshCw, Clock, ChevronDown, Search, Check, MapPin, Calendar, Compass, Luggage, Sparkles, UserCheck, Bus, Globe, Languages, Plus, Minus, Route, AlertCircle, Phone } from 'lucide-react';
 import DataTable from 'react-data-table-component';
 
 const isTourBooking = (agent) => {
@@ -2163,9 +2163,35 @@ function CustomerTab({
         }
     };
 
+    // Tour days helpers with increment / decrement support
+    const handleTourDaysInput = (val) => {
+        if (val === '') {
+            form.setData('days', '');
+        } else {
+            const parsed = parseInt(val, 10);
+            form.setData('days', isNaN(parsed) ? '' : Math.max(1, parsed));
+        }
+    };
+
+    const handleTourDaysBlur = () => {
+        if (!form.data.days || parseInt(form.data.days, 10) < 1) {
+            form.setData('days', 1);
+        }
+    };
+
+    const stepTourDays = (delta) => {
+        const current = parseInt(form.data.days, 10) || 1;
+        const next = Math.max(1, current + delta);
+        form.setData('days', next);
+    };
+
     // Handle Rent a Car days count change
     const handleRentDaysChange = (newDays) => {
-        const d = Math.max(1, parseInt(newDays) || 1);
+        if (newDays === '') {
+            form.setData('days', '');
+            return;
+        }
+        const d = Math.max(1, parseInt(newDays, 10) || 1);
         form.setData('days', d);
         if (rentDailyRate !== '' && parseFloat(rentDailyRate) > 0) {
             const totalPrice = Math.round(parseFloat(rentDailyRate) * d);
@@ -2183,6 +2209,18 @@ function CustomerTab({
                 }));
             }
         }
+    };
+
+    const handleRentDaysBlur = () => {
+        if (!form.data.days || parseInt(form.data.days, 10) < 1) {
+            handleRentDaysChange(1);
+        }
+    };
+
+    const stepRentDays = (delta) => {
+        const current = parseInt(form.data.days, 10) || 1;
+        const next = Math.max(1, current + delta);
+        handleRentDaysChange(next);
     };
 
     // Default dropoff to BIA Airport & clear driver rate when Rent a Car is active
@@ -2880,19 +2918,41 @@ function CustomerTab({
                                     <Calendar size={13} className="text-black" />
                                     <span>Day Count <span className="text-red-600">*</span></span>
                                 </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        required
-                                        value={form.data.days || 1}
-                                        onChange={(e) => form.setData('days', parseInt(e.target.value) || 1)}
-                                        placeholder="1"
-                                        className="w-full pl-3 pr-12 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
-                                        Days
-                                    </span>
+                                <div className="flex items-center rounded-lg border border-gray-300 bg-white shadow-sm overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                                    <button
+                                        type="button"
+                                        onClick={() => stepTourDays(-1)}
+                                        disabled={Number(form.data.days || 1) <= 1}
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-400 border-r border-gray-200 transition shrink-0 select-none"
+                                        title="Decrease days"
+                                        aria-label="Decrease days"
+                                    >
+                                        <Minus size={13} className="stroke-[2.5]" />
+                                    </button>
+                                    <div className="relative flex-1 flex items-center justify-center min-w-0">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            required
+                                            value={form.data.days || 1}
+                                            onChange={(e) => handleTourDaysInput(e.target.value)}
+                                            onBlur={handleTourDaysBlur}
+                                            placeholder="1"
+                                            className="w-full text-center py-2 pl-3 pr-9 text-xs font-black text-black border-0 focus:ring-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <span className="absolute right-2 text-[11px] font-bold text-black/60 select-none pointer-events-none">
+                                            {Number(form.data.days || 1) === 1 ? 'Day' : 'Days'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => stepTourDays(1)}
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 border-l border-gray-200 transition shrink-0 select-none"
+                                        title="Increase days"
+                                        aria-label="Increase days"
+                                    >
+                                        <Plus size={13} className="stroke-[2.5]" />
+                                    </button>
                                 </div>
                             </div>
 
@@ -3219,19 +3279,41 @@ function CustomerTab({
                                     <Calendar size={13} className="text-black" />
                                     <span>Days Count <span className="text-red-600">*</span></span>
                                 </label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        required
-                                        value={form.data.days || 1}
-                                        onChange={(e) => handleRentDaysChange(e.target.value)}
-                                        placeholder="1"
-                                        className="w-full pl-3 pr-12 py-2.5 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-                                    />
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black/70 select-none">
-                                        Days
-                                    </span>
+                                <div className="flex items-center rounded-lg border border-gray-300 bg-white shadow-sm overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                                    <button
+                                        type="button"
+                                        onClick={() => stepRentDays(-1)}
+                                        disabled={Number(form.data.days || 1) <= 1}
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-400 border-r border-gray-200 transition shrink-0 select-none"
+                                        title="Decrease days"
+                                        aria-label="Decrease days"
+                                    >
+                                        <Minus size={13} className="stroke-[2.5]" />
+                                    </button>
+                                    <div className="relative flex-1 flex items-center justify-center min-w-0">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            required
+                                            value={form.data.days || 1}
+                                            onChange={(e) => handleRentDaysChange(e.target.value)}
+                                            onBlur={handleRentDaysBlur}
+                                            placeholder="1"
+                                            className="w-full text-center py-2.5 pl-3 pr-9 text-xs font-black text-black border-0 focus:ring-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <span className="absolute right-2 text-[11px] font-bold text-black/60 select-none pointer-events-none">
+                                            {Number(form.data.days || 1) === 1 ? 'Day' : 'Days'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => stepRentDays(1)}
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 border-l border-gray-200 transition shrink-0 select-none"
+                                        title="Increase days"
+                                        aria-label="Increase days"
+                                    >
+                                        <Plus size={13} className="stroke-[2.5]" />
+                                    </button>
                                 </div>
                                 <p className="text-[10px] font-bold text-black/60 mt-1">
                                     Total rental duration

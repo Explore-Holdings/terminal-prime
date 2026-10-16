@@ -276,7 +276,8 @@
     @php
         $agent = $customer->agent;
         $bookingType = strtolower(trim($agent->booking_type ?? ''));
-        $isTour = $agent && ($bookingType === 'tour' || $bookingType === 'tours' || !empty($agent->tour_destinations));
+        $isRentACar = $agent && ($bookingType === 'rent a car' || str_contains($bookingType, 'rent'));
+        $isTour = !$isRentACar && $agent && ($bookingType === 'tour' || $bookingType === 'tours' || !empty($agent->tour_destinations));
         $tourDestinations = '';
         if ($agent && !empty($agent->tour_destinations)) {
             $rawDest = $agent->tour_destinations;
@@ -302,7 +303,7 @@
     @endphp
 
     {{-- ── YOUR RENTAL / TOUR ── --}}
-    <div class="section-heading">{{ $isTour ? 'Your Tour Booking' : 'Your Rental' }}</div>
+    <div class="section-heading">{{ $isTour ? 'Your Tour Booking' : ($isRentACar ? 'Your Car Rental' : 'Your Rental') }}</div>
     <table class="info-table">
         @if($isTour)
             <tr>
@@ -346,6 +347,12 @@
                 <td class="info-label">Payment Method</td>
                 <td class="info-value">{{ strtoupper($customer->payment_method ?? '-') }}</td>
             </tr>
+            @if(!empty($agent->days))
+            <tr>
+                <td class="info-label">Duration</td>
+                <td class="info-value" colspan="3">{{ $agent->days }} {{ $agent->days == 1 ? 'Day' : 'Days' }}</td>
+            </tr>
+            @endif
         @endif
     </table>
 
@@ -363,12 +370,17 @@
         </thead>
         <tbody>
             <tr class="category-row">
-                <td colspan="3">{{ $isTour ? 'Tour Package Service' : 'Airport Counter Service' }}</td>
+                <td colspan="3">{{ $isTour ? 'Tour Package Service' : ($isRentACar ? 'Rent a Car Service' : 'Airport Counter Service') }}</td>
             </tr>
             <tr>
                 <td style="padding-left: 16px;">
                     @if($isTour)
                         Tour Package Service
+                        @if(!empty($agent->days))
+                            - {{ $agent->days }} {{ $agent->days == 1 ? 'Day' : 'Days' }}
+                        @endif
+                    @elseif($isRentACar)
+                        Rent a Car Service
                         @if(!empty($agent->days))
                             - {{ $agent->days }} {{ $agent->days == 1 ? 'Day' : 'Days' }}
                         @endif
