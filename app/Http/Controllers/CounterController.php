@@ -25,6 +25,7 @@ use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class CounterController extends Controller
@@ -639,7 +640,7 @@ class CounterController extends Controller
     }
 
     /**
-     * Look up vehicle in FMS (Fleet Management System) databases and get category rate.
+     * Look up vehicle via FMS API (configured in .env FMS_API_URL) and get category rate.
      */
     public function lookupFmsVehicle(Request $request)
     {
@@ -654,64 +655,70 @@ class CounterController extends Controller
             ]);
         }
 
-        $dbs = ['explored_fleet_managment_system', 'fmd'];
+        $fmsUrl = rtrim((string) (config('services.fms.url') ?? env('FMS_API_URL')), '/');
+        $syncSecret = (string) (config('services.fms.secret') ?? env('FMS_SYNC_SECRET'));
 
-        foreach ($dbs as $db) {
-            try {
-                $query = "
-                    SELECT 
-                        v.id,
-                        v.reg_no,
-                        v.make,
-                        v.model,
-                        v.color,
-                        v.year_of_manufacture,
-                        v.status,
-                        vc.name as category_name
-                    FROM `{$db}`.`vehicles` v
-                    LEFT JOIN `{$db}`.`vehicle_categories` vc ON v.vehicle_category_id = vc.id
-                    WHERE REPLACE(REPLACE(UPPER(v.reg_no), '-', ''), ' ', '') = ?
-                       OR UPPER(TRIM(v.reg_no)) = ?
-                    LIMIT 1
-                ";
-                $res = DB::select($query, [$clean, strtoupper(trim($regNo))]);
+        $vehData = null;
 
-                if (!empty($res)) {
-                    $veh = $res[0];
-                    $categoryName = trim($veh->category_name ?? '');
+        // 1. Call FMS API endpoint
+        try {
+            $apiRes = Http::withToken($syncSecret)
+                ->withOptions([
+                    'curl' => [
+                        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                        CURLOPT_TCP_NODELAY => 1,
+                    ],
+                ])
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'X-SYNC-SECRET' => $syncSecret,
+                ])
+                ->timeout(4)
+                ->get("{$fmsUrl}/vehicles/by-reg-no", [
+                    'reg_no' => $regNo,
+                ]);
 
-                    // Lookup matching rate in rent_a_car_rates
-                    $rateRecord = null;
-                    if ($categoryName) {
-                        $rateRecord = DB::table('rent_a_car_rates')
-                            ->whereRaw('LOWER(TRIM(vehicle_category)) = ?', [strtolower($categoryName)])
-                            ->orWhere('vehicle_category', 'LIKE', '%' . $categoryName . '%')
-                            ->first();
-                    }
-
-                    $dailyRate = $rateRecord ? (float)$rateRecord->rate : null;
-
-                    return response()->json([
-                        'success' => true,
-                        'found' => true,
-                        'source' => 'FMS',
-                        'vehicle' => [
-                            'id' => $veh->id,
-                            'reg_no' => $veh->reg_no,
-                            'make' => $veh->make,
-                            'model' => $veh->model,
-                            'color' => $veh->color,
-                            'year' => $veh->year_of_manufacture,
-                            'status' => $veh->status,
-                            'category' => $categoryName,
-                        ],
-                        'rate' => $dailyRate,
-                        'rate_record' => $rateRecord,
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                // Continue to next DB if any table error occurs
+            if ($apiRes->successful()) {
+                $vehData = $apiRes->json();
             }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('FMS API lookup request error: ' . $e->getMessage());
+        }
+
+        // 2. If API was successful and returned vehicle data
+        if (!empty($vehData) && empty($vehData['error']) && (!empty($vehData['reg_no']) || !empty($vehData['id']))) {
+            $categoryName = trim($vehData['category'] ?? $vehData['category_name'] ?? $vehData['vehicle_type'] ?? '');
+
+            // Lookup matching rate in rent_a_car_rates
+            $rateRecord = null;
+            if ($categoryName) {
+                $rateRecord = DB::table('rent_a_car_rates')
+                    ->whereRaw('LOWER(TRIM(vehicle_category)) = ?', [strtolower($categoryName)])
+                    ->orWhere('vehicle_category', 'LIKE', '%' . $categoryName . '%')
+                    ->first();
+            }
+
+            $dailyRate = $rateRecord ? (float)$rateRecord->rate : null;
+
+            return response()->json([
+                'success' => true,
+                'found' => true,
+                'source' => 'FMS API',
+                'vehicle' => [
+                    'id' => $vehData['id'] ?? null,
+                    'reg_no' => $vehData['reg_no'] ?? $regNo,
+                    'make' => $vehData['make'] ?? '',
+                    'model' => $vehData['model'] ?? '',
+                    'color' => $vehData['color'] ?? '',
+                    'year' => $vehData['year'] ?? '',
+                    'status' => $vehData['status'] ?? 'active',
+                    'category' => $categoryName,
+                    'company_id' => $vehData['company_id'] ?? null,
+                    'company_name' => $vehData['company_name'] ?? null,
+                ],
+                'rate' => $dailyRate,
+                'rate_record' => $rateRecord,
+            ]);
         }
 
         return response()->json([

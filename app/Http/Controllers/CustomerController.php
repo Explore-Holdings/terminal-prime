@@ -798,8 +798,8 @@ class CustomerController extends Controller
 
         // Sync to FMS rentals table
         try {
-            $fmsUrl = env('FMS_API_URL', 'http://127.0.0.1:9000/api');
-            $syncSecret = env('FMS_SYNC_SECRET', '');
+            $fmsUrl = rtrim((string) (config('services.fms.url') ?? env('FMS_API_URL')), '/');
+            $syncSecret = (string) (config('services.fms.secret') ?? env('FMS_SYNC_SECRET'));
 
             \Illuminate\Support\Facades\Http::withHeaders([
                 'X-SYNC-SECRET' => $syncSecret,

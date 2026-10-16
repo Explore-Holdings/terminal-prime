@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'fms' => [
+        'url' => env('FMS_API_URL'),
+        'secret' => env('FMS_SYNC_SECRET'),
+    ],
+
 ];
