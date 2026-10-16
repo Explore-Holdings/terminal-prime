@@ -143,6 +143,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter/converter', [CounterController::class, 'converter'])->name('counter.converter');
     Route::get('/counter/queue-version', [CounterController::class, 'getQueueVersion'])->name('counter.queue-version');
     Route::get('/counter/vehicles-queue', [CounterController::class, 'getVehiclesQueue'])->name('counter.vehicles-queue');
+    Route::get('/counter/fms-vehicle-lookup', [CounterController::class, 'lookupFmsVehicle'])->name('counter.fms-vehicle-lookup');
     Route::get('/manager-reports', [\App\Http\Controllers\ManagerReportController::class, 'index'])->name('manager-reports.index');
     Route::get('/manager-reports/trips/print', [\App\Http\Controllers\ManagerReportController::class, 'printTrips'])->name('manager-reports.trips-print');
     Route::get('/manager-reports/trips/pdf', [\App\Http\Controllers\ManagerReportController::class, 'pdfTrips'])->name('manager-reports.trips-pdf');
