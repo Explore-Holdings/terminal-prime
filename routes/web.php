@@ -25,6 +25,7 @@ use App\Http\Controllers\AccountantController;
 use App\Http\Controllers\AgentDriverInsightsController;
 use App\Http\Controllers\CustomerChatController;
 use App\Http\Controllers\CustomerInquiryController;
+use App\Http\Controllers\AttendanceController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -131,6 +132,7 @@ Route::put('/drivers/{driver}', [DriverController::class, 'update'])
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::get('/agent-driver-insights', [AgentDriverInsightsController::class, 'index'])->name('agent-driver-insights.index');
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

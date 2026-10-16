@@ -30,6 +30,13 @@ class RoleController extends Controller
             'description' => 'Tour assignments, vehicle bookings, and dispatch logs',
         ],
         [
+            'key' => 'attendance',
+            'label' => 'Attendance',
+            'path' => '/attendance',
+            'group' => 'Core Operations',
+            'description' => 'Staff and agent attendance logs, check-in, check-out, and shift tracking',
+        ],
+        [
             'key' => 'drivers',
             'label' => 'Drivers Directory',
             'path' => '/drivers',
