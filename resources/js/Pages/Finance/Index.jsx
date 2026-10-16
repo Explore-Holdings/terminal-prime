@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import DataTable from 'react-data-table-component';
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import toast, { Toaster } from 'react-hot-toast';
-import { CarFront } from 'lucide-react';
+import { CarFront, Users, FileText, Eye, X } from 'lucide-react';
 import RentACarRatesPanel from './RentACarRatesPanel';
 
 const getAmountInLkr = (amount, currency, rates) => {
@@ -26,6 +26,8 @@ export default function Index({
     incentives = [],
     rateSetting = null,
     expenses = [],
+    payouts = [],
+    outsourceVehicles = [],
     pettyCashShiftLogs = [],
     pettyCashReturns = [],
     pettyCashBalance = 0,
@@ -199,6 +201,7 @@ export default function Index({
                                 <PayoutsTab 
                                     drivers={driverTotals} 
                                     agents={agentTotals}
+                                    outsourceVehicles={outsourceVehicles}
                                 />
                             )}
 
@@ -1003,17 +1006,37 @@ function SettlementsTable({ trips, onSettle }) {
     return <Table columns={columns} data={trips} empty="No tours found." />;
 }
 
-function PayoutsTab({ drivers, agents }) {
+function PayoutsTab({ drivers, agents, outsourceVehicles = [] }) {
+    const [payoutView, setPayoutView] = useState('standard'); // 'standard' | 'outsource'
+    const [search, setSearch] = useState('');
+    const [selectedOutsourceModal, setSelectedOutsourceModal] = useState(null);
+
     const allPeople = [
         ...drivers.map(d => ({ ...d, type: 'Driver', person_id: d.id, id: `Driver_${d.id}` })),
         ...agents.map(a => ({ ...a, type: 'Agent', person_id: a.id, id: `Agent_${a.id}` }))
     ];
 
-    const [search, setSearch] = useState('');
     const filteredPeople = allPeople.filter(p =>
         (p.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
         p.type.toLowerCase().includes(search.toLowerCase())
     );
+
+    const filteredOutsource = outsourceVehicles.filter(ov => {
+        const q = search.toLowerCase();
+        const vNum = (ov.vehicle_number || '').toLowerCase();
+        const mNum = (ov.mobile_number || '').toLowerCase();
+        const cName = (ov.customer?.name || '').toLowerCase();
+        const bNum = (ov.agent?.booking_number || '').toLowerCase();
+        const bType = (ov.agent?.booking_type || '').toLowerCase();
+        const dropoff = (ov.customer?.dropoff_location || ov.agent?.dropoff_location || '').toLowerCase();
+        const idStr = `ov-${ov.id} ${ov.id}`.toLowerCase();
+        const creator = (ov.creator?.name || '').toLowerCase();
+        return vNum.includes(q) || mNum.includes(q) || cName.includes(q) || bNum.includes(q) || bType.includes(q) || dropoff.includes(q) || idStr.includes(q) || creator.includes(q);
+    });
+
+    const totalOutsourcePrice = outsourceVehicles.reduce((sum, ov) => sum + Number(ov.price || 0), 0);
+    const totalOutsourceAdvance = outsourceVehicles.reduce((sum, ov) => sum + Number(ov.advance_payment || 0), 0);
+    const totalOutsourceBalance = totalOutsourcePrice - totalOutsourceAdvance;
 
     const [inputs, setInputs] = useState({});
 
@@ -1135,7 +1158,8 @@ function PayoutsTab({ drivers, agents }) {
         },
         {
             name: 'Action',
-            width: '100px',            cell: row => (
+            width: '100px',
+            cell: row => (
                 <button
                     onClick={() => submitPayout(row.type, row.person_id)}
                     className="bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 font-bold text-xs w-full disabled:opacity-50 transition-colors"
@@ -1147,26 +1171,367 @@ function PayoutsTab({ drivers, agents }) {
         }
     ];
 
+    const outsourceColumns = [
+        {
+            name: 'Ref #',
+            selector: row => row.id,
+            sortable: true,
+            width: '85px',
+            cell: row => (
+                <span className="font-mono font-bold text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                    OV-{row.id}
+                </span>
+            ),
+        },
+        {
+            name: 'Vehicle Number',
+            selector: row => row.vehicle_number,
+            sortable: true,
+            width: '140px',
+            cell: row => (
+                <span className="font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs tracking-wider uppercase inline-block">
+                    {row.vehicle_number}
+                </span>
+            ),
+        },
+        {
+            name: 'Driver Mobile',
+            selector: row => row.mobile_number ?? '-',
+            sortable: true,
+            width: '130px',
+            cell: row => (
+                <span className="text-xs font-semibold text-gray-800">
+                    {row.mobile_number || '-'}
+                </span>
+            ),
+        },
+        {
+            name: 'Customer & Route',
+            selector: row => row.customer?.name ?? '-',
+            sortable: true,
+            cell: row => (
+                <div className="py-1">
+                    <div className="font-semibold text-gray-900 text-xs">
+                        {row.customer?.name || 'Walk-in Customer'}
+                    </div>
+                    {(row.customer?.dropoff_location || row.agent?.dropoff_location) && (
+                        <div className="text-[11px] text-gray-500 truncate max-w-xs mt-0.5" title={row.customer?.dropoff_location || row.agent?.dropoff_location}>
+                            📍 {row.customer?.dropoff_location || row.agent?.dropoff_location}
+                        </div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            name: 'Booking',
+            selector: row => row.agent?.booking_type ?? 'Outsource',
+            sortable: true,
+            width: '120px',
+            cell: row => (
+                <div>
+                    <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-800">
+                        {row.agent?.booking_type || 'Outsource Trip'}
+                    </span>
+                    {/* {row.agent?.booking_number && (
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                            {row.agent.booking_number}
+                        </div>
+                    )} */}
+                </div>
+            ),
+        },
+        {
+            name: 'Agreed Price',
+            selector: row => Number(row.price ?? 0),
+            sortable: true,
+            right: true,
+            width: '125px',
+            cell: row => <strong className="text-gray-900 text-xs">LKR {money(row.price)}</strong>,
+        },
+        {
+            name: 'Advance Paid',
+            selector: row => Number(row.advance_payment ?? 0),
+            sortable: true,
+            right: true,
+            width: '125px',
+            cell: row => <span className="font-semibold text-emerald-700 text-xs">LKR {money(row.advance_payment)}</span>,
+        },
+        {
+            name: 'Balance Due',
+            selector: row => Number(row.price ?? 0) - Number(row.advance_payment ?? 0),
+            sortable: true,
+            right: true,
+            width: '125px',
+            cell: row => {
+                const bal = Number(row.price ?? 0) - Number(row.advance_payment ?? 0);
+                return (
+                    <span className={`font-bold text-xs ${bal > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        LKR {money(bal)}
+                    </span>
+                );
+            },
+        },
+        {
+            name: 'Assigned By / Date',
+            selector: row => row.created_at,
+            sortable: true,
+            width: '140px',
+            cell: row => (
+                <div className="text-xs py-1">
+                    <div className="font-semibold text-gray-800">{row.creator?.name || 'Staff'}</div>
+                    <div className="text-gray-400 text-[11px]">{row.created_at ? new Date(row.created_at).toLocaleDateString() : '-'}</div>
+                </div>
+            ),
+        },
+        {
+            name: 'Actions',
+            width: '150px',
+            cell: row => (
+                <div className="flex items-center gap-1.5">
+                    <a
+                        href={`/trips/outsource/${row.id}/invoice`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-slate-700 hover:bg-slate-800 rounded transition-colors shadow-sm"
+                        title="View / Download Invoice"
+                    >
+                        <FileText size={12} />
+                        <span>Invoice</span>
+                    </a>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedOutsourceModal(row)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded border border-gray-200 transition-colors"
+                        title="View All Details"
+                    >
+                        <Eye size={12} />
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
     return (
         <div className="space-y-5">
-            <div className="flex items-center justify-end gap-2 mb-3">
-                <div className="relative flex-1 max-w-xs">
-                    <input
-                        type="text"
-                        className="w-full pl-3 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                        placeholder="Search by name or type…"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                    />
-                </div>
-                {search && (
-                    <button onClick={() => setSearch('')} className="text-xs text-black hover:text-black">
-                        Clear
+            {/* View Switcher Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-3">
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => { setPayoutView('standard'); setSearch(''); }}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+                            payoutView === 'standard'
+                                ? 'bg-blue-700 text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        <Users size={16} />
+                        <span>Driver & Agent Payouts</span>
                     </button>
-                )}
+
+                    <button
+                        type="button"
+                        onClick={() => { setPayoutView('outsource'); setSearch(''); }}
+                        className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+                            payoutView === 'outsource'
+                                ? 'bg-blue-700 text-white shadow-sm'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                    >
+                        <CarFront size={16} />
+                        <span>Outsource Vehicles</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                            payoutView === 'outsource'
+                                ? 'bg-white text-blue-700'
+                                : 'bg-gray-200 text-gray-700'
+                        }`}>
+                            {outsourceVehicles.length}
+                        </span>
+                    </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            className="w-64 pl-3 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                            placeholder={payoutView === 'standard' ? "Search by name or type…" : "Search vehicle, customer, route…"}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    {search && (
+                        <button onClick={() => setSearch('')} className="text-xs text-gray-500 hover:text-black">
+                            Clear
+                        </button>
+                    )}
+                </div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                <Table columns={columns} data={filteredPeople} empty="No matching records found." />
+
+            {payoutView === 'standard' ? (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <Table columns={columns} data={filteredPeople} empty="No matching records found." />
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {/* Summary cards for Outsource Vehicles */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 shadow-sm">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Outsource Trips</div>
+                            <div className="text-2xl font-bold text-slate-800 mt-1">{outsourceVehicles.length}</div>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5 shadow-sm">
+                            <div className="text-xs font-medium text-blue-600 uppercase tracking-wider">Total Contract Price</div>
+                            <div className="text-2xl font-bold text-blue-900 mt-1">LKR {money(totalOutsourcePrice)}</div>
+                        </div>
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3.5 shadow-sm">
+                            <div className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Total Advance Paid</div>
+                            <div className="text-2xl font-bold text-emerald-900 mt-1">LKR {money(totalOutsourceAdvance)}</div>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 shadow-sm">
+                            <div className="text-xs font-medium text-amber-600 uppercase tracking-wider">Remaining Balance Due</div>
+                            <div className="text-2xl font-bold text-amber-900 mt-1">LKR {money(totalOutsourceBalance)}</div>
+                        </div>
+                    </div>
+
+                    {/* Outsource Vehicles Table */}
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <Table columns={outsourceColumns} data={filteredOutsource} empty="No outsource vehicles found." />
+                    </div>
+                </div>
+            )}
+
+            {/* Outsource Vehicle Detail Modal */}
+            {selectedOutsourceModal && (
+                <OutsourceVehicleModal
+                    vehicle={selectedOutsourceModal}
+                    onClose={() => setSelectedOutsourceModal(null)}
+                />
+            )}
+        </div>
+    );
+}
+
+function OutsourceVehicleModal({ vehicle, onClose }) {
+    if (!vehicle) return null;
+    const money = (v) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const balance = Number(vehicle.price ?? 0) - Number(vehicle.advance_payment ?? 0);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-150">
+                <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold px-2.5 py-1 bg-blue-100 text-blue-800 rounded">
+                            OV-{vehicle.id}
+                        </span>
+                        <h3 className="text-base font-bold text-gray-900">
+                            Outsource Vehicle Details
+                        </h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+                    {/* Vehicle & Contact */}
+                    <div>
+                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-2">Vehicle & Contact</h4>
+                        <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                            <div>
+                                <span className="text-xs text-gray-500 block">Vehicle Number</span>
+                                <div className="text-base font-extrabold text-blue-900 mt-0.5">{vehicle.vehicle_number}</div>
+                            </div>
+                            <div>
+                                <span className="text-xs text-gray-500 block">Driver Mobile</span>
+                                <div className="text-sm font-semibold text-gray-800 mt-0.5">{vehicle.mobile_number || 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Financial Breakdown */}
+                    <div>
+                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-2">Financial Breakdown</h4>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <span className="text-xs font-medium text-blue-600 block">Total Agreed Price</span>
+                                <div className="text-base font-bold text-blue-900 mt-1">LKR {money(vehicle.price)}</div>
+                            </div>
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                                <span className="text-xs font-medium text-emerald-600 block">Advance Paid</span>
+                                <div className="text-base font-bold text-emerald-900 mt-1">LKR {money(vehicle.advance_payment)}</div>
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                <span className="text-xs font-medium text-amber-600 block">Balance Due</span>
+                                <div className="text-base font-bold text-amber-900 mt-1">LKR {money(balance)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Customer & Route Details */}
+                    <div>
+                        <h4 className="text-xs font-bold uppercase text-gray-400 tracking-wider mb-2">Customer & Trip Details</h4>
+                        <div className="space-y-2 text-sm bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+                            <div className="flex justify-between border-b border-gray-200 pb-2">
+                                <span className="text-gray-500 text-xs">Customer Name:</span>
+                                <span className="font-semibold text-gray-900 text-xs">{vehicle.customer?.name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-200 pb-2">
+                                <span className="text-gray-500 text-xs">Customer Mobile:</span>
+                                <span className="font-semibold text-gray-800 text-xs">{vehicle.customer?.mobile_number || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-200 pb-2">
+                                <span className="text-gray-500 text-xs">Booking Type / Number:</span>
+                                <span className="font-semibold text-gray-800 text-xs">{vehicle.agent?.booking_type || 'N/A'} ({vehicle.agent?.booking_number || 'N/A'})</span>
+                            </div>
+                            <div className="flex justify-between border-b border-gray-200 pb-2">
+                                <span className="text-gray-500 text-xs">Dropoff / Route:</span>
+                                <span className="font-semibold text-gray-800 text-xs text-right max-w-xs">{vehicle.customer?.dropoff_location || vehicle.agent?.dropoff_location || 'N/A'}</span>
+                            </div>
+                            {vehicle.customer?.paid_amount && (
+                                <div className="flex justify-between pt-0.5">
+                                    <span className="text-gray-500 text-xs">Customer Billed Amount:</span>
+                                    <span className="font-bold text-gray-900 text-xs">LKR {money(vehicle.customer.paid_amount)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Metadata & Audit */}
+                    <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 border-t border-gray-100 pt-3">
+                        <div>
+                            <span className="block font-medium">Assigned By:</span>
+                            <span className="text-gray-700">{vehicle.creator?.name || 'Counter Staff'}</span>
+                        </div>
+                        <div>
+                            <span className="block font-medium">Assigned At:</span>
+                            <span className="text-gray-700">{vehicle.created_at ? new Date(vehicle.created_at).toLocaleString() : 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                    <a
+                        href={`/trips/outsource/${vehicle.id}/invoice`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded transition-colors"
+                    >
+                        <FileText size={14} />
+                        <span>View Driver Invoice</span>
+                    </a>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="px-4 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     );

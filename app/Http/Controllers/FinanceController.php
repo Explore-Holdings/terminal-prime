@@ -11,6 +11,7 @@ use App\Models\Trip;
 use App\Models\TripFinance;
 use App\Models\Expense;
 use App\Models\Payout;
+use App\Models\OutsourceVehicle;
 use App\Models\PettyCashShiftLog;
 use App\Models\PettyCashReturn;
 use App\Models\PettyCashRequest;
@@ -97,6 +98,18 @@ class FinanceController extends Controller
 
         $pettyCashRequests = PettyCashRequest::with('requestedBy', 'approvedBy')->latest()->get();
 
+        $outsourceVehicles = OutsourceVehicle::with([
+            'customer',
+            'agent.user',
+            'creator',
+        ])->latest()->get()->map(function ($ov) {
+            $hasInvoice = !empty($ov->invoice_path)
+                || !empty($ov->invoice_generated_at)
+                || (file_exists(storage_path("app/public/trip_invoices/OV-{$ov->id}")) && count(glob(storage_path("app/public/trip_invoices/OV-{$ov->id}/*.pdf"))) > 0);
+            $ov->has_invoice = (bool) $hasInvoice;
+            return $ov;
+        });
+
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
             'drivers' => Driver::select('id', 'first_name', 'last_name', 'full_name', 'registration_number', 'amount', 'due_date', 'payment_received', 'payment_method', 'payment_attachment', 'driver_status')->orderBy('full_name')->get(),
@@ -107,6 +120,7 @@ class FinanceController extends Controller
             'rateSetting' => $rateSetting,
             'expenses' => $expenses,
             'payouts' => $payouts,
+            'outsourceVehicles' => $outsourceVehicles,
             'pettyCashShiftLogs' => $pettyCashShiftLogs,
             'pettyCashReturns' => $pettyCashReturns,
             'pettyCashBalance' => $pettyCashBalance,
