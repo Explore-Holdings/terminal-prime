@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('trip_finances', function (Blueprint $table) {
-            $table->boolean('accountant_approved')->default(false);
-            $table->unsignedBigInteger('approved_by')->nullable();
+            if (!Schema::hasColumn('trip_finances', 'accountant_approved')) {
+                $table->boolean('accountant_approved')->default(false);
+            }
+            if (!Schema::hasColumn('trip_finances', 'approved_by')) {
+                $table->unsignedBigInteger('approved_by')->nullable();
+            }
         });
     }
 

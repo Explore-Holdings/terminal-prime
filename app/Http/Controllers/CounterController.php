@@ -236,9 +236,8 @@ class CounterController extends Controller
                 ->orderBy('city_name')
                 ->get(),
             'rentACarRates' => DB::table('rent_a_car_rates')
-                ->select('id', 'vehicle_category', 'make', 'model', 'rate')
-                ->orderBy('vehicle_category')
-                ->orderBy('rate')
+                ->select('id', 'vehicle_category', 'rate')
+                ->orderBy('id')
                 ->get(),
         ]);
     }
@@ -636,6 +635,89 @@ class CounterController extends Controller
             'ongoingTrips' => $this->getOngoingTripsQuery()->get(),
             'lastReorderedAt' => Cache::get('counter_last_reordered_at'),
             'version' => $this->computeQueueVersion(),
+        ]);
+    }
+
+    /**
+     * Look up vehicle in FMS (Fleet Management System) databases and get category rate.
+     */
+    public function lookupFmsVehicle(Request $request)
+    {
+        $regNo = trim($request->query('reg_no', ''));
+        $clean = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $regNo));
+
+        if (strlen($clean) < 3) {
+            return response()->json([
+                'success' => false,
+                'found' => false,
+                'message' => 'Vehicle registration number is too short.',
+            ]);
+        }
+
+        $dbs = ['explored_fleet_managment_system', 'fmd'];
+
+        foreach ($dbs as $db) {
+            try {
+                $query = "
+                    SELECT 
+                        v.id,
+                        v.reg_no,
+                        v.make,
+                        v.model,
+                        v.color,
+                        v.year_of_manufacture,
+                        v.status,
+                        vc.name as category_name
+                    FROM `{$db}`.`vehicles` v
+                    LEFT JOIN `{$db}`.`vehicle_categories` vc ON v.vehicle_category_id = vc.id
+                    WHERE REPLACE(REPLACE(UPPER(v.reg_no), '-', ''), ' ', '') = ?
+                       OR UPPER(TRIM(v.reg_no)) = ?
+                    LIMIT 1
+                ";
+                $res = DB::select($query, [$clean, strtoupper(trim($regNo))]);
+
+                if (!empty($res)) {
+                    $veh = $res[0];
+                    $categoryName = trim($veh->category_name ?? '');
+
+                    // Lookup matching rate in rent_a_car_rates
+                    $rateRecord = null;
+                    if ($categoryName) {
+                        $rateRecord = DB::table('rent_a_car_rates')
+                            ->whereRaw('LOWER(TRIM(vehicle_category)) = ?', [strtolower($categoryName)])
+                            ->orWhere('vehicle_category', 'LIKE', '%' . $categoryName . '%')
+                            ->first();
+                    }
+
+                    $dailyRate = $rateRecord ? (float)$rateRecord->rate : null;
+
+                    return response()->json([
+                        'success' => true,
+                        'found' => true,
+                        'source' => 'FMS',
+                        'vehicle' => [
+                            'id' => $veh->id,
+                            'reg_no' => $veh->reg_no,
+                            'make' => $veh->make,
+                            'model' => $veh->model,
+                            'color' => $veh->color,
+                            'year' => $veh->year_of_manufacture,
+                            'status' => $veh->status,
+                            'category' => $categoryName,
+                        ],
+                        'rate' => $dailyRate,
+                        'rate_record' => $rateRecord,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                // Continue to next DB if any table error occurs
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'found' => false,
+            'message' => 'Vehicle not found in FMS.',
         ]);
     }
 }

@@ -2120,6 +2120,101 @@ function CustomerTab({
         return '';
     });
 
+    // FMS Vehicle Lookup State for Rent a Car
+    const [fmsLookupStatus, setFmsLookupStatus] = useState('idle'); // 'idle' | 'loading' | 'found' | 'not_found'
+    const [fmsVehicle, setFmsVehicle] = useState(null);
+    const [fmsError, setFmsError] = useState('');
+    const fmsLookupTimerRef = useRef(null);
+
+    const performFmsLookup = useCallback((regNo) => {
+        const clean = (regNo || '').trim();
+        if (clean.length < 3) {
+            setFmsLookupStatus('idle');
+            setFmsVehicle(null);
+            setFmsError('');
+            return;
+        }
+
+        setFmsLookupStatus('loading');
+        setFmsError('');
+
+        axios.get(`/counter/fms-vehicle-lookup?reg_no=${encodeURIComponent(clean)}`)
+            .then(res => {
+                if (res.data && res.data.found && res.data.vehicle) {
+                    const veh = res.data.vehicle;
+                    setFmsLookupStatus('found');
+                    setFmsVehicle(veh);
+                    setFmsError('');
+
+                    // Set vehicle make, model and category on form and agent, but do NOT overwrite what the user entered in external_vehicle_reg!
+                    form.setData(prev => ({
+                        ...prev,
+                        external_vehicle_make: veh.make,
+                        external_vehicle_model: veh.model,
+                        external_company_name: veh.category,
+                        rent_a_car_rate_id: res.data.rate_record?.id || prev.rent_a_car_rate_id,
+                    }));
+
+                    if (agent) {
+                        agent.external_vehicle_make = veh.make;
+                        agent.external_vehicle_model = veh.model;
+                        agent.external_company_name = veh.category;
+                    }
+
+                    // If rate found in rent_a_car_rates for this category, auto-apply!
+                    if (res.data.rate && Number(res.data.rate) > 0) {
+                        const dailyRate = Number(res.data.rate);
+                        setRentDailyRate(dailyRate);
+                        const dayCount = parseInt(form.data.days, 10) || 1;
+                        const totalPrice = Math.round(dailyRate * dayCount);
+                        form.setData(prev => ({ ...prev, price: totalPrice }));
+                        if (paymentForm && typeof paymentForm.setData === 'function') {
+                            paymentForm.setData(prev => ({
+                                ...prev,
+                                currency: 'LKR',
+                                price: totalPrice,
+                                payments: [{
+                                    method: 'Cash',
+                                    currency: 'LKR',
+                                    amount: totalPrice,
+                                    notes: [{ amount: '', count: '', currency: 'LKR' }],
+                                }],
+                            }));
+                        }
+                    }
+                } else {
+                    setFmsLookupStatus('not_found');
+                    setFmsVehicle(null);
+                    setFmsError(res.data?.message || 'Vehicle not found in FMS.');
+                }
+            })
+            .catch(() => {
+                setFmsLookupStatus('not_found');
+                setFmsVehicle(null);
+                setFmsError('Unable to connect to FMS.');
+            });
+    }, [form.data.days, paymentForm, agent]);
+
+    // Handle vehicle number input without auto-populating or running debounced search on keystrokes
+    const handleVehicleRegChange = (val) => {
+        const uppercaseVal = val.toUpperCase();
+        form.setData('external_vehicle_reg', uppercaseVal);
+        if (agent) {
+            agent.external_vehicle_reg = uppercaseVal;
+        }
+
+        if (fmsLookupTimerRef.current) {
+            clearTimeout(fmsLookupTimerRef.current);
+        }
+
+        // Reset check status when user edits the number
+        if (fmsLookupStatus !== 'idle') {
+            setFmsLookupStatus('idle');
+            setFmsVehicle(null);
+            setFmsError('');
+        }
+    };
+
     // Handle Rent a Car price change directly
     const handleRentPriceChange = (priceVal) => {
         form.setData('price', priceVal);
@@ -3211,29 +3306,109 @@ function CustomerTab({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-                            {/* Vehicle Number */}
+                            {/* Vehicle Number with FMS verification */}
                             <div>
-                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1.5">
-                                    <CarFront size={13} className="text-black" />
-                                    <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <CarFront size={13} className="text-black" />
+                                        <span>Vehicle Number <span className="text-red-600">*</span></span>
+                                    </span>
+                                    {fmsLookupStatus === 'loading' && (
+                                        <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1">
+                                            <RefreshCw size={10} className="animate-spin" /> Verifying FMS...
+                                        </span>
+                                    )}
+                                    {fmsLookupStatus === 'found' && (
+                                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                            <Check size={10} className="stroke-[3]" /> FMS Verified
+                                        </span>
+                                    )}
+                                    {fmsLookupStatus === 'not_found' && (
+                                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                            <AlertCircle size={10} /> Not in FMS
+                                        </span>
+                                    )}
                                 </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={form.data.external_vehicle_reg || ''}
-                                    onChange={(e) => {
-                                        const val = e.target.value.toUpperCase();
-                                        form.setData('external_vehicle_reg', val);
-                                        if (agent) {
-                                            agent.external_vehicle_reg = val;
-                                        }
-                                    }}
-                                    placeholder="e.g. CBV-1508"
-                                    className="w-full text-xs font-black uppercase text-black placeholder:text-gray-400 placeholder:normal-case rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2.5 px-3 bg-white"
-                                />
-                                <p className="text-[10px] font-bold text-black/60 mt-1">
-                                    Registration number of vehicle
-                                </p>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            required
+                                            value={form.data.external_vehicle_reg || ''}
+                                            onChange={(e) => handleVehicleRegChange(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    if (form.data.external_vehicle_reg?.trim()) {
+                                                        performFmsLookup(form.data.external_vehicle_reg);
+                                                    }
+                                                }
+                                            }}
+                                            placeholder="e.g. CBM-5684"
+                                            className={`w-full text-xs font-black uppercase placeholder:normal-case rounded-lg border py-2 px-3 bg-white transition ${
+                                                fmsLookupStatus === 'found'
+                                                    ? 'border-emerald-500 ring-1 ring-emerald-500 text-emerald-950'
+                                                    : fmsLookupStatus === 'not_found'
+                                                    ? 'border-rose-400 ring-1 ring-rose-300 text-rose-950'
+                                                    : 'border-gray-300 text-black focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+                                            }`}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (form.data.external_vehicle_reg?.trim()) {
+                                                performFmsLookup(form.data.external_vehicle_reg);
+                                            }
+                                        }}
+                                        disabled={fmsLookupStatus === 'loading' || !form.data.external_vehicle_reg?.trim()}
+                                        className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                                        title="Check vehicle in FMS database"
+                                    >
+                                        {fmsLookupStatus === 'loading' ? (
+                                            <>
+                                                <RefreshCw size={13} className="animate-spin" />
+                                                <span>Checking...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Search size={13} />
+                                                <span>Check</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* FMS Verified Vehicle Information Card */}
+                                {fmsLookupStatus === 'found' && fmsVehicle && (
+                                    <div className="mt-2 p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-200 space-y-1.5 shadow-xs">
+                                        <div className="flex items-center justify-between gap-1">
+                                            <span className="text-xs font-black text-emerald-950">
+                                                {fmsVehicle.make} {fmsVehicle.model} {fmsVehicle.color ? `(${fmsVehicle.color})` : ''}
+                                            </span>
+                                            <span className="text-[11px] font-black text-blue-900 bg-blue-100/90 px-2 py-0.5 rounded border border-blue-200">
+                                                {fmsVehicle.category}
+                                            </span>
+                                        </div>
+                                        <div className="text-[11px] text-emerald-900 flex items-center justify-between font-semibold pt-1 border-t border-emerald-200/60">
+                                            <span>FMS Status: <strong className="capitalize">{fmsVehicle.status || 'Active'}</strong></span>
+                                            {rentDailyRate ? (
+                                                <span className="text-emerald-900 font-black">
+                                                    Rate: LKR {Number(rentDailyRate).toLocaleString()} / day
+                                                </span>
+                                            ) : (
+                                                <span className="text-amber-800 font-bold">No rate found for category</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {fmsLookupStatus === 'not_found' && (
+                                    <div className="mt-1.5 p-2 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-1.5 text-rose-700 text-[11px] font-bold">
+                                        <AlertCircle size={13} className="shrink-0 text-rose-600" />
+                                        <span>Vehicle "{form.data.external_vehicle_reg}" not found in FMS database.</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Price */}
@@ -5737,12 +5912,24 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
 
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
+    const [fmsVehicle, setFmsVehicle] = useState(null);
 
     const targetReg = (
         customerForm?.data?.external_vehicle_reg ||
         agent?.external_vehicle_reg ||
         ''
     ).trim();
+
+    useEffect(() => {
+        if (!targetReg) return;
+        axios.get(`/counter/fms-vehicle-lookup?reg_no=${encodeURIComponent(targetReg)}`)
+            .then(res => {
+                if (res.data && res.data.found && res.data.vehicle) {
+                    setFmsVehicle(res.data.vehicle);
+                }
+            })
+            .catch(() => {});
+    }, [targetReg]);
 
     const fetchVehicles = async () => {
         setLoading(true);
@@ -5777,6 +5964,20 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
     }, [vehicles, targetReg]);
 
     const vehicleToShow = useMemo(() => {
+        if (fmsVehicle) {
+            return {
+                id: fmsVehicle.id || 0,
+                reg_no: fmsVehicle.reg_no || targetReg,
+                make: fmsVehicle.make || 'Rent a Car',
+                model: fmsVehicle.model || 'Vehicle',
+                company_id: 1,
+                company_name: fmsVehicle.category || 'FMS Fleet',
+                vehicle_type_name: fmsVehicle.category || 'Car',
+                color: fmsVehicle.color,
+                status: fmsVehicle.status,
+                is_fms: true,
+            };
+        }
         if (matchedVehicle) return matchedVehicle;
         if (targetReg) {
             return {
@@ -5790,7 +5991,7 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
             };
         }
         return null;
-    }, [matchedVehicle, targetReg, agent, customerForm?.data?.external_vehicle_make, customerForm?.data?.external_vehicle_model, customerForm?.data?.external_company_name]);
+    }, [fmsVehicle, matchedVehicle, targetReg, agent, customerForm?.data?.external_vehicle_make, customerForm?.data?.external_vehicle_model, customerForm?.data?.external_company_name]);
 
     const confirmAssign = () => {
         if (!customerId) {

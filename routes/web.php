@@ -25,6 +25,7 @@ use App\Http\Controllers\AccountantController;
 use App\Http\Controllers\AgentDriverInsightsController;
 use App\Http\Controllers\CustomerChatController;
 use App\Http\Controllers\CustomerInquiryController;
+use App\Http\Controllers\AttendanceController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -131,6 +132,7 @@ Route::put('/drivers/{driver}', [DriverController::class, 'update'])
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('customers', CustomerController::class);
     Route::get('/agent-driver-insights', [AgentDriverInsightsController::class, 'index'])->name('agent-driver-insights.index');
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -143,6 +145,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/counter/converter', [CounterController::class, 'converter'])->name('counter.converter');
     Route::get('/counter/queue-version', [CounterController::class, 'getQueueVersion'])->name('counter.queue-version');
     Route::get('/counter/vehicles-queue', [CounterController::class, 'getVehiclesQueue'])->name('counter.vehicles-queue');
+    Route::get('/counter/fms-vehicle-lookup', [CounterController::class, 'lookupFmsVehicle'])->name('counter.fms-vehicle-lookup');
     Route::get('/manager-reports', [\App\Http\Controllers\ManagerReportController::class, 'index'])->name('manager-reports.index');
     Route::get('/manager-reports/trips/print', [\App\Http\Controllers\ManagerReportController::class, 'printTrips'])->name('manager-reports.trips-print');
     Route::get('/manager-reports/trips/pdf', [\App\Http\Controllers\ManagerReportController::class, 'pdfTrips'])->name('manager-reports.trips-pdf');
@@ -170,6 +173,14 @@ Route::post('/customers/{customer}/assign-outsource-vehicle', [CustomerControlle
 Route::get('/trips', [TripController::class, 'index'])
     ->name('trips.index');
 
+Route::get('/trips/{trip}/invoice', [TripController::class, 'downloadInvoice'])
+    ->name('trips.invoice');
+Route::get('/trips/{trip}/invoice/pdf', [TripController::class, 'downloadInvoice']);
+
+Route::get('/trips/outsource/{outsourceVehicle}/invoice', [TripController::class, 'downloadOutsourceInvoice'])
+    ->name('trips.outsource-invoice');
+Route::get('/trips/outsource/{outsourceVehicle}/invoice/pdf', [TripController::class, 'downloadOutsourceInvoice']);
+
 Route::post('/trips/{trip}/check-in', [TripController::class, 'checkIn'])
     ->name('trips.check-in');
 
@@ -190,6 +201,10 @@ Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->na
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
 Route::get('/finance/export', [FinanceController::class, 'exportProfitLoss'])->name('finance.export');
+Route::post('/finance/rent-a-car-rates', [FinanceController::class, 'storeRentACarRate'])->name('finance.rent-a-car-rates.store');
+Route::match(['put', 'patch', 'post'], '/finance/rent-a-car-rates/category-bulk-update', [FinanceController::class, 'bulkUpdateCategoryRate'])->name('finance.rent-a-car-rates.bulk-update');
+Route::match(['put', 'patch', 'post'], '/finance/rent-a-car-rates/{id}', [FinanceController::class, 'updateRentACarRate'])->name('finance.rent-a-car-rates.update');
+Route::delete('/finance/rent-a-car-rates/{id}', [FinanceController::class, 'destroyRentACarRate'])->name('finance.rent-a-car-rates.destroy');
 Route::post('/finance/{trip}', [FinanceController::class, 'store'])->name('finance.store');
 
 Route::get('/survey/{trip}', [CustomerSurveyController::class, 'show'])

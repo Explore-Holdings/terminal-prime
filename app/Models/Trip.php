@@ -22,6 +22,8 @@ class Trip extends Model
         'original_session_id',
         'original_slot_number',
         'status',
+        'invoice_path',
+        'invoice_generated_at',
         'survey_sent_at',
         'cash_received',
     ];
@@ -30,6 +32,7 @@ class Trip extends Model
         'trip_assigned_at' => 'datetime',
         'trip_started_at' => 'datetime',
         'trip_ended_at' => 'datetime',
+        'invoice_generated_at' => 'datetime',
         'is_short_trip' => 'boolean',
         'original_session_id' => 'integer',
         'original_slot_number' => 'integer',

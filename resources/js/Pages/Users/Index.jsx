@@ -25,6 +25,7 @@ const FALLBACK_PERMISSIONS = [
     { key: 'dashboard', label: 'Dashboard', path: '/dashboard', group: 'Core Operations', description: 'System metrics, counters, and overall operational KPIs' },
     { key: 'counter', label: 'Counter Desk', path: '/counter', group: 'Core Operations', description: 'Live vehicle queue, customer check-ins, and desk bookings' },
     { key: 'trips', label: 'Tours & Trips', path: '/trips', group: 'Core Operations', description: 'Tour assignments, vehicle bookings, and dispatch logs' },
+    { key: 'attendance', label: 'Attendance', path: '/attendance', group: 'Core Operations', description: 'Staff and agent attendance logs, check-in, check-out, and shift tracking' },
     { key: 'drivers', label: 'Drivers Directory', path: '/drivers', group: 'Fleet & Logistics', description: 'Driver profiles, duty shifts, and assigned vehicles' },
     { key: 'customers', label: 'Customers', path: '/customers', group: 'Customer Relations', description: 'Customer directory, bookings history, and invoicing' },
     { key: 'chats', label: 'Customer Chats', path: '/chats', group: 'Customer Relations', description: 'Live chat inquiries and instant messaging' },

@@ -13,7 +13,13 @@ class OutsourceVehicle extends Model
         'advance_payment',
         'vehicle_number',
         'mobile_number',
+        'invoice_path',
+        'invoice_generated_at',
         'created_by',
+    ];
+
+    protected $casts = [
+        'invoice_generated_at' => 'datetime',
     ];
 
     public function customer()
