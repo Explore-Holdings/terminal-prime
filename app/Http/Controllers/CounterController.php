@@ -685,7 +685,41 @@ class CounterController extends Controller
             \Illuminate\Support\Facades\Log::warning('FMS API lookup request error: ' . $e->getMessage());
         }
 
-        // 2. If API was successful and returned vehicle data
+        // Fallback: Query local FMS database (fmd.vehicles) directly if API did not return vehicle
+        if (empty($vehData) || !empty($vehData['error']) || (empty($vehData['reg_no']) && empty($vehData['id']))) {
+            try {
+                $dbVeh = DB::table('fmd.vehicles')
+                    ->leftJoin('fmd.vehicle_categories', 'fmd.vehicles.vehicle_category_id', '=', 'fmd.vehicle_categories.id')
+                    ->leftJoin('fmd.companies', 'fmd.vehicles.company_id', '=', 'fmd.companies.id')
+                    ->select(
+                        'fmd.vehicles.*',
+                        'fmd.vehicle_categories.name as category_name',
+                        'fmd.companies.name as company_name'
+                    )
+                    ->whereRaw('UPPER(REPLACE(REPLACE(fmd.vehicles.reg_no, " ", ""), "-", "")) = ?', [$clean])
+                    ->orWhereRaw('UPPER(REPLACE(REPLACE(fmd.vehicles.reg_no, " ", ""), "-", "")) LIKE ?', ['%' . $clean . '%'])
+                    ->first();
+
+                if ($dbVeh) {
+                    $vehData = [
+                        'id' => $dbVeh->id,
+                        'reg_no' => $dbVeh->reg_no,
+                        'make' => $dbVeh->make ?? '',
+                        'model' => $dbVeh->model ?? '',
+                        'color' => $dbVeh->color ?? '',
+                        'year' => $dbVeh->year_of_manufacture ?? $dbVeh->year ?? '',
+                        'status' => $dbVeh->status ?? 'active',
+                        'category' => $dbVeh->category_name ?? $dbVeh->category ?? '',
+                        'company_id' => $dbVeh->company_id ?? 1,
+                        'company_name' => $dbVeh->company_name ?? 'FMS Fleet',
+                    ];
+                }
+            } catch (\Throwable $dbEx) {
+                \Illuminate\Support\Facades\Log::warning('FMS DB vehicle lookup notice: ' . $dbEx->getMessage());
+            }
+        }
+
+        // 2. If vehicle data found (via API or DB)
         if (!empty($vehData) && empty($vehData['error']) && (!empty($vehData['reg_no']) || !empty($vehData['id']))) {
             $categoryName = trim($vehData['category'] ?? $vehData['category_name'] ?? $vehData['vehicle_type'] ?? '');
 
@@ -703,7 +737,7 @@ class CounterController extends Controller
             return response()->json([
                 'success' => true,
                 'found' => true,
-                'source' => 'FMS API',
+                'source' => !empty($dbVeh) ? 'FMS Database' : 'FMS API',
                 'vehicle' => [
                     'id' => $vehData['id'] ?? null,
                     'reg_no' => $vehData['reg_no'] ?? $regNo,

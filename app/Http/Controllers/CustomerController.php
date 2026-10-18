@@ -58,6 +58,8 @@ class CustomerController extends Controller
             'booking_type' => 'nullable|string|max:100',
             'tour_destinations' => 'nullable',
             'days' => 'nullable|integer|min:1',
+            'rent_start_date' => 'nullable|date',
+            'rent_end_date' => 'nullable|date',
             'driver_rate' => 'nullable|numeric|min:0',
             'driver_rate_reason' => 'nullable|string',
             'external_vehicle_make' => 'nullable|string|max:255',
@@ -99,6 +101,8 @@ class CustomerController extends Controller
                 'external_vehicle_model' => $data['external_vehicle_model'] ?? null,
                 'external_company_name' => $data['external_company_name'] ?? null,
                 'days' => $data['days'] ?? 1,
+                'rent_start_date' => $data['rent_start_date'] ?? (($data['booking_type'] ?? '') === 'Rent a Car' ? now()->toDateString() : null),
+                'rent_end_date' => $data['rent_end_date'] ?? (($data['booking_type'] ?? '') === 'Rent a Car' ? now()->addDays((int)($data['days'] ?? 1))->toDateString() : null),
             ]);
             $data['agent_id'] = $agent->id;
         } else {
@@ -184,14 +188,21 @@ class CustomerController extends Controller
         if (array_key_exists('external_company_name', $data)) {
             $agentUpdates['external_company_name'] = $data['external_company_name'];
         }
+        if (array_key_exists('rent_start_date', $data) && !empty($data['rent_start_date'])) {
+            $agentUpdates['rent_start_date'] = $data['rent_start_date'];
+        }
+        if (array_key_exists('rent_end_date', $data) && !empty($data['rent_end_date'])) {
+            $agentUpdates['rent_end_date'] = $data['rent_end_date'];
+        }
         if (($data['booking_type'] ?? $agent->booking_type) === 'Rent a Car') {
             $agentUpdates['driver_rate'] = null;
             $agentUpdates['driver_rate_reason'] = null;
             $days = $data['days'] ?? $agent->days ?? 1;
-            if ($days) {
-                $agentUpdates['rent_start_date'] = now()->toDateString();
-                $agentUpdates['rent_end_date'] = now()->addDays((int) $days)->toDateString();
-            }
+            $startDate = !empty($data['rent_start_date']) ? $data['rent_start_date'] : ($agent->rent_start_date ?? now()->toDateString());
+            $agentUpdates['rent_start_date'] = $startDate;
+            $agentUpdates['rent_end_date'] = !empty($data['rent_end_date'])
+                ? $data['rent_end_date']
+                : \Carbon\Carbon::parse($startDate)->addDays((int) $days)->toDateString();
         }
 
         $agent->update($agentUpdates);
@@ -765,6 +776,7 @@ class CustomerController extends Controller
             'external_company_name'  => 'required',
             'start_date'             => 'required|date',
             'end_date'               => 'required|date',
+            'days'                   => 'nullable|integer|min:1',
         ]);
 
         $agent = $customer->agent;
@@ -782,40 +794,101 @@ class CustomerController extends Controller
         $nextNum = $lastBooking ? ((int) substr($lastBooking->booking_number, 3)) + 1 : 1;
         $bookingNumber = 'TP-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
+        $daysCount = !empty($data['days'])
+            ? (int) $data['days']
+            : ($agent->days ? (int) $agent->days : max(1, (int) \Carbon\Carbon::parse($data['start_date'])->diffInDays(\Carbon\Carbon::parse($data['end_date']))));
+
         $agent->update([
-            'status' => 'Approved',
+            'status'                 => 'Approved',
             'booking_number'         => $bookingNumber,
             'external_vehicle_id'    => $data['external_vehicle_id'],
             'external_vehicle_reg'   => $data['external_vehicle_reg'],
             'external_vehicle_make'  => $data['external_vehicle_make'],
             'external_vehicle_model' => $data['external_vehicle_model'],
             'external_company_name'  => $data['external_company_name'] ?? null,
-            'status'                 => 'Approved',
             'rent_start_date'        => $data['start_date'],
             'rent_end_date'          => $data['end_date'],
+            'days'                   => $daysCount,
         ]);
         Cache::forget('active_counter_processing_agent');
 
-        // Sync to FMS rentals table
+        // 1. Direct FMS Database insertion to fmd.rentals table
+        try {
+            $vehId = (int) $data['external_vehicle_id'];
+            $compId = (int) $data['external_company_id'];
+
+            // If vehicle_id is missing or 0, attempt lookup in fmd.vehicles
+            if ($vehId <= 0 && !empty($data['external_vehicle_reg'])) {
+                $cleanReg = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $data['external_vehicle_reg']));
+                $foundVeh = DB::table('fmd.vehicles')
+                    ->whereRaw('UPPER(REPLACE(REPLACE(reg_no, " ", ""), "-", "")) = ?', [$cleanReg])
+                    ->first();
+                if ($foundVeh) {
+                    $vehId = (int) $foundVeh->id;
+                    if ($compId <= 0 && !empty($foundVeh->company_id)) {
+                        $compId = (int) $foundVeh->company_id;
+                    }
+                }
+            }
+            if ($compId <= 0) {
+                $compId = 1;
+            }
+
+            if ($vehId > 0) {
+                $companyRecord = DB::table('fmd.companies')->where('id', $compId)->first();
+                $cleanCompName = preg_replace('/[^A-Za-z0-9]/', '', $companyRecord->name ?? 'TP');
+
+                $arrivalDt = \Carbon\Carbon::parse($data['start_date'])->startOfDay()->toDateTimeString();
+                $departureDt = \Carbon\Carbon::parse($data['end_date'])->endOfDay()->toDateTimeString();
+
+                $insertedId = DB::table('fmd.rentals')->insertGetId([
+                    'booking_number' => $bookingNumber,
+                    'vehicle_id'     => $vehId,
+                    'company_id'     => $compId,
+                    'driver_name'    => $customer->name ?? 'Walk-in Customer',
+                    'salutation'     => 'Mr',
+                    'arrival_date'   => $arrivalDt,
+                    'departure_date' => $departureDt,
+                    'vehicle_pickup' => $arrivalDt,
+                    'passengers'     => (int) ($agent->passenger_count ?? 1),
+                    'notes'          => 'Airport Counter Rental (' . $daysCount . ' days)',
+                    'status'         => 'booked',
+                    'repair_type'    => 'routine',
+                    'reference_no'   => "FMS/{$cleanCompName}/{$bookingNumber}-" . now()->format('Ymd'),
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+
+                \Illuminate\Support\Facades\Log::info("Rental {$bookingNumber} synced to fmd.rentals with ID: {$insertedId}");
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Direct FMS database sync notice: ' . $e->getMessage());
+        }
+
+        // 2. Sync to FMS API
         try {
             $fmsUrl = rtrim((string) (config('services.fms.url') ?? env('FMS_API_URL')), '/');
             $syncSecret = (string) (config('services.fms.secret') ?? env('FMS_SYNC_SECRET'));
 
             \Illuminate\Support\Facades\Http::withHeaders([
                 'X-SYNC-SECRET' => $syncSecret,
-            ])->post("{$fmsUrl}/rental-sync", [
+            ])->timeout(5)->post("{$fmsUrl}/rental-sync", [
                 'booking_number' => $bookingNumber,
                 'vehicle_id'     => (int) $data['external_vehicle_id'],
+                'vehicle_no'     => $data['external_vehicle_reg'],
                 'company_id'     => (int) $data['external_company_id'],
-                'driver_name'    => $customer->name ?? 'N/A',
+                'driver_name'    => $customer->name ?? 'Walk-in Customer',
                 'arrival_date'   => $data['start_date'],
                 'departure_date' => $data['end_date'],
+                'start_date'     => $data['start_date'],
+                'end_date'       => $data['end_date'],
+                'days'           => $daysCount,
                 'passengers'     => (int) ($agent->passenger_count ?? 1),
                 'status'         => 'booked',
                 'created_by'     => auth()->id(),
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('FMS rental sync failed: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('FMS rental API sync failed: ' . $e->getMessage());
         }
 
         $customer->refresh();

@@ -52,6 +52,58 @@ const formatTourDestinations = (dest, fallback = '') => {
     return fallback;
 };
 
+const getTodayDateStr = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
+const addDaysToDate = (dateStr, daysToAdd) => {
+    try {
+        const parts = String(dateStr || '').split('T')[0].split('-');
+        const d = parts.length === 3
+            ? new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+            : new Date();
+        d.setDate(d.getDate() + (parseInt(daysToAdd, 10) || 1));
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    } catch (_) {
+        const d = new Date();
+        d.setDate(d.getDate() + (parseInt(daysToAdd, 10) || 1));
+        return d.toISOString().split('T')[0];
+    }
+};
+
+const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const parts = String(dateStr).split('T')[0].split('-');
+        if (parts.length === 3) {
+            const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+    } catch (_) {}
+    return dateStr;
+};
+
+const getDaysBetweenDates = (startDateStr, endDateStr) => {
+    try {
+        const p1 = String(startDateStr || '').split('T')[0].split('-').map(Number);
+        const p2 = String(endDateStr || '').split('T')[0].split('-').map(Number);
+        if (p1.length === 3 && p2.length === 3) {
+            const utc1 = Date.UTC(p1[0], p1[1] - 1, p1[2]);
+            const utc2 = Date.UTC(p2[0], p2[1] - 1, p2[2]);
+            const diff = Math.round((utc2 - utc1) / (1000 * 60 * 60 * 24));
+            return Math.max(1, diff);
+        }
+    } catch (_) {}
+    return 1;
+};
+
 const CURRENCY_TO_COUNTRY = {
     LKR: 'lk', USD: 'us', EUR: 'eu', GBP: 'gb', AUD: 'au', CAD: 'ca', INR: 'in', AED: 'ae', CNY: 'cn', JPY: 'jp',
     RUB: 'ru', SAR: 'sa', SGD: 'sg', CHF: 'ch', SEK: 'se', NOK: 'no', ZAR: 'za', THB: 'th', MYR: 'my', KRW: 'kr',
@@ -480,6 +532,8 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
         language_preference: 'English',
         tour_destinations: [],
         days: 1,
+        rent_start_date: getTodayDateStr(),
+        rent_end_date: addDaysToDate(getTodayDateStr(), 1),
         driver_rate: '',
         driver_rate_reason: '',
         external_vehicle_make: '',
@@ -524,6 +578,8 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             language_preference: existingCust?.language_preference || agent.language_preference || 'English',
             tour_destinations: agent.tour_destinations ? getTourDestinationsList(agent.tour_destinations) : [],
             days: agent.days ?? 1,
+            rent_start_date: agent.rent_start_date || getTodayDateStr(),
+            rent_end_date: agent.rent_end_date || addDaysToDate(agent.rent_start_date || getTodayDateStr(), agent.days ?? 1),
             driver_rate: agent.booking_type === 'Rent a Car' ? '' : (agent.booking_type === 'Tours' || agent.booking_type === 'Tour' || (agent.booking_type || '').toLowerCase().includes('tour') ? (agent.driver_rate ?? rateSetting?.driver_rate ?? '') : (agent.driver_rate ?? '')),
             driver_rate_reason: agent.booking_type === 'Rent a Car' ? '' : (agent.driver_rate_reason ?? ''),
             external_vehicle_make: agent.external_vehicle_make || '',
@@ -634,13 +690,25 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
                     if (customerForm?.data?.external_vehicle_reg) {
                         updatedAgent.external_vehicle_reg = customerForm.data.external_vehicle_reg;
                     }
+                    if (customerForm?.data?.rent_start_date) {
+                        updatedAgent.rent_start_date = customerForm.data.rent_start_date;
+                    }
+                    if (customerForm?.data?.rent_end_date) {
+                        updatedAgent.rent_end_date = customerForm.data.rent_end_date;
+                    }
+                    if (customerForm?.data?.days) {
+                        updatedAgent.days = customerForm.data.days;
+                    }
                     setSelectedAgent(updatedAgent);
                     setPaymentEnabledAgentId(updatedAgent.id);
                 } else if (createdAgentId) {
                     setSelectedAgent(prev => ({
                         ...(prev || {}),
                         id: createdAgentId,
-                        external_vehicle_reg: customerForm?.data?.external_vehicle_reg || prev?.external_vehicle_reg
+                        external_vehicle_reg: customerForm?.data?.external_vehicle_reg || prev?.external_vehicle_reg,
+                        rent_start_date: customerForm?.data?.rent_start_date || prev?.rent_start_date,
+                        rent_end_date: customerForm?.data?.rent_end_date || prev?.rent_end_date,
+                        days: customerForm?.data?.days || prev?.days,
                     }));
                     setPaymentEnabledAgentId(createdAgentId);
                 }
@@ -2287,10 +2355,18 @@ function CustomerTab({
             return;
         }
         const d = Math.max(1, parseInt(newDays, 10) || 1);
-        form.setData('days', d);
+        const curStart = form.data.rent_start_date || getTodayDateStr();
+        const calculatedEnd = addDaysToDate(curStart, d);
+
+        const updates = {
+            days: d,
+            rent_start_date: curStart,
+            rent_end_date: calculatedEnd,
+        };
+
         if (rentDailyRate !== '' && parseFloat(rentDailyRate) > 0) {
             const totalPrice = Math.round(parseFloat(rentDailyRate) * d);
-            form.setData('price', totalPrice);
+            updates.price = totalPrice;
             if (paymentForm && typeof paymentForm.setData === 'function') {
                 paymentForm.setData((prev) => ({
                     ...prev,
@@ -2304,6 +2380,47 @@ function CustomerTab({
                 }));
             }
         }
+        form.setData((prev) => ({ ...prev, ...updates }));
+    };
+
+    const handleRentStartDateChange = (newStart) => {
+        const d = Math.max(1, parseInt(form.data.days, 10) || 1);
+        const calculatedEnd = addDaysToDate(newStart, d);
+        form.setData((prev) => ({
+            ...prev,
+            rent_start_date: newStart,
+            rent_end_date: calculatedEnd,
+        }));
+    };
+
+    const handleRentEndDateChange = (newEnd) => {
+        const curStart = form.data.rent_start_date || getTodayDateStr();
+        if (!newEnd) return;
+        const diffDays = getDaysBetweenDates(curStart, newEnd);
+        
+        const updates = {
+            rent_start_date: curStart,
+            rent_end_date: newEnd,
+            days: diffDays,
+        };
+
+        if (rentDailyRate !== '' && parseFloat(rentDailyRate) > 0) {
+            const totalPrice = Math.round(parseFloat(rentDailyRate) * diffDays);
+            updates.price = totalPrice;
+            if (paymentForm && typeof paymentForm.setData === 'function') {
+                paymentForm.setData((prev) => ({
+                    ...prev,
+                    price: totalPrice,
+                    payments: [{
+                        method: 'Cash',
+                        currency: 'LKR',
+                        amount: totalPrice,
+                        notes: [{ amount: '', count: '', currency: 'LKR' }],
+                    }],
+                }));
+            }
+        }
+        form.setData((prev) => ({ ...prev, ...updates }));
     };
 
     const handleRentDaysBlur = () => {
@@ -3305,9 +3422,9 @@ function CustomerTab({
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-1">
                             {/* Vehicle Number with FMS verification */}
-                            <div>
+                            <div className="lg:col-span-3">
                                 <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
                                     <span className="flex items-center gap-1.5">
                                         <CarFront size={13} className="text-black" />
@@ -3412,11 +3529,11 @@ function CustomerTab({
                             </div>
 
                             {/* Price */}
-                            <div>
+                            <div className="lg:col-span-3">
                                 <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
                                     <span className="flex items-center gap-1.5">
                                         <CreditCard size={13} className="text-black" />
-                                        <span>Price (LKR) : Enter Price per day <span className="text-red-600">*</span></span>
+                                        <span>Price (LKR) : Price/day <span className="text-red-600">*</span></span>
                                     </span>
                                     {rentDailyRate ? (
                                         <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
@@ -3448,18 +3565,23 @@ function CustomerTab({
                                 </p>
                             </div>
 
-                            {/* Day Count (Placed after Price) */}
-                            <div>
-                                <label className="block text-xs font-bold text-black mb-1 flex items-center gap-1">
-                                    <Calendar size={13} className="text-black" />
-                                    <span>Days Count <span className="text-red-600">*</span></span>
+                            {/* Day Count (Placed next to Price) */}
+                            <div className="lg:col-span-2">
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <Calendar size={13} className="text-black" />
+                                        <span>Days <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                        {form.data.days || 1} {Number(form.data.days || 1) === 1 ? 'Day' : 'Days'}
+                                    </span>
                                 </label>
                                 <div className="flex items-center rounded-lg border border-gray-300 bg-white shadow-sm overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
                                     <button
                                         type="button"
                                         onClick={() => stepRentDays(-1)}
                                         disabled={Number(form.data.days || 1) <= 1}
-                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-400 border-r border-gray-200 transition shrink-0 select-none"
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-400 border-r border-gray-200 transition shrink-0 select-none cursor-pointer"
                                         title="Decrease days"
                                         aria-label="Decrease days"
                                     >
@@ -3474,24 +3596,75 @@ function CustomerTab({
                                             onChange={(e) => handleRentDaysChange(e.target.value)}
                                             onBlur={handleRentDaysBlur}
                                             placeholder="1"
-                                            className="w-full text-center py-2.5 pl-3 pr-9 text-xs font-black text-black border-0 focus:ring-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            className="w-full text-center py-2.5 pl-2 pr-7 text-xs font-black text-black border-0 focus:ring-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         />
-                                        <span className="absolute right-2 text-[11px] font-bold text-black/60 select-none pointer-events-none">
+                                        <span className="absolute right-1.5 text-[10px] font-bold text-black/60 select-none pointer-events-none">
                                             {Number(form.data.days || 1) === 1 ? 'Day' : 'Days'}
                                         </span>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => stepRentDays(1)}
-                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 border-l border-gray-200 transition shrink-0 select-none"
+                                        className="w-9 h-9 flex items-center justify-center bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-700 active:bg-blue-100 border-l border-gray-200 transition shrink-0 select-none cursor-pointer"
                                         title="Increase days"
                                         aria-label="Increase days"
                                     >
                                         <Plus size={13} className="stroke-[2.5]" />
                                     </button>
                                 </div>
-                                <p className="text-[10px] font-bold text-black/60 mt-1">
-                                    Total rental duration
+                                <p className="text-[10px] font-bold text-black/60 mt-1 truncate">
+                                    Duration: {form.data.days || 1} {Number(form.data.days || 1) === 1 ? 'day' : 'days'}
+                                </p>
+                            </div>
+
+                            {/* Start Date Picker (Date Picker 1) */}
+                            <div className="lg:col-span-2">
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <Calendar size={13} className="text-emerald-700" />
+                                        <span>Start Date <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[9px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-1 rounded">
+                                        Start
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={form.data.rent_start_date || getTodayDateStr()}
+                                        onChange={(e) => handleRentStartDateChange(e.target.value)}
+                                        className="w-full px-2 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-2xs cursor-pointer"
+                                        title="Rental start date (defaults to current date)"
+                                    />
+                                </div>
+                                <p className="text-[10px] font-bold text-gray-500 mt-1 truncate">
+                                    {formatDisplayDate(form.data.rent_start_date || getTodayDateStr())}
+                                </p>
+                            </div>
+
+                            {/* End Date Picker (Date Picker 2) */}
+                            <div className="lg:col-span-2">
+                                <label className="block text-xs font-bold text-black mb-1 flex items-center justify-between">
+                                    <span className="flex items-center gap-1">
+                                        <Calendar size={13} className="text-blue-700" />
+                                        <span>End Date <span className="text-red-600">*</span></span>
+                                    </span>
+                                    <span className="text-[9px] font-black text-blue-800 bg-blue-50 border border-blue-200 px-1 rounded">
+                                        Return
+                                    </span>
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        min={form.data.rent_start_date || getTodayDateStr()}
+                                        value={form.data.rent_end_date || addDaysToDate(form.data.rent_start_date || getTodayDateStr(), form.data.days || 1)}
+                                        onChange={(e) => handleRentEndDateChange(e.target.value)}
+                                        className="w-full px-2 py-2 text-xs font-black text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white shadow-2xs cursor-pointer"
+                                        title="Rental return / end date"
+                                    />
+                                </div>
+                                <p className="text-[10px] font-bold text-blue-800 mt-1 truncate">
+                                    {formatDisplayDate(form.data.rent_end_date || addDaysToDate(form.data.rent_start_date || getTodayDateStr(), form.data.days || 1))}
                                 </p>
                             </div>
                         </div>
@@ -3624,6 +3797,8 @@ function PaymentTab({
                 booking_type: customerForm?.data?.booking_type || agent?.booking_type || 'Transfer',
                 tour_destinations: customerForm?.data?.tour_destinations || agent?.tour_destinations || null,
                 days: Number(customerForm?.data?.days || agent?.days || 1),
+                rent_start_date: customerForm?.data?.rent_start_date || agent?.rent_start_date || null,
+                rent_end_date: customerForm?.data?.rent_end_date || agent?.rent_end_date || null,
                 driver_rate: customerForm?.data?.driver_rate || agent?.driver_rate || null,
                 driver_rate_reason: customerForm?.data?.driver_rate_reason || agent?.driver_rate_reason || null,
                 external_vehicle_make: customerForm?.data?.external_vehicle_make || agent?.external_vehicle_make || null,
@@ -5903,16 +6078,21 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
     const [submitting, setSubmitting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
 
-    const initialStartDate = agent?.rent_start_date || new Date().toISOString().split('T')[0];
-    const initialEndDate = agent?.rent_end_date || (() => {
-        const d = new Date(initialStartDate);
-        d.setDate(d.getDate() + (parseInt(customerForm?.data?.days || agent?.days) || 1));
-        return d.toISOString().split('T')[0];
-    })();
+    const daysVal = parseInt(customerForm?.data?.days || agent?.days, 10) || 1;
+    const initialStartDate = customerForm?.data?.rent_start_date || agent?.rent_start_date || getTodayDateStr();
+    const initialEndDate = customerForm?.data?.rent_end_date || agent?.rent_end_date || addDaysToDate(initialStartDate, daysVal);
 
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
     const [fmsVehicle, setFmsVehicle] = useState(null);
+
+    useEffect(() => {
+        const dVal = parseInt(customerForm?.data?.days || agent?.days, 10) || 1;
+        const s = customerForm?.data?.rent_start_date || agent?.rent_start_date || getTodayDateStr();
+        const e = customerForm?.data?.rent_end_date || agent?.rent_end_date || addDaysToDate(s, dVal);
+        setStartDate(s);
+        setEndDate(e);
+    }, [customerForm?.data?.rent_start_date, customerForm?.data?.rent_end_date, customerForm?.data?.days, agent?.rent_start_date, agent?.rent_end_date, agent?.days]);
 
     const targetReg = (
         customerForm?.data?.external_vehicle_reg ||
@@ -6015,7 +6195,8 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
                 external_company_id: v.company_id,
                 external_company_name: v.company_name,
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                days: daysVal,
             },
             {
                 preserveState: true,
@@ -6023,9 +6204,18 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
                 onSuccess: () => {
                     if (agent) {
                         agent.external_vehicle_reg = v.reg_no;
+                        agent.rent_start_date = startDate;
+                        agent.rent_end_date = endDate;
+                        agent.days = daysVal;
                     }
                     if (customerForm) {
-                        customerForm.setData('external_vehicle_reg', v.reg_no);
+                        customerForm.setData(prev => ({
+                            ...prev,
+                            external_vehicle_reg: v.reg_no,
+                            rent_start_date: startDate,
+                            rent_end_date: endDate,
+                            days: daysVal,
+                        }));
                     }
                     setConfirmModal(null);
                     onClose();
@@ -6040,14 +6230,17 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
             {/* Target Vehicle Banner */}
             {targetReg && (
                 <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-xs">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <CarFront className="text-emerald-700" size={18} />
                         <span className="text-xs font-bold text-gray-700">Assigned Vehicle Number:</span>
                         <span className="font-mono font-black text-sm bg-yellow-100 text-yellow-900 px-2.5 py-0.5 rounded border border-yellow-300">
                             {targetReg}
                         </span>
+                        <span className="text-xs font-bold text-blue-800 bg-blue-100/80 border border-blue-200 px-2 py-0.5 rounded">
+                            {formatDisplayDate(startDate)} → {formatDisplayDate(endDate)} ({daysVal} {daysVal === 1 ? 'Day' : 'Days'})
+                        </span>
                         <span className="text-xs text-gray-500 font-medium">
-                            ({agent?.days || 1} {Number(agent?.days) === 1 ? 'Day' : 'Days'} • Dropoff: {agent?.dropoff_location || 'BIA Airport'})
+                            Dropoff: {agent?.dropoff_location || 'BIA Airport'}
                         </span>
                     </div>
                     <button
@@ -6062,6 +6255,77 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
                     </button>
                 </div>
             )}
+
+            {/* Compact Rental Schedule & Days Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-indigo-50/90 border border-blue-200 rounded-xl shadow-xs">
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-1.5 text-blue-900 font-black text-xs">
+                        <Calendar size={14} className="text-blue-700" />
+                        <span>Rental Schedule:</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg px-2.5 py-1 shadow-2xs">
+                        <span className="text-[10px] font-black text-emerald-800 uppercase">Start</span>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => {
+                                const newStart = e.target.value;
+                                setStartDate(newStart);
+                                const newEnd = addDaysToDate(newStart, daysVal);
+                                setEndDate(newEnd);
+                                if (customerForm) {
+                                    customerForm.setData(prev => ({
+                                        ...prev,
+                                        rent_start_date: newStart,
+                                        rent_end_date: newEnd,
+                                    }));
+                                }
+                                if (agent) {
+                                    agent.rent_start_date = newStart;
+                                    agent.rent_end_date = newEnd;
+                                }
+                            }}
+                            className="text-xs font-black text-gray-900 border-0 p-0 focus:ring-0 bg-transparent cursor-pointer"
+                            title="Rental start date"
+                        />
+                    </div>
+                    <span className="text-xs font-bold text-blue-700">→</span>
+                    <div className="flex items-center gap-1.5 bg-white border border-blue-200 rounded-lg px-2.5 py-1 shadow-2xs">
+                        <span className="text-[10px] font-black text-blue-700 uppercase">Return</span>
+                        <input
+                            type="date"
+                            min={startDate}
+                            value={endDate}
+                            onChange={(e) => {
+                                const newEnd = e.target.value;
+                                setEndDate(newEnd);
+                                const newDays = getDaysBetweenDates(startDate, newEnd);
+                                if (customerForm) {
+                                    customerForm.setData(prev => ({
+                                        ...prev,
+                                        rent_end_date: newEnd,
+                                        days: newDays,
+                                    }));
+                                }
+                                if (agent) {
+                                    agent.rent_end_date = newEnd;
+                                    agent.days = newDays;
+                                }
+                            }}
+                            className="text-xs font-black text-blue-950 border-0 p-0 focus:ring-0 bg-transparent cursor-pointer"
+                            title="Rental return date"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-blue-900">
+                        {formatDisplayDate(startDate)} to {formatDisplayDate(endDate)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-2xs">
+                        {daysVal} {daysVal === 1 ? 'Day' : 'Days'} Total
+                    </span>
+                </div>
+            </div>
 
             {/* Target Vehicle Card Only */}
             {vehicleToShow ? (
@@ -6080,16 +6344,20 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 text-xs bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-gradient-to-r from-blue-50/70 to-indigo-50/70 p-3.5 rounded-xl border border-blue-200 shadow-2xs">
                             <div>
-                                <span className="text-[11px] font-bold text-gray-500 block">Rental Dates</span>
-                                <span className="font-black text-gray-800">{startDate} → {endDate}</span>
-                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">({customerForm?.data?.days || agent?.days || 1} {Number(customerForm?.data?.days || agent?.days) === 1 ? 'day' : 'days'})</span>
+                                <span className="text-[11px] font-extrabold text-blue-900 block mb-0.5 flex items-center gap-1">
+                                    <Calendar size={12} className="text-blue-600" /> Rental Dates Schedule
+                                </span>
+                                <span className="font-black text-gray-900 text-xs block">{formatDisplayDate(startDate)} → {formatDisplayDate(endDate)}</span>
+                                <span className="text-[10px] font-bold text-blue-700 block mt-0.5">
+                                    {daysVal} {daysVal === 1 ? 'day' : 'days'} ({startDate} to {endDate})
+                                </span>
                             </div>
                             <div className="text-right">
-                                <span className="text-[11px] font-bold text-gray-500 block">Total Rent Price</span>
-                                <span className="font-black text-emerald-800 text-sm">LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()}</span>
-                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">No Driver</span>
+                                <span className="text-[11px] font-extrabold text-gray-600 block mb-0.5">Total Rent Price</span>
+                                <span className="font-black text-emerald-800 text-base">LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()}</span>
+                                <span className="text-[10px] font-bold text-gray-500 block mt-0.5">Vehicle Only (No Driver)</span>
                             </div>
                         </div>
 
@@ -6120,7 +6388,7 @@ function RentACarVehicleTab({ agent, customerForm, customerId, onClose, invoiceP
                             <p><strong>Fleet Vehicle:</strong> {confirmModal.vehicle.make} {confirmModal.vehicle.model}</p>
                             <p><strong>Reg No:</strong> <span className="font-mono bg-yellow-100 px-1 rounded">{confirmModal.vehicle.reg_no}</span></p>
                             <p><strong>Company:</strong> {confirmModal.vehicle.company_name}</p>
-                            <p><strong>Dates:</strong> {startDate} to {endDate} ({customerForm?.data?.days || agent?.days || 1} Days)</p>
+                            <p><strong>Dates:</strong> {formatDisplayDate(startDate)} to {formatDisplayDate(endDate)} ({daysVal} Days • {startDate} to {endDate})</p>
                             <p className="text-emerald-700"><strong>Rate:</strong> LKR {Number(customerForm?.data?.price ?? agent?.price ?? 0).toLocaleString()} (No Driver)</p>
                         </div>
                         <div className="flex gap-2 pt-2">
