@@ -294,7 +294,15 @@ class CustomerController extends Controller
         $methods   = $payments->pluck('method')->unique()->implode(' + ');
         $firstPos  = $payments->firstWhere('method', 'POS');
 
+        $paymentLog = \App\Models\UserLoginLog::where('user_id', auth()->id())
+            ->whereNull('logout_at')->latest('login_at')->latest('id')->first();
+        $paymentShiftId = $paymentLog
+            ? ($paymentLog->shift_id ?: 'SHIFT-' . str_pad($paymentLog->id, 2, '0', STR_PAD_LEFT))
+            : null;
+
         $customer->update([
+            'payment_shift_id' => $paymentShiftId,
+            'paid_at' => now(),
             'payment_method' => $methods,                 
             'payment_notes'  => $payments->toArray(),     
             'transaction_id' => $firstPos['transaction_id'] ?? null,
@@ -544,7 +552,12 @@ class CustomerController extends Controller
                 ]);
             }
 
+            $shiftLog = \App\Models\UserLoginLog::where('user_id', auth()->id())
+                ->whereNull('logout_at')->latest('login_at')->latest('id')->first();
+
             $trip = Trip::create([
+                'shift_id' => $shiftLog
+                    ? ($shiftLog->shift_id ?: 'SHIFT-' . str_pad($shiftLog->id, 2, '0', STR_PAD_LEFT)) : null,
                 'driver_id'           => $data['driver_id'],
                 'customer_id'         => $customer->id,
                 'agent_id'            => $agentId,

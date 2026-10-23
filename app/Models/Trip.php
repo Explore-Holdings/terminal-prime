@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Trip extends Model
 {
     protected $fillable = [
+        'shift_id',
         'driver_id',
         'customer_id',
         'agent_id',
@@ -87,6 +88,9 @@ class Trip extends Model
 
     public function getShiftIdAttribute()
     {
+        if (!empty($this->attributes['shift_id'])) {
+            return $this->attributes['shift_id'];
+        }
         if (!$this->trip_assigned_by || !$this->trip_assigned_at) return null;
         $log = \App\Models\UserLoginLog::where('user_id', $this->trip_assigned_by)
             ->where('login_at', '<=', $this->trip_assigned_at)
@@ -94,7 +98,7 @@ class Trip extends Model
                 $q->where('logout_at', '>=', $this->trip_assigned_at)
                   ->orWhereNull('logout_at');
             })
-            ->first();
-        return $log ? $log->shift_id : null;
+            ->latest('login_at')->latest('id')->first();
+        return $log ? ($log->shift_id ?: 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT)) : null;
     }
 }
