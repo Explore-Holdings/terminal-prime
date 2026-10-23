@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Car, LogIn, Printer, FileText, CheckCircle, Banknote, CreditCard, Wallet, Info, Check } from 'lucide-react';
 
-export default function CheckoutSummary({ log, user, trips = [], paymentSummary = null }) {
+export default function CheckoutSummary({ log, user, trips = [], rentACarBookings = [], paymentSummary = null }) {
     const { post, processing } = useForm();
     const [pdfDownloaded, setPdfDownloaded] = useState(false);
 
@@ -282,9 +282,6 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                                         </span>
                                                         <span>({data.count} transaction{data.count !== 1 ? 's' : ''})</span>
                                                     </span>
-                                                    <span className="font-black text-slate-900">
-                                                        Total: LKR {data.total.toLocaleString()}
-                                                    </span>
                                                 </div>
 
                                                 {/* Currency sub-breakdown */}
@@ -387,6 +384,7 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                         <tr className="bg-gray-50 border-b text-gray-600 font-semibold uppercase text-[10px]">
                                             <th className="px-5 py-3">Time</th>
                                             <th className="px-5 py-3">Customer</th>
+                                            <th className="px-5 py-3">Type</th>
                                             <th className="px-5 py-3">Driver & Vehicle</th>
                                             <th className="px-5 py-3">Payment & Cash Notes</th>
                                             <th className="px-5 py-3">Dropoff Location</th>
@@ -409,6 +407,9 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                                     <td className="px-5 py-4">
                                                         <div className="font-semibold text-gray-900">{customer?.name ?? 'Guest'}</div>
                                                         <div className="text-xs text-gray-400">{customer?.customer_code}</div>
+                                                    </td>
+                                                    <td className="px-5 py-4">
+                                                        {trip.agent?.booking_type ?? customer?.agent?.booking_type ?? 'Transfer'}
                                                     </td>
                                                     <td className="px-5 py-4">
                                                         <div className="font-semibold text-gray-900">{trip.driver?.first_name + ' ' + trip.driver?.last_name}</div>
@@ -461,6 +462,44 @@ export default function CheckoutSummary({ log, user, trips = [], paymentSummary 
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+
+                <div className="max-w-5xl w-full mx-auto mt-6 bg-white border rounded-2xl overflow-hidden print:border-none">
+                    <div className="p-5 border-b">
+                        <h2 className="text-lg font-bold text-gray-900">Rent a Car ({rentACarBookings.length})</h2>
+                        <p className="text-xs text-gray-500">Rental payments for Shift {log.shift_id || `SHIFT-${String(log.id).padStart(2, '0')}`}</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+                                <tr>
+                                    <th className="px-5 py-3">Customer</th>
+                                    <th className="px-5 py-3">Type / Vehicle</th>
+                                    <th className="px-5 py-3">Rental Dates</th>
+                                    <th className="px-5 py-3">Payments</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {rentACarBookings.map((customer) => (
+                                    <tr key={customer.id}>
+                                        <td className="px-5 py-4">{customer.name}<div className="text-xs text-gray-400">{customer.customer_code}</div></td>
+                                        <td className="px-5 py-4">Rent a Car<div className="text-xs text-gray-500">{customer.agent?.external_vehicle_reg || '-'}</div></td>
+                                        <td className="px-5 py-4">{customer.agent?.rent_start_date || '-'} to {customer.agent?.rent_end_date || '-'}</td>
+                                        <td className="px-5 py-4">
+                                            {Array.isArray(customer.payment_notes) && customer.payment_notes.length > 0
+                                                ? customer.payment_notes.map((payment, index) => (
+                                                    <div key={index}>{payment.method}: {payment.currency} {Number(payment.amount).toLocaleString()}
+                                                        {payment.transaction_id && <div className="text-xs text-blue-600">TXN: {payment.transaction_id}</div>}
+                                                    </div>
+                                                ))
+                                                : `${customer.payment_method || '-'}: ${customer.agent?.new_currency || customer.agent?.currency || 'LKR'} ${Number(customer.paid_amount || 0).toLocaleString()}`}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {rentACarBookings.length === 0 && <tr><td colSpan={4} className="p-5 text-center text-gray-400">No Rent a Car payments for this shift.</td></tr>}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

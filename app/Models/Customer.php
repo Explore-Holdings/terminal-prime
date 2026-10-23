@@ -25,6 +25,8 @@ class Customer extends Model
         'status',
         'remarks',
         'payment_method',
+        'payment_shift_id',
+        'paid_at',
         'payment_notes',
         'paid_amount',
         'payment_status',
@@ -35,6 +37,7 @@ class Customer extends Model
     ];
 
     protected $casts = [
+        'paid_at' => 'datetime',
         'payment_notes' => 'array',
     ];
 

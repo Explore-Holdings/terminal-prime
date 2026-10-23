@@ -250,12 +250,55 @@
         </table>
     </div>
 
+    <h3>POS Payments</h3>
+    <table class="trips-table">
+        <thead><tr><th>Customer</th><th>Transaction ID</th><th class="text-right">Amount</th></tr></thead>
+        <tbody>
+            @forelse($paymentSummary['posTransactions'] ?? [] as $payment)
+                <tr>
+                    <td>{{ $payment['customer_name'] }}<br><small>{{ $payment['customer_code'] }}</small></td>
+                    <td>{{ $payment['transaction_id'] ?: '-' }}</td>
+                    <td class="text-right">{{ $payment['currency'] }} {{ number_format($payment['amount'], 2) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="3">No POS payments for this shift.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <h3>Rent a Car Summary</h3>
+    <table class="trips-table">
+        <thead><tr><th>Customer</th><th>Type / Vehicle</th><th>Rental Dates</th><th>Payments</th></tr></thead>
+        <tbody>
+            @forelse($rentACarBookings as $customer)
+                <tr>
+                    <td>{{ $customer->name }}<br><small>{{ $customer->customer_code }}</small></td>
+                    <td>Rent a Car<br>{{ $customer->agent?->external_vehicle_reg ?? '-' }}</td>
+                    <td>{{ $customer->agent?->rent_start_date ?? '-' }} to {{ $customer->agent?->rent_end_date ?? '-' }}</td>
+                    <td>
+                        @forelse($customer->payment_notes ?? [] as $payment)
+                            <div>{{ $payment['method'] ?? '-' }}: {{ $payment['currency'] ?? 'LKR' }} {{ number_format($payment['amount'] ?? 0, 2) }}</div>
+                            @if(!empty($payment['transaction_id']))
+                                <small>TXN: {{ $payment['transaction_id'] }}</small>
+                            @endif
+                        @empty
+                            {{ $customer->payment_method }}: {{ $customer->agent?->new_currency ?? $customer->agent?->currency ?? 'LKR' }} {{ number_format($customer->paid_amount ?? 0, 2) }}
+                        @endforelse
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="4">No Rent a Car payments for this shift.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
     <h3>Assigned Trips Summary</h3>
     <table class="trips-table">
         <thead>
             <tr>
                 <th>Time</th>
                 <th>Customer</th>
+                <th>Type</th>
                 <th>Driver / Vehicle</th>
                 <th>Payment & Cash Notes</th>
                 <th>Dropoff Location</th>
@@ -277,6 +320,7 @@
                         {{ $customer?->name ?? 'Guest' }}<br>
                         <small style="color: #6b7280;">{{ $customer?->customer_code }}</small>
                     </td>
+                    <td>{{ $trip->agent?->booking_type ?? $customer?->agent?->booking_type ?? 'Transfer' }}</td>
                     <td>
                         {{ $trip->driver?->first_name }} {{ $trip->driver?->last_name }}<br>
                         <small style="color: #6b7280;">{{ $trip->driver?->vehicle?->registration_number ?? '-' }} ({{ $trip->driver?->vehicle?->vehicle_type ?? '' }})</small>
@@ -307,30 +351,13 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; color: #9ca3af; padding: 20px;">
+                    <td colspan="7" style="text-align: center; color: #9ca3af; padding: 20px;">
                         No trips assigned during this session.
                     </td>
                 </tr>
             @endforelse
         </tbody>
     </table>
-
-    <div class="totals-section">
-        <table class="totals-table">
-            <tr>
-                <td class="totals-label">Total Trips:</td>
-                <td class="text-right">{{ count($trips) }}</td>
-            </tr>
-            <!-- <tr>
-                <td class="totals-label">Total Driver Share:</td>
-                <td class="text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->driver_share ?? 0)) }}</td>
-            </tr> -->
-            <tr>
-                <td class="totals-label">Total Revenue:</td>
-                <td class="totals-value text-right">LKR {{ number_format($trips->sum(fn($t) => $t->tripFinance?->total_amount ?? 0)) }}</td>
-            </tr>
-        </table>
-    </div>
 
     @if(isset($pettyCashReturns) && count($pettyCashReturns) > 0)
     <div style="page-break-before: always; padding-top: 20px;">

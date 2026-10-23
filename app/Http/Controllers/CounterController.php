@@ -384,20 +384,14 @@ class CounterController extends Controller
     {
         $user = $userLoginLog->user;
 
-        $trips = Trip::with(['customer', 'driver.vehicle', 'tripFinance'])
-            ->where('trip_assigned_by', $userLoginLog->user_id)
-            ->where('trip_assigned_at', '>=', $userLoginLog->login_at)
-            ->where('trip_assigned_at', '<=', $userLoginLog->logout_at ?? now())
-            ->latest()
-            ->get();
-
-        $paymentSummary = $this->buildPaymentSummary($trips);
+        [$trips, $rentACarBookings, $paymentSummary] = $this->checkoutData($userLoginLog);
 
         return Inertia::render('Counter/CheckoutSummary', [
             'log' => $userLoginLog,
             'user' => $user,
             'trips' => $trips,
             'paymentSummary' => $paymentSummary,
+            'rentACarBookings' => $rentACarBookings,
         ]);
     }
 
@@ -414,14 +408,7 @@ class CounterController extends Controller
     {
         $user = $userLoginLog->user;
 
-        $trips = Trip::with(['customer', 'driver.vehicle', 'tripFinance'])
-            ->where('trip_assigned_by', $userLoginLog->user_id)
-            ->where('trip_assigned_at', '>=', $userLoginLog->login_at)
-            ->where('trip_assigned_at', '<=', $userLoginLog->logout_at ?? now())
-            ->latest()
-            ->get();
-
-        $paymentSummary = $this->buildPaymentSummary($trips);
+        [$trips, $rentACarBookings, $paymentSummary] = $this->checkoutData($userLoginLog);
 
         $pettyCashReturns = [];
         if ($userLoginLog->shift_id) {
@@ -436,6 +423,7 @@ class CounterController extends Controller
             'user' => $user,
             'trips' => $trips,
             'paymentSummary' => $paymentSummary,
+            'rentACarBookings' => $rentACarBookings,
             'pettyCashReturns' => $pettyCashReturns,
         ]);
         $pdf->getDomPDF()->set_option('isPhpEnabled', true);
@@ -443,16 +431,71 @@ class CounterController extends Controller
         return $pdf->download('checkout-summary-' . $userLoginLog->id . '.pdf');
     }
 
-    private function buildPaymentSummary($trips)
+    private function checkoutData(UserLoginLog $log): array
+    {
+        $shiftId = $log->shift_id ?: 'SHIFT-' . str_pad($log->id, 2, '0', STR_PAD_LEFT);
+        $trips = Trip::with(['customer.agent', 'agent', 'driver.vehicle', 'tripFinance'])
+            ->where(function ($query) use ($log, $shiftId) {
+                $query->where('shift_id', $shiftId)
+                    ->orWhere(function ($legacy) use ($log) {
+                        $legacy->whereNull('shift_id')
+                            ->where('trip_assigned_by', $log->user_id)
+                            ->whereBetween('trip_assigned_at', [$log->login_at, $log->logout_at ?? now()]);
+                    });
+            })
+            ->latest()->get()
+            ->filter(fn ($trip) => $trip->shift_id === $shiftId)->values();
+
+        // Rentals are paid without assigning a driver/trip. Older payments have
+        // no shift stamp, so resolve their last payment editor and timestamp.
+        $rentACarBookings = Customer::with('agent')
+            ->whereHas('agent', fn ($query) => $query->where('booking_type', 'Rent a Car'))
+            ->where(function ($query) use ($log, $shiftId) {
+                $query->where('payment_shift_id', $shiftId)
+                    ->orWhere(function ($legacy) use ($log) {
+                        $legacy->whereNull('payment_shift_id')->whereNull('paid_at')
+                            ->where('paid_amount', '>', 0)
+                            ->whereBetween('updated_at', [$log->login_at, $log->logout_at ?? now()])
+                            ->whereHas('agent', fn ($agent) => $agent->where('currency_updated_by', $log->user_id));
+                    });
+            })->latest()->get()
+            ->filter(function ($customer) use ($shiftId, $log) {
+                if ($customer->payment_shift_id) return $customer->payment_shift_id === $shiftId;
+                $paymentLog = UserLoginLog::where('user_id', $log->user_id)
+                    ->where('login_at', '<=', $customer->updated_at)
+                    ->where(fn ($q) => $q->whereNull('logout_at')->orWhere('logout_at', '>=', $customer->updated_at))
+                    ->latest('login_at')->latest('id')->first();
+                return $paymentLog && $paymentLog->id === $log->id;
+            })->values();
+
+        $customers = Customer::with('agent')->where('payment_shift_id', $shiftId)->get()
+            ->concat($trips->pluck('customer')->filter(fn ($customer) => $customer && !$customer->payment_shift_id))
+            ->concat($rentACarBookings)->unique('id')->values();
+
+        $paymentSummary = $this->buildPaymentSummary($trips, $customers);
+        foreach ($trips as $trip) {
+            if ($trip->customer?->payment_shift_id && $trip->customer->payment_shift_id !== $shiftId) {
+                $customer = clone $trip->customer;
+                $customer->payment_notes = [];
+                $customer->payment_method = 'Payment recorded in another shift';
+                $customer->transaction_id = null;
+                $customer->card_number = null;
+                $customer->paid_amount = 0;
+                $trip->setRelation('customer', $customer);
+            }
+        }
+
+        return [$trips, $rentACarBookings, $paymentSummary];
+    }
+
+    private function buildPaymentSummary($trips, $customers)
     {
         $byMethod = [];
         $currencies = [];
         $cashNotesMap = [];
         $posTransactions = [];
 
-        foreach ($trips as $trip) {
-            $customer = $trip->customer;
-            if (!$customer) continue;
+        foreach ($customers as $customer) {
 
             $paymentNotes = $customer->payment_notes;
             if (is_string($paymentNotes)) {
@@ -460,20 +503,13 @@ class CounterController extends Controller
             }
 
             if (!is_array($paymentNotes) || empty($paymentNotes)) {
-                if ($customer->payment_method) {
-                    $method = $customer->payment_method;
-                    $paid = (float)($customer->paid_amount ?? 0);
-                    $cur = $customer->agent?->currency ?? 'LKR';
-
-                    if (!isset($byMethod[$method])) {
-                        $byMethod[$method] = ['total' => 0, 'currencies' => [], 'count' => 0];
-                    }
-                    $byMethod[$method]['total'] += $paid;
-                    $byMethod[$method]['count'] += 1;
-                    $byMethod[$method]['currencies'][$cur] = ($byMethod[$method]['currencies'][$cur] ?? 0) + $paid;
-                    $currencies[$cur] = ($currencies[$cur] ?? 0) + $paid;
-                }
-                continue;
+                $paymentNotes = $customer->payment_method ? [[
+                    'method' => $customer->payment_method,
+                    'amount' => $customer->paid_amount ?? 0,
+                    'currency' => $customer->agent?->new_currency ?? $customer->agent?->currency ?? 'LKR',
+                    'transaction_id' => $customer->transaction_id,
+                    'card_number' => $customer->card_number,
+                ]] : [];
             }
 
             foreach ($paymentNotes as $p) {
@@ -494,7 +530,7 @@ class CounterController extends Controller
 
                 $currencies[$currency] = ($currencies[$currency] ?? 0) + $amount;
 
-                if ($method === 'POS' || !empty($p['transaction_id']) || !empty($p['card_number'])) {
+                if (str_contains(strtoupper($method), 'POS')) {
                     $posTransactions[] = [
                         'customer_name' => $customer->name,
                         'customer_code' => $customer->customer_code,
