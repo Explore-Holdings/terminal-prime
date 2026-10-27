@@ -611,7 +611,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                     <td className="px-3 py-2">
                                                         {isCustomRate ? (
                                                             <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-black">
-                                                                ✦ Custom
+                                                                Custom
                                                             </span>
                                                         ) : (
                                                             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-black">
