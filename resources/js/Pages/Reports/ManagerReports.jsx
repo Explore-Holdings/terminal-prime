@@ -1,7 +1,7 @@
 import AppSidebarLayout from '@/Layouts/AppSidebarLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Clock, Eye, Printer, FileText, Calendar, CheckCircle, Banknote, CreditCard, Wallet, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 function buildPages(page, totalPages) {
     if (!totalPages || totalPages <= 1) return [1];
@@ -119,6 +119,37 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
 
     const [returnsPage, setReturnsPage] = useState(1);
     const [returnsPerPage, setReturnsPerPage] = useState(10);
+
+    const paymentSummaryRef = useRef(null);
+    const [summaryHeight, setSummaryHeight] = useState(null);
+
+    useEffect(() => {
+        if (!paymentSummaryRef.current) return;
+
+        const updateHeight = () => {
+            if (paymentSummaryRef.current) {
+                if (window.innerWidth >= 1024) {
+                    setSummaryHeight(paymentSummaryRef.current.offsetHeight);
+                } else {
+                    setSummaryHeight(null);
+                }
+            }
+        };
+
+        updateHeight();
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateHeight();
+        });
+
+        resizeObserver.observe(paymentSummaryRef.current);
+        window.addEventListener('resize', updateHeight);
+
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', updateHeight);
+        };
+    }, [paymentSummary, currentRange]);
 
     const handleRangeChange = (range) => {
         if (range === 'custom') {
@@ -282,12 +313,12 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                     )}
                 </div>
 
-                {/* Side-by-Side Row: Equal Height */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                    {/* Payment Collections & Cash Notes Summary */}
-                    <div className="lg:col-span-7 flex flex-col">
-                        <div className="bg-white border rounded-2xl p-5 shadow-sm flex flex-col h-[480px]">
-                            <div className="border-b pb-3 mb-4 flex items-center justify-between shrink-0">
+                {/* Side-by-Side Row: Equal Height anchored to Payment Collections */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Payment Collections & Cash Notes Summary (Defines Height) */}
+                    <div className="lg:col-span-7">
+                        <div ref={paymentSummaryRef} className="bg-white border rounded-2xl p-5 shadow-sm space-y-4">
+                            <div className="border-b pb-3 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-bold text-black flex items-center gap-2">
                                         <Wallet size={18} className="text-black" />
@@ -296,15 +327,15 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 min-h-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {/* Card 1: Collection by Payment Method & Currency */}
-                                <div className="bg-slate-50 border rounded-xl p-3.5 flex flex-col min-h-0 h-full">
-                                    <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide shrink-0 mb-3">
+                                <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
+                                    <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide">
                                         <CreditCard size={15} className="text-black" />
                                         Collection by Payment Method
                                     </h3>
 
-                                    <div className="space-y-2 text-xs flex-1 min-h-0 overflow-y-auto pr-1">
+                                    <div className="space-y-2 text-xs">
                                         {Object.keys(byMethod).length > 0 ? (
                                             Object.entries(byMethod).map(([method, data]) => (
                                                 <div key={method} className="bg-white border rounded-lg p-2.5 space-y-1">
@@ -336,52 +367,53 @@ export default function ManagerReports({ trips = [], reports = [], filters = {},
                                 </div>
 
                                 {/* Card 2: Cash Denominations Handover */}
-                                <div className="bg-slate-50 border rounded-xl p-3.5 flex flex-col min-h-0 h-full">
-                                    <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide shrink-0 mb-3">
+                                <div className="bg-slate-50 border rounded-xl p-3.5 space-y-3">
+                                    <h3 className="text-xs font-bold text-black flex items-center gap-1.5 uppercase tracking-wide">
                                         <Banknote size={15} className="text-black" />
                                         Cash Notes Denomination Summary
                                     </h3>
 
-                                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-                                        {cashNotes.length > 0 ? (
-                                            <div className="overflow-hidden rounded-lg border bg-white">
-                                                <table className="w-full text-left text-xs">
-                                                    <thead className="bg-slate-100 border-b text-black font-bold uppercase text-[10px] sticky top-0">
-                                                        <tr>
-                                                            <th className="px-2.5 py-1.5">Currency</th>
-                                                            <th className="px-2.5 py-1.5">Note</th>
-                                                            <th className="px-2.5 py-1.5 text-center">Qty</th>
-                                                            <th className="px-2.5 py-1.5 text-right">Subtotal</th>
+                                    {cashNotes.length > 0 ? (
+                                        <div className="overflow-hidden rounded-lg border bg-white">
+                                            <table className="w-full text-left text-xs">
+                                                <thead className="bg-slate-100 border-b text-black font-bold uppercase text-[10px]">
+                                                    <tr>
+                                                        <th className="px-2.5 py-1.5">Currency</th>
+                                                        <th className="px-2.5 py-1.5">Note</th>
+                                                        <th className="px-2.5 py-1.5 text-center">Qty</th>
+                                                        <th className="px-2.5 py-1.5 text-right">Subtotal</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y text-black">
+                                                    {cashNotes.map((cn, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50">
+                                                            <td className="px-2.5 py-1.5 font-bold text-black">{cn.currency}</td>
+                                                            <td className="px-2.5 py-1.5 font-semibold">{Number(cn.note_value).toLocaleString()}</td>
+                                                            <td className="px-2.5 py-1.5 text-center font-bold text-black">× {cn.count}</td>
+                                                            <td className="px-2.5 py-1.5 text-right font-black text-black">
+                                                                {cn.currency} {Number(cn.total).toLocaleString()}
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y text-black">
-                                                        {cashNotes.map((cn, idx) => (
-                                                            <tr key={idx} className="hover:bg-slate-50">
-                                                                <td className="px-2.5 py-1.5 font-bold text-black">{cn.currency}</td>
-                                                                <td className="px-2.5 py-1.5 font-semibold">{Number(cn.note_value).toLocaleString()}</td>
-                                                                <td className="px-2.5 py-1.5 text-center font-bold text-black">× {cn.count}</td>
-                                                                <td className="px-2.5 py-1.5 text-right font-black text-black">
-                                                                    {cn.currency} {Number(cn.total).toLocaleString()}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <div className="p-3 bg-white border rounded-lg text-center text-xs text-black italic">
-                                                No cash notes recorded for this range.
-                                            </div>
-                                        )}
-                                    </div>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 bg-white border rounded-lg text-center text-xs text-black italic">
+                                            No cash notes recorded for this range.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Submitted Shifts */}
-                    <div className="lg:col-span-5 flex flex-col">
-                        <div className="bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col h-[480px]">
+                    {/* Submitted Shifts (Matches Height of Payment Collections) */}
+                    <div className="lg:col-span-5">
+                        <div
+                            style={summaryHeight ? { height: `${summaryHeight}px` } : undefined}
+                            className="bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col max-h-[600px] lg:max-h-none"
+                        >
                             <div className="p-4 px-5 border-b bg-gray-50/70 shrink-0 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-bold text-black flex items-center gap-2">
