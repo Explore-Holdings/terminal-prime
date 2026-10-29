@@ -34,11 +34,22 @@ class Customer extends Model
         'card_number',
         'invoice_number',
         'invoice_path',
+        'finance_received',
+        'finance_received_amount',
+        'finance_received_by',
+        'finance_received_at',
+        'accountant_approved',
+        'approved_by',
+        'approved_at',
     ];
 
     protected $casts = [
         'paid_at' => 'datetime',
         'payment_notes' => 'array',
+        'finance_received' => 'boolean',
+        'finance_received_at' => 'datetime',
+        'accountant_approved' => 'boolean',
+        'approved_at' => 'datetime',
     ];
 
     public function agent()
@@ -54,5 +65,20 @@ class Customer extends Model
     public function latestTrip()
     {
         return $this->hasOne(Trip::class)->latestOfMany();
+    }
+
+    public function financeReceiver()
+    {
+        return $this->belongsTo(User::class, 'finance_received_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function paymentSlips()
+    {
+        return $this->hasMany(PaymentSlip::class);
     }
 }

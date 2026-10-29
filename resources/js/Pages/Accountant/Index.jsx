@@ -64,29 +64,47 @@ export default function AccountantIndex({
         );
     };
 
-    const handleApprove = (tripFinance) => {
-        if (window.confirm(`Are you sure you want to approve the finance record for Trip #${tripFinance.trip_id}?`)) {
-            const toastId = toast.loading('Approving trip...');
+    const handleApprove = (record) => {
+        const title = record.display_id ? `${record.type_badge || 'Record'} ${record.display_id}` : `Trip #${record.trip_id}`;
+        if (window.confirm(`Are you sure you want to approve ${title}?`)) {
+            const toastId = toast.loading(`Approving ${title}...`);
+            let url;
+            if (record.type === 'outside_vehicle') {
+                url = route('accountant.approve-outsource', record.id);
+            } else if (record.type === 'rent_a_car') {
+                url = route('accountant.approve-customer', record.id);
+            } else {
+                url = route('accountant.approve', record.id);
+            }
             router.post(
-                route('accountant.approve', tripFinance.id),
+                url,
                 {},
                 {
                     preserveScroll: true,
-                    onSuccess: () => toast.success(`Trip #${tripFinance.trip_id} approved successfully.`, { id: toastId }),
+                    onSuccess: () => toast.success(`${title} approved successfully.`, { id: toastId }),
                     onError: () => toast.error('Failed to approve record.', { id: toastId }),
                 }
             );
         }
     };
 
-    const handleApproveSlips = (tripFinance) => {
+    const handleApproveSlips = (record) => {
         const toastId = toast.loading('Approving slip(s)...');
+        let url;
+        if (record.type === 'outside_vehicle') {
+            url = route('accountant.outsource-vehicles.slips.status', record.id);
+        } else if (record.type === 'rent_a_car') {
+            url = route('accountant.customers.slips.status', record.id);
+        } else {
+            url = route('accountant.trip-finances.slips.status', record.id);
+        }
+
         router.post(
-            route('accountant.trip-finances.slips.status', tripFinance.id),
+            url,
             { status: 'completed' },
             {
                 preserveScroll: true,
-                onSuccess: () => toast.success(`Slip(s) for Trip #${tripFinance.trip_id} approved.`, { id: toastId }),
+                onSuccess: () => toast.success(`Slip(s) for ${record.display_id || 'Trip #' + record.trip_id} approved.`, { id: toastId }),
                 onError: () => toast.error('Failed to approve slip(s).', { id: toastId }),
             }
         );
@@ -317,7 +335,7 @@ export default function AccountantIndex({
                     <table className="w-full text-sm whitespace-nowrap">
                         <thead>
                             <tr className="bg-[#f5f6fa]">
-                                <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Trip</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Trip / Ref</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Agent</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Vehicle</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-[#0f1d45] uppercase tracking-wider">Payment Breakdown</th>
@@ -332,26 +350,43 @@ export default function AccountantIndex({
                                 receivedFinances.data.map((tf) => {
                                     let paymentNotes = [];
                                     try {
-                                        const raw = tf.trip?.customer?.payment_notes;
+                                        const raw = tf.payment_notes || tf.trip?.customer?.payment_notes;
                                         paymentNotes = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
                                     } catch (e) {}
 
                                     const slips = tf.payment_slips || [];
                                     const pendingSlips = slips.filter(s => s.status === 'pending');
                                     const incompleteSlips = slips.filter(s => s.status === 'incomplete');
-                                    const agentName = tf.trip?.customer?.agent?.user?.name ?? tf.trip?.agent?.user?.name ?? tf.agent_user?.name ?? '-';
+                                    const agentName = tf.agent_name || (tf.trip?.customer?.agent?.user?.name ?? tf.trip?.agent?.user?.name ?? tf.agentUser?.name ?? '-');
+                                    const vehicleInfo = tf.vehicle_info || tf.trip?.driver?.vehicle?.registration_number || '-';
+                                    const customerName = tf.customer_name || tf.trip?.customer?.name || '-';
+                                    const displayId = tf.display_id || `#${tf.trip_id}`;
+                                    const typeBadge = tf.type_badge || 'Transfer';
+
+                                    const typeBorder = tf.type === 'outside_vehicle' ? 'border-amber-500' :
+                                                       tf.type === 'rent_a_car' ? 'border-purple-500' : 'border-blue-500';
 
                                     return (
-                                        <tr key={tf.id} className="hover:bg-[#f5f6fa]/50 transition">
-                                            <td className="px-4 py-3">
-                                                <div className="font-bold text-[#0f1d45]">#{tf.trip_id}</div>
-                                                <div className="text-xs text-gray-500">{tf.trip?.customer?.name || '-'}</div>
+                                        <tr key={`${tf.type || 'trip'}-${tf.id}`} className="hover:bg-[#f5f6fa]/50 transition">
+                                            <td className={`px-4 py-3 border-l-2 ${typeBorder}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-[#0f1d45]">{displayId}</span>
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-bold ${
+                                                        tf.type === 'outside_vehicle' ? 'bg-amber-100 text-amber-800' :
+                                                        tf.type === 'rent_a_car' ? 'bg-purple-100 text-purple-800' :
+                                                        typeBadge.toLowerCase().includes('tour') ? 'bg-teal-100 text-teal-800' :
+                                                        'bg-blue-100 text-blue-800'
+                                                    }`}>
+                                                        {typeBadge}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-gray-500 mt-0.5">{customerName}</div>
                                             </td>
                                             <td className="px-4 py-3 text-xs font-medium text-black">
                                                 {agentName}
                                             </td>
                                             <td className="px-4 py-3 text-xs font-medium text-black">
-                                                {tf.trip?.driver?.vehicle?.registration_number || '-'}
+                                                {vehicleInfo}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {paymentNotes.length > 0 ? (
@@ -380,14 +415,16 @@ export default function AccountantIndex({
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                                    {tf.receiver?.name || 'System'}
+                                                    {tf.receiver_name || tf.receiver?.name || 'System'}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-right font-black text-emerald-600">
                                                 LKR {fmt(tf.received_amount)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                {(() => {
+                                                {tf.type && tf.type !== 'trip' ? (
+                                                    <span className="text-gray-400 text-xs italic">N/A</span>
+                                                ) : (() => {
                                                     if (slips.length === 0) {
                                                         return <span className="text-gray-400 text-xs italic">No Slips</span>;
                                                     }
@@ -430,18 +467,18 @@ export default function AccountantIndex({
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex items-center justify-center gap-2 whitespace-nowrap">
-                                                    {/* Trip approval action */}
+                                                    {/* Approval action */}
                                                     {!tf.accountant_approved ? (
                                                         <button
                                                             type="button"
                                                             onClick={() => handleApprove(tf)}
                                                             className="rounded-lg bg-[#0f1d45] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#1a2d5c] active:scale-95 transition-transform shadow-sm whitespace-nowrap"
                                                         >
-                                                            Approve Trip
+                                                            Approve {typeBadge}
                                                         </button>
                                                     ) : (
                                                         <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                                                            ✓ Trip Approved
+                                                            ✓ {typeBadge} Approved
                                                         </span>
                                                     )}
 
@@ -507,7 +544,7 @@ export default function AccountantIndex({
                     <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
                             <div>
-                                <h3 className="text-lg font-black text-[#0f1d45]">View Slips — Trip #{viewSlipsModal.trip_id}</h3>
+                                <h3 className="text-lg font-black text-[#0f1d45]">View Slips — {viewSlipsModal.display_id || `Trip #${viewSlipsModal.trip_id}`}</h3>
                                 <p className="text-xs text-gray-500 mt-0.5">Uploaded payment slip documents from Finance</p>
                             </div>
                             <button onClick={() => setViewSlipsModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">

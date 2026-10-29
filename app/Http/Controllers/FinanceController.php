@@ -12,6 +12,7 @@ use App\Models\TripFinance;
 use App\Models\Expense;
 use App\Models\Payout;
 use App\Models\OutsourceVehicle;
+use App\Models\Customer;
 use App\Models\PettyCashShiftLog;
 use App\Models\PettyCashReturn;
 use App\Models\PettyCashRequest;
@@ -102,6 +103,9 @@ class FinanceController extends Controller
             'customer',
             'agent.user',
             'creator',
+            'receiver',
+            'approver',
+            'paymentSlips.uploader',
         ])->latest()->get()->map(function ($ov) {
             $hasInvoice = !empty($ov->invoice_path)
                 || !empty($ov->invoice_generated_at)
@@ -109,6 +113,11 @@ class FinanceController extends Controller
             $ov->has_invoice = (bool) $hasInvoice;
             return $ov;
         });
+
+        $rentACarBookings = Customer::with(['agent.user', 'financeReceiver', 'approver', 'paymentSlips.uploader'])
+            ->whereHas('agent', fn ($query) => $query->where('booking_type', 'Rent a Car'))
+            ->latest()
+            ->get();
 
         return Inertia::render('Finance/Index', [
             'trips' => $trips,
@@ -121,6 +130,7 @@ class FinanceController extends Controller
             'expenses' => $expenses,
             'payouts' => $payouts,
             'outsourceVehicles' => $outsourceVehicles,
+            'rentACarBookings' => $rentACarBookings,
             'pettyCashShiftLogs' => $pettyCashShiftLogs,
             'pettyCashReturns' => $pettyCashReturns,
             'pettyCashBalance' => $pettyCashBalance,
@@ -241,6 +251,38 @@ class FinanceController extends Controller
         );
 
         $trip->update(['cash_received' => true]);
+
+        return back();
+    }
+
+    public function markOutsourceReceived(Request $request, OutsourceVehicle $outsourceVehicle)
+    {
+        $receivedAmount = $request->input('received_amount') !== null
+            ? (float) $request->input('received_amount')
+            : (float) ($outsourceVehicle->customer?->paid_amount ?? $outsourceVehicle->price);
+
+        $outsourceVehicle->update([
+            'received'        => true,
+            'received_amount' => $receivedAmount,
+            'received_by'     => Auth::id(),
+            'received_at'     => now(),
+        ]);
+
+        return back();
+    }
+
+    public function markCustomerReceived(Request $request, Customer $customer)
+    {
+        $receivedAmount = $request->input('received_amount') !== null
+            ? (float) $request->input('received_amount')
+            : (float) ($customer->paid_amount ?? 0);
+
+        $customer->update([
+            'finance_received'        => true,
+            'finance_received_amount' => $receivedAmount,
+            'finance_received_by'     => Auth::id(),
+            'finance_received_at'     => now(),
+        ]);
 
         return back();
     }
@@ -630,5 +672,65 @@ class FinanceController extends Controller
         }
 
         return back()->with('success', 'Rent a Car rate removed successfully.');
+    }
+
+    public function uploadOutsourceSlips(Request $request, OutsourceVehicle $outsourceVehicle)
+    {
+        $existingSlips = $outsourceVehicle->paymentSlips;
+        if ($existingSlips->isNotEmpty() && $existingSlips->every(fn($s) => $s->status === 'completed')) {
+            return back()->with('error', 'Payment slips have already been approved by the accountant. Further uploads are not permitted.');
+        }
+
+        $request->validate([
+            'uploads' => 'required|array',
+            'uploads.*.file' => 'required|file|max:10240',
+            'uploads.*.description' => 'nullable|string',
+        ]);
+
+        foreach ($request->uploads as $upload) {
+            if (isset($upload['file']) && $upload['file']->isValid()) {
+                $path = $upload['file']->store("payment_slips/outsource_{$outsourceVehicle->id}", 'public');
+
+                \App\Models\PaymentSlip::create([
+                    'outsource_vehicle_id' => $outsourceVehicle->id,
+                    'slip_des' => $upload['description'] ?? null,
+                    'slip_path' => $path,
+                    'uploaded_by' => Auth::id(),
+                    'status' => 'pending',
+                ]);
+            }
+        }
+
+        return back();
+    }
+
+    public function uploadCustomerSlips(Request $request, Customer $customer)
+    {
+        $existingSlips = $customer->paymentSlips;
+        if ($existingSlips->isNotEmpty() && $existingSlips->every(fn($s) => $s->status === 'completed')) {
+            return back()->with('error', 'Payment slips have already been approved by the accountant. Further uploads are not permitted.');
+        }
+
+        $request->validate([
+            'uploads' => 'required|array',
+            'uploads.*.file' => 'required|file|max:10240',
+            'uploads.*.description' => 'nullable|string',
+        ]);
+
+        foreach ($request->uploads as $upload) {
+            if (isset($upload['file']) && $upload['file']->isValid()) {
+                $path = $upload['file']->store("payment_slips/customer_{$customer->id}", 'public');
+
+                \App\Models\PaymentSlip::create([
+                    'customer_id' => $customer->id,
+                    'slip_des' => $upload['description'] ?? null,
+                    'slip_path' => $path,
+                    'uploaded_by' => Auth::id(),
+                    'status' => 'pending',
+                ]);
+            }
+        }
+
+        return back();
     }
 }

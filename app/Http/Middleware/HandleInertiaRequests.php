@@ -60,10 +60,24 @@ class HandleInertiaRequests extends Middleware
                     return $tf->paymentSlips->some(fn($s) => $s->status !== 'completed');
                 })->count();
             })(),
-            'accountantPendingApprovalsCount' => \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count(),
+            'accountantPendingApprovalsCount' => (function () {
+                $trips = \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count();
+                $outsource = \App\Models\OutsourceVehicle::where('received', true)->where('accountant_approved', false)->count();
+                $rentals = \App\Models\Customer::where('finance_received', true)
+                    ->where('accountant_approved', false)
+                    ->whereHas('agent', fn($q) => $q->where('booking_type', 'Rent a Car'))
+                    ->count();
+                return $trips + $outsource + $rentals;
+            })(),
             'accountantPendingSlipsCount' => \App\Models\PaymentSlip::where('status', 'pending')->count(),
             'accountantTotalBadgeCount' => (function () {
-                $unapproved = \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count();
+                $trips = \App\Models\TripFinance::where('received', true)->where('accountant_approved', false)->count();
+                $outsource = \App\Models\OutsourceVehicle::where('received', true)->where('accountant_approved', false)->count();
+                $rentals = \App\Models\Customer::where('finance_received', true)
+                    ->where('accountant_approved', false)
+                    ->whereHas('agent', fn($q) => $q->where('booking_type', 'Rent a Car'))
+                    ->count();
+                $unapproved = $trips + $outsource + $rentals;
                 $pendingSlips = \App\Models\PaymentSlip::where('status', 'pending')->count();
                 return $unapproved + $pendingSlips;
             })(),

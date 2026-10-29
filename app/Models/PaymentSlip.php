@@ -11,6 +11,8 @@ class PaymentSlip extends Model
 
     protected $fillable = [
         'trip_finance_id',
+        'outsource_vehicle_id',
+        'customer_id',
         'slip_des',
         'slip_path',
         'uploaded_by',
@@ -20,6 +22,16 @@ class PaymentSlip extends Model
     public function tripFinance()
     {
         return $this->belongsTo(TripFinance::class);
+    }
+
+    public function outsourceVehicle()
+    {
+        return $this->belongsTo(OutsourceVehicle::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function uploader()

@@ -5,11 +5,12 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
     if (!uploadSlipModal) return null;
 
     const trip = uploadSlipModal.trip || {};
-    const customer = trip.customer || {};
-    const agent = customer.agent || {};
+    const customer = uploadSlipModal.customer || trip.customer || {};
+    const agent = customer.agent || uploadSlipModal.agent || {};
     const originalCurrency = agent.new_currency ?? agent.currency ?? 'LKR';
-    const originalAmount = Number(customer.paid_amount ?? 0);
-    const amountInLkr = Number(uploadSlipModal.received_amount ?? 0);
+    const originalAmount = Number(customer.paid_amount ?? uploadSlipModal.paid_amount ?? 0);
+    const amountInLkr = Number(uploadSlipModal.amountInLkr ?? uploadSlipModal.received_amount ?? 0);
+    const displayTitle = uploadSlipModal.displayId || (uploadSlipModal.trip_id ? `Trip #${uploadSlipModal.trip_id}` : `Ref #${uploadSlipModal.id}`);
 
     let paymentNotes = [];
     try {
@@ -45,8 +46,17 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
             toast.error('Please select a file for all upload fields');
             return;
         }
+
+        let uploadRoute;
+        if (uploadSlipModal.type === 'outside_vehicle') {
+            uploadRoute = route('finance.outsource-vehicles.upload-slips', uploadSlipModal.id);
+        } else if (uploadSlipModal.type === 'rent_a_car') {
+            uploadRoute = route('finance.customers.upload-slips', uploadSlipModal.id);
+        } else {
+            uploadRoute = route('finance.trip-finances.upload-slips', uploadSlipModal.id);
+        }
         
-        uploadForm.post(route('finance.trip-finances.upload-slips', uploadSlipModal.id), {
+        uploadForm.post(uploadRoute, {
             onSuccess: () => {
                 toast.success('Payment slips uploaded successfully');
                 setUploadSlipModal(null);
@@ -61,7 +71,7 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setUploadSlipModal(null)}>
             <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
-                    <h3 className="text-lg font-black text-[#0f1d45]">Upload Slip for Trip #{uploadSlipModal.trip_id}</h3>
+                    <h3 className="text-lg font-black text-[#0f1d45]">Upload Slip for {displayTitle}</h3>
                     <button onClick={() => setUploadSlipModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -196,7 +196,11 @@ Route::delete('/finance/incentives/{incentive}', [FinanceController::class, 'des
 Route::post('/finance/drivers/{driver}/payment', [FinanceController::class, 'updateDriverPayment'])->name('finance.drivers.payment');
 Route::post('/finance/drivers/{driver}/status', [FinanceController::class, 'updateDriverStatus'])->name('finance.drivers.status');
 Route::post('/finance/trip-finances/{trip}/mark-received', [FinanceController::class, 'markReceived'])->name('finance.trip-finances.mark-received');
+Route::post('/finance/outsource-vehicles/{outsourceVehicle}/mark-received', [FinanceController::class, 'markOutsourceReceived'])->name('finance.outsource-vehicles.mark-received');
+Route::post('/finance/customers/{customer}/mark-received', [FinanceController::class, 'markCustomerReceived'])->name('finance.customers.mark-received');
 Route::post('/finance/trip-finances/{tripFinance}/upload-slips', [FinanceController::class, 'uploadSlips'])->name('finance.trip-finances.upload-slips');
+Route::post('/finance/outsource-vehicles/{outsourceVehicle}/upload-slips', [FinanceController::class, 'uploadOutsourceSlips'])->name('finance.outsource-vehicles.upload-slips');
+Route::post('/finance/customers/{customer}/upload-slips', [FinanceController::class, 'uploadCustomerSlips'])->name('finance.customers.upload-slips');
 Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');
@@ -243,8 +247,12 @@ Route::prefix('reports')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/accountant', [AccountantController::class, 'index'])->name('accountant.index');
     Route::post('/accountant/approve/{tripFinance}', [AccountantController::class, 'approve'])->name('accountant.approve');
+    Route::post('/accountant/approve-outsource/{outsourceVehicle}', [AccountantController::class, 'approveOutsource'])->name('accountant.approve-outsource');
+    Route::post('/accountant/approve-customer/{customer}', [AccountantController::class, 'approveCustomer'])->name('accountant.approve-customer');
     Route::post('/accountant/slips/{slip}/status', [AccountantController::class, 'updateSlipStatus'])->name('accountant.slips.status');
     Route::post('/accountant/trip-finances/{tripFinance}/slips/status', [AccountantController::class, 'updateAllSlipsStatus'])->name('accountant.trip-finances.slips.status');
+    Route::post('/accountant/outsource-vehicles/{outsourceVehicle}/slips/status', [AccountantController::class, 'updateAllOutsourceSlipsStatus'])->name('accountant.outsource-vehicles.slips.status');
+    Route::post('/accountant/customers/{customer}/slips/status', [AccountantController::class, 'updateAllCustomerSlipsStatus'])->name('accountant.customers.slips.status');
     
     // Customer Chats routes
     Route::get('/chats', [CustomerChatController::class, 'index'])->name('chats.index');

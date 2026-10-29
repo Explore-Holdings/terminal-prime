@@ -33,6 +33,7 @@ export default function Index({
     pettyCashBalance = 0,
     pettyCashRequests = [],
     rentACarRates = [],
+    rentACarBookings = [],
 }) {
     const [mainTab, setMainTab] = useState('daily_operations');
     const [subTab, setSubTab] = useState('payouts');
@@ -169,7 +170,17 @@ export default function Index({
 
                 <div className="p-4">
                     {mainTab === 'daily_operations' && (
-                        <DailyOperationsPanel trips={trips} rateSetting={rateSetting} range={range} customStart={customStart} customEnd={customEnd} eurRates={eurRates} setUploadSlipModal={setUploadSlipModal} />
+                        <DailyOperationsPanel
+                            trips={trips}
+                            rateSetting={rateSetting}
+                            range={range}
+                            customStart={customStart}
+                            customEnd={customEnd}
+                            eurRates={eurRates}
+                            setUploadSlipModal={setUploadSlipModal}
+                            outsourceVehicles={outsourceVehicles}
+                            rentACarBookings={rentACarBookings}
+                        />
                     )}
 
                     {mainTab === 'settlements' && (
@@ -238,6 +249,8 @@ export default function Index({
                     {mainTab === 'accountant_auth' && (
                         <AccountantAuthTab
                             trips={trips}
+                            outsourceVehicles={outsourceVehicles}
+                            rentACarBookings={rentACarBookings}
                             rateSetting={rateSetting}
                             eurRates={eurRates}
                             setUploadSlipModal={setUploadSlipModal}
@@ -263,7 +276,7 @@ export default function Index({
                     <div className="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f5f6fa]/50 shrink-0">
                             <div>
-                                <h3 className="text-lg font-black text-[#0f1d45]">Uploaded Slips — Trip #{viewSlipsModal.trip_id}</h3>
+                                <h3 className="text-lg font-black text-[#0f1d45]">Uploaded Slips — {viewSlipsModal.display_id || viewSlipsModal.displayId || `Trip #${viewSlipsModal.trip_id}`}</h3>
                                 <p className="text-xs text-gray-500 mt-0.5">Payment slip documents uploaded for accountant verification</p>
                             </div>
                             <button onClick={() => setViewSlipsModal(null)} className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition">
@@ -337,7 +350,17 @@ export default function Index({
     );
 }
 
-function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEnd, eurRates, setUploadSlipModal }) {
+function DailyOperationsPanel({
+    trips = [],
+    rateSetting = null,
+    range = 'today',
+    customStart = '',
+    customEnd = '',
+    eurRates = null,
+    setUploadSlipModal,
+    outsourceVehicles = [],
+    rentACarBookings = [],
+}) {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const pageSize = 8;
@@ -351,26 +374,21 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-    const filteredTrips = trips.filter((trip) => {
-        const assignedAt = trip.trip_assigned_at ? new Date(trip.trip_assigned_at) : null;
-        if (!assignedAt || Number.isNaN(assignedAt.getTime())) {
-            return false;
-        }
-        if (range === 'today') {
-            return assignedAt >= startOfToday && assignedAt <= endOfToday;
-        }
+    const filterByRange = (dateVal) => {
+        if (!dateVal || Number.isNaN(dateVal.getTime())) return false;
+        if (range === 'today') return dateVal >= startOfToday && dateVal <= endOfToday;
         if (range === 'week') {
             const startOfWeek = new Date(startOfToday);
             startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 6);
             endOfWeek.setHours(23, 59, 59, 999);
-            return assignedAt >= startOfWeek && assignedAt <= endOfWeek;
+            return dateVal >= startOfWeek && dateVal <= endOfWeek;
         }
         if (range === 'month') {
             const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-            return assignedAt >= startOfMonth && assignedAt <= endOfMonth;
+            return dateVal >= startOfMonth && dateVal <= endOfMonth;
         }
         if (range === 'custom') {
             if (!customStart) return false;
@@ -378,76 +396,281 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
             from.setHours(0, 0, 0, 0);
             const to = customEnd ? new Date(customEnd) : new Date(customStart);
             to.setHours(23, 59, 59, 999);
-            return assignedAt >= from && assignedAt <= to;
+            return dateVal >= from && dateVal <= to;
         }
         return false;
-    });
-
-    const totalAmount = filteredTrips.reduce((sum, trip) => {
-        const tf = trip.trip_finance;
-        const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
-        const originalAmount = Number(trip.customer?.paid_amount ?? 0);
-        const amountInLkr = tf?.total_amount
-            ? Number(tf.total_amount)
-            : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
-        return sum + amountInLkr;
-    }, 0);
+    };
 
     const agentRate = Number(rateSetting?.agent_rate ?? 0);
     const driverRate = Number(rateSetting?.driver_rate ?? 0);
 
-    const filteredRows = filteredTrips.filter((trip) => {
-        const query = searchTerm.toLowerCase();
-        return (
-            String(trip.id).includes(query) ||
-            (trip.customer?.name ?? '').toLowerCase().includes(query) ||
-            (trip.driver?.full_name ?? '').toLowerCase().includes(query) ||
-            (trip.agent?.user?.name ?? '').toLowerCase().includes(query)
-        );
-    });
+    // Normalize all streams into unified transactions
+    const allUnifiedTransactions = useMemo(() => {
+        const items = [];
+        const tripCustomerIds = new Set();
+        const outsourceCustomerIds = new Set();
 
-    const groupedTrips = useMemo(() => {
-        const groups = {};
-        filteredRows.forEach(trip => {
-            const assignedAt = trip.trip_assigned_at ? new Date(trip.trip_assigned_at) : null;
-            if (!assignedAt || Number.isNaN(assignedAt.getTime())) return;
-            const dateStr = assignedAt.toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
-            if (!groups[dateStr]) {
-                groups[dateStr] = { date: dateStr, trips: [], totalAmount: 0 };
-            }
-            groups[dateStr].trips.push(trip);
-            
+        // 1. Standard Trips (Transfer, Tours, etc.)
+        trips.forEach((trip) => {
+            if (trip.customer_id) tripCustomerIds.add(trip.customer_id);
+
+            const assignedAt = trip.trip_assigned_at ? new Date(trip.trip_assigned_at) : (trip.created_at ? new Date(trip.created_at) : null);
+            if (!filterByRange(assignedAt)) return;
+
+            const customer = trip.customer;
+            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+            const originalAmount = Number(customer?.paid_amount ?? 0);
             const tf = trip.trip_finance;
-            const originalCurrency = trip.customer?.agent?.new_currency ?? trip.customer?.agent?.currency ?? 'LKR';
-            const originalAmount = Number(trip.customer?.paid_amount ?? 0);
             const amountInLkr = tf?.total_amount
                 ? Number(tf.total_amount)
                 : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
-            groups[dateStr].totalAmount += amountInLkr;
+
+            const isCustomRate = Boolean(tf?.is_custom_rate);
+            const hasStoredRates = tf && (Number(tf.driver_share) > 0 || Number(tf.agent_share) > 0 || Number(tf.total_amount) > 0);
+
+            let agentPortion, driverPortion, balance;
+            if (isCustomRate && hasStoredRates) {
+                agentPortion  = Number(tf.agent_share);
+                driverPortion = Number(tf.driver_share);
+                balance       = Number(tf.balance);
+            } else if (hasStoredRates) {
+                agentPortion  = Number(tf.agent_share);
+                driverPortion = Number(tf.driver_share);
+                balance       = Number(tf.balance);
+            } else {
+                agentPortion  = Math.round((amountInLkr * agentRate) / 100);
+                driverPortion = Math.round((amountInLkr * driverRate) / 100);
+                balance       = amountInLkr - agentPortion - driverPortion;
+            }
+
+            const isReceived = Boolean(trip.cash_received) || Boolean(tf?.received);
+            const rawType = (customer?.agent?.booking_type || trip.agent?.booking_type || 'Transfer').trim();
+            const bookingType = rawType || 'Transfer';
+
+            items.push({
+                uniqueKey: `trip-${trip.id}`,
+                id: trip.id,
+                transactionType: 'trip',
+                bookingType,
+                displayId: `#${trip.id}`,
+                assignedAt,
+                customer,
+                agentName: customer?.agent?.user?.name || trip.agent?.user?.name || '-',
+                vehicleInfo: trip.driver?.vehicle?.registration_number || (trip.driver ? trip.driver.full_name : '-'),
+                driverName: trip.driver?.full_name || '-',
+                amountInLkr,
+                originalCurrency,
+                originalAmount,
+                paymentNotes: Array.isArray(customer?.payment_notes)
+                    ? customer.payment_notes
+                    : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer?.payment_notes || '[]') : []),
+                agentPortion,
+                driverPortion,
+                balance,
+                isCustomRate,
+                isReceived,
+                onMarkReceived: () => {
+                    if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received from counter manager?`)) return;
+                    const toastId = toast.loading(`Marking Trip #${trip.id} as received from counter manager…`);
+                    router.post(
+                        `/finance/trip-finances/${trip.id}/mark-received`,
+                        {
+                            total_amount:    amountInLkr,
+                            driver_share:    driverPortion,
+                            agent_share:     agentPortion,
+                            balance:         balance,
+                            received_amount: amountInLkr,
+                        },
+                        {
+                            preserveScroll: true,
+                            preserveState: true,
+                            onSuccess: () => {
+                                toast.success(`Trip #${trip.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`, { id: toastId });
+                            },
+                            onError: () => {
+                                toast.error(`Failed to mark Trip #${trip.id} as received from counter manager`, { id: toastId });
+                            },
+                        }
+                    );
+                },
+            });
+        });
+
+        // 2. Outside Vehicles (Outsource Vehicles)
+        outsourceVehicles.forEach((ov) => {
+            if (ov.customer_id) outsourceCustomerIds.add(ov.customer_id);
+
+            const createdAt = ov.created_at ? new Date(ov.created_at) : null;
+            if (!filterByRange(createdAt)) return;
+
+            const customer = ov.customer;
+            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+            const originalAmount = Number(customer?.paid_amount ?? ov.price ?? 0);
+            const amountInLkr = Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+            const ovPrice = Number(ov.price || 0);
+            const agentPortion = 0;
+            const driverPortion = ovPrice;
+            const balance = amountInLkr - ovPrice;
+            const isReceived = Boolean(ov.received);
+
+            items.push({
+                uniqueKey: `ov-${ov.id}`,
+                id: ov.id,
+                transactionType: 'outside_vehicle',
+                bookingType: 'Outside Vehicle',
+                displayId: `OV-${ov.id}`,
+                assignedAt: createdAt,
+                customer,
+                agentName: ov.agent?.user?.name || ov.creator?.name || '-',
+                vehicleInfo: ov.vehicle_number || (ov.mobile_number ? `Mob: ${ov.mobile_number}` : 'Outside Vehicle'),
+                driverName: ov.mobile_number ? `Driver (${ov.mobile_number})` : 'External Driver',
+                amountInLkr,
+                originalCurrency,
+                originalAmount,
+                paymentNotes: Array.isArray(customer?.payment_notes)
+                    ? customer.payment_notes
+                    : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer?.payment_notes || '[]') : []),
+                agentPortion,
+                driverPortion,
+                balance,
+                isCustomRate: false,
+                isReceived,
+                onMarkReceived: () => {
+                    if (!window.confirm(`Are you sure you want to mark Outside Vehicle OV-${ov.id} as received from counter manager?`)) return;
+                    const toastId = toast.loading(`Marking OV-${ov.id} as received from counter manager…`);
+                    router.post(
+                        `/finance/outsource-vehicles/${ov.id}/mark-received`,
+                        {
+                            received_amount: amountInLkr,
+                        },
+                        {
+                            preserveScroll: true,
+                            preserveState: true,
+                            onSuccess: () => {
+                                toast.success(`Outside Vehicle OV-${ov.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`, { id: toastId });
+                            },
+                            onError: () => {
+                                toast.error(`Failed to mark OV-${ov.id} as received from counter manager`, { id: toastId });
+                            },
+                        }
+                    );
+                },
+            });
+        });
+
+        // 3. Rent a Car Bookings
+        rentACarBookings.forEach((customer) => {
+            if (tripCustomerIds.has(customer.id) || outsourceCustomerIds.has(customer.id)) return;
+
+            const createdAt = customer.created_at ? new Date(customer.created_at) : null;
+            if (!filterByRange(createdAt)) return;
+
+            const originalCurrency = customer.agent?.new_currency ?? customer.agent?.currency ?? 'LKR';
+            const originalAmount = Number(customer.paid_amount ?? customer.agent?.new_price ?? customer.agent?.price ?? 0);
+            const amountInLkr = Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+            const agentPortion = Math.round((amountInLkr * agentRate) / 100);
+            const driverPortion = 0;
+            const balance = amountInLkr - agentPortion;
+            const isReceived = Boolean(customer.finance_received);
+
+            items.push({
+                uniqueKey: `rc-${customer.id}`,
+                id: customer.id,
+                transactionType: 'rent_a_car',
+                bookingType: 'Rent a Car',
+                displayId: `RC-${customer.id}`,
+                assignedAt: createdAt,
+                customer,
+                agentName: customer.agent?.user?.name || '-',
+                vehicleInfo: customer.agent?.external_vehicle_reg || 'Rent a Car',
+                driverName: 'Self Drive / Rental',
+                amountInLkr,
+                originalCurrency,
+                originalAmount,
+                paymentNotes: Array.isArray(customer?.payment_notes)
+                    ? customer.payment_notes
+                    : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer?.payment_notes || '[]') : []),
+                agentPortion,
+                driverPortion,
+                balance,
+                isCustomRate: false,
+                isReceived,
+                onMarkReceived: () => {
+                    if (!window.confirm(`Are you sure you want to mark Rent a Car #${customer.id} as received from counter manager?`)) return;
+                    const toastId = toast.loading(`Marking Rent a Car #${customer.id} as received from counter manager…`);
+                    router.post(
+                        `/finance/customers/${customer.id}/mark-received`,
+                        {
+                            received_amount: amountInLkr,
+                        },
+                        {
+                            preserveScroll: true,
+                            preserveState: true,
+                            onSuccess: () => {
+                                toast.success(`Rent a Car #${customer.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`, { id: toastId });
+                            },
+                            onError: () => {
+                                toast.error(`Failed to mark Rent a Car #${customer.id} as received from counter manager`, { id: toastId });
+                            },
+                        }
+                    );
+                },
+            });
+        });
+
+        return items;
+    }, [trips, outsourceVehicles, rentACarBookings, range, customStart, customEnd, eurRates, agentRate, driverRate]);
+
+    const totalAmount = allUnifiedTransactions.reduce((sum, item) => sum + item.amountInLkr, 0);
+
+    const filteredRows = allUnifiedTransactions.filter((item) => {
+        const query = searchTerm.toLowerCase();
+        return (
+            String(item.id).includes(query) ||
+            item.displayId.toLowerCase().includes(query) ||
+            (item.customer?.name ?? '').toLowerCase().includes(query) ||
+            (item.vehicleInfo ?? '').toLowerCase().includes(query) ||
+            (item.agentName ?? '').toLowerCase().includes(query) ||
+            (item.bookingType ?? '').toLowerCase().includes(query)
+        );
+    });
+
+    const groupedTransactions = useMemo(() => {
+        const groups = {};
+        filteredRows.forEach(item => {
+            if (!item.assignedAt || Number.isNaN(item.assignedAt.getTime())) return;
+            const dateStr = item.assignedAt.toLocaleDateString('en-CA'); // 'YYYY-MM-DD'
+            if (!groups[dateStr]) {
+                groups[dateStr] = { date: dateStr, items: [], totalAmount: 0 };
+            }
+            groups[dateStr].items.push(item);
+            groups[dateStr].totalAmount += item.amountInLkr;
         });
         return Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [filteredRows, eurRates]);
+    }, [filteredRows]);
 
-    const pagedGroups = groupedTrips.slice((page - 1) * pageSize, page * pageSize);
-    const totalPages = Math.max(1, Math.ceil(groupedTrips.length / pageSize));
+    const pagedGroups = groupedTransactions.slice((page - 1) * pageSize, page * pageSize);
+    const totalPages = Math.max(1, Math.ceil(groupedTransactions.length / pageSize));
 
     return (
         <>
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold text-black">
-                    {range === 'today' ? 'Today assigned tours' : 'Assigned tours'}
+                    {range === 'today' ? "Today's daily operations" : 'Daily operations'}
                 </h2>
                 <div className="flex items-center gap-3 text-sm">
-                    <span className="text-black">{filteredTrips.length} trip(s)</span>
+                    <span className="text-black">{allUnifiedTransactions.length} transaction(s)</span>
                     <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-black">
                         Total : LKR {totalAmount.toLocaleString()}
                     </span>
                 </div>
             </div>
 
-            {filteredTrips.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-black">
-                    No assigned tours found for this period.
+            {allUnifiedTransactions.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-black">
+                    No transactions found for this period.
                 </div>
             ) : (
                 <>
@@ -455,8 +678,8 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 p-3">
                             <input
                                 type="text"
-                                placeholder="Search tours..."
-                                className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
+                                placeholder="Search all transactions (ID, customer, vehicle, agent)..."
+                                className="w-full max-w-sm rounded border border-gray-300 px-3 py-2 text-sm"
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
@@ -472,14 +695,14 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                             <table className="min-w-full text-sm">
                                 <thead className="bg-gray-50 border-b border-gray-200">
                                     <tr>
-                                        <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Trip / Ref</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Agent Share</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-black">Driver Share</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Driver Share / Cost</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Balance</th>
-                                        <th className="px-3 py-2 text-left font-semibold text-black">Rate</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-black">Type / Rate</th>
                                         <th className="px-3 py-2 text-left font-semibold text-black">Action</th>
                                     </tr>
                                 </thead>
@@ -493,100 +716,41 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                 LKR {group.totalAmount.toLocaleString()}
                                             </td>
                                             <td className="px-3 py-3 text-black font-medium" colSpan={6}>
-                                                {group.trips.length} Trip{group.trips.length !== 1 && 's'}
+                                                {group.items.length} Transaction{group.items.length !== 1 && 's'}
                                             </td>
                                             <td className="px-3 py-3 text-right text-black font-semibold text-xs uppercase tracking-wider">
                                                 {expandedDates.includes(group.date) ? '▲ Hide' : '▼ Show'}
                                             </td>
                                         </tr>
-                                        {expandedDates.includes(group.date) && group.trips.map((trip) => {
-                                            const customer = trip.customer;
-                                            const paymentNotes = Array.isArray(customer?.payment_notes)
-                                                ? customer.payment_notes
-                                                : (typeof customer?.payment_notes === 'string' ? JSON.parse(customer.payment_notes || '[]') : []);
-
-                                            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
-                                            const originalAmount = Number(customer?.paid_amount ?? 0);
-                                            const tf             = trip.trip_finance;
-                                            const amountInLkr    = tf?.total_amount
-                                                ? Number(tf.total_amount)
-                                                : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
-
-                                            const isCustomRate   = Boolean(tf?.is_custom_rate);
-                                            const hasStoredRates = tf && (Number(tf.driver_share) > 0 || Number(tf.agent_share) > 0 || Number(tf.total_amount) > 0);
-
-                                            let agentPortion, driverPortion, balance;
-                                            if (isCustomRate && hasStoredRates) {
-                                                agentPortion      = Number(tf.agent_share);
-                                                driverPortion     = Number(tf.driver_share);
-                                                balance           = Number(tf.balance);
-                                            } else if (hasStoredRates) {
-                                                agentPortion      = Number(tf.agent_share);
-                                                driverPortion     = Number(tf.driver_share);
-                                                balance           = Number(tf.balance);
-                                            } else {
-                                                agentPortion      = Math.round((amountInLkr * agentRate) / 100);
-                                                driverPortion     = Math.round((amountInLkr * driverRate) / 100);
-                                                balance           = amountInLkr - agentPortion - driverPortion;
-                                            }
-
-                                            const isReceived = Boolean(trip.cash_received) || Boolean(tf?.received);
-
-                                            const handleMarkReceived = () => {
-                                                if (!window.confirm(`Are you sure you want to mark Trip #${trip.id} as received from counter manager?`)) {
-                                                    return;
-                                                }
-                                                const toastId = toast.loading(`Marking Trip #${trip.id} as received from counter manager…`);
-                                                router.post(
-                                                    `/finance/trip-finances/${trip.id}/mark-received`,
-                                                    {
-                                                        total_amount:    amountInLkr,
-                                                        driver_share:    driverPortion,
-                                                        agent_share:     agentPortion,
-                                                        balance:         balance,
-                                                        received_amount: amountInLkr,
-                                                    },
-                                                    {
-                                                        preserveScroll: true,
-                                                        preserveState: true,
-                                                        onSuccess: () => {
-                                                            toast.success(
-                                                                `Trip #${trip.id} marked as received from counter manager — LKR ${amountInLkr.toLocaleString()}`,
-                                                                { id: toastId }
-                                                            );
-                                                        },
-                                                        onError: () => {
-                                                            toast.error(
-                                                                `Failed to mark Trip #${trip.id} as received from counter manager`,
-                                                                { id: toastId }
-                                                            );
-                                                        },
-                                                    }
-                                                );
-                                            };
+                                        {expandedDates.includes(group.date) && group.items.map((item) => {
+                                            const customer = item.customer;
+                                            const borderAccent =
+                                                item.transactionType === 'outside_vehicle' ? 'border-amber-500' :
+                                                item.transactionType === 'rent_a_car' ? 'border-purple-500' :
+                                                'border-blue-500';
 
                                             return (
-                                                <tr key={trip.id} className="hover:bg-blue-50/50 bg-white">
-                                                    <td className="px-3 py-2 border-l-2 border-blue-500">
-                                                        <div className="font-semibold text-black">#{trip.id}</div>
+                                                <tr key={item.uniqueKey} className="hover:bg-blue-50/50 bg-white">
+                                                    <td className={`px-3 py-2 border-l-2 ${borderAccent}`}>
+                                                        <div className="font-semibold text-black">{item.displayId}</div>
                                                         <div className="text-xs text-black">{customer?.name ?? '-'}</div>
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="text-xs font-medium text-black">{customer?.agent?.user?.name ?? '-'}</div>
+                                                        <div className="text-xs font-medium text-black">{item.agentName}</div>
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="text-xs font-medium text-black">{trip.driver?.vehicle?.registration_number ?? '-'}</div>
+                                                        <div className="text-xs font-medium text-black">{item.vehicleInfo}</div>
                                                     </td>
                                                     <td className="px-3 py-2 font-medium text-black">
-                                                        <div>LKR {amountInLkr.toLocaleString()}</div>
-                                                        {originalCurrency !== 'LKR' && (
+                                                        <div>LKR {item.amountInLkr.toLocaleString()}</div>
+                                                        {item.originalCurrency !== 'LKR' && (
                                                             <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-black border border-blue-100 mt-1 mb-1">
-                                                                {originalCurrency} {originalAmount.toLocaleString()}
+                                                                {item.originalCurrency} {item.originalAmount.toLocaleString()}
                                                             </span>
                                                         )}
-                                                        {paymentNotes.length > 0 && (
+                                                        {item.paymentNotes.length > 0 && (
                                                             <div className="mt-1 space-y-1">
-                                                                {paymentNotes.map((p, pi) => (
+                                                                {item.paymentNotes.map((p, pi) => (
                                                                     <div key={pi} className="flex flex-wrap items-center gap-1 text-[10px]">
                                                                         <span className={`px-1 py-0.5 rounded font-bold uppercase ${p.method === 'Cash' ? 'bg-emerald-100 text-black' : 'bg-blue-100 text-black'}`}>
                                                                             {p.method}
@@ -602,34 +766,46 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="font-medium text-black">LKR {agentPortion.toLocaleString()}</div>
+                                                        <div className="font-medium text-black">LKR {item.agentPortion.toLocaleString()}</div>
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <div className="font-medium text-black">LKR {driverPortion.toLocaleString()}</div>
+                                                        <div className="font-medium text-black">LKR {item.driverPortion.toLocaleString()}</div>
                                                     </td>
-                                                    <td className="px-3 py-2 font-medium text-black">LKR {balance.toLocaleString()}</td>
+                                                    <td className="px-3 py-2 font-medium text-black">LKR {item.balance.toLocaleString()}</td>
                                                     <td className="px-3 py-2">
-                                                        {isCustomRate ? (
-                                                            <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-black">
-                                                                Custom
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                                                item.transactionType === 'outside_vehicle' ? 'bg-amber-100 text-amber-800' :
+                                                                item.transactionType === 'rent_a_car' ? 'bg-purple-100 text-purple-800' :
+                                                                item.bookingType.toLowerCase().includes('tour') ? 'bg-teal-100 text-teal-800' :
+                                                                'bg-blue-100 text-blue-800'
+                                                            }`}>
+                                                                {item.bookingType}
                                                             </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-black">
-                                                                Standard
-                                                            </span>
-                                                        )}
+                                                            {item.transactionType === 'trip' && (
+                                                                item.isCustomRate ? (
+                                                                    <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-bold text-black">
+                                                                        Custom
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-black">
+                                                                        Standard
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="flex flex-col gap-2 items-start">
-                                                            {isReceived ? (
+                                                            {item.isReceived ? (
                                                                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-black">
                                                                     ✓ Received from Counter Manager
                                                                 </span>
                                                             ) : (
                                                                 <button
                                                                     type="button"
-                                                                    onClick={handleMarkReceived}
-                                                                    className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform whitespace-nowrap"
+                                                                    onClick={item.onMarkReceived}
+                                                                    className="rounded bg-blue-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-800 active:scale-95 transition-transform whitespace-nowrap shadow-sm"
                                                                 >
                                                                     Received from Counter Manager
                                                                 </button>
@@ -654,7 +830,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
                                 Previous
                             </button>
                             <span>
-                                Showing {groupedTrips.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, groupedTrips.length)} of {groupedTrips.length} Dates
+                                Showing {groupedTransactions.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, groupedTransactions.length)} of {groupedTransactions.length} Dates
                             </span>
                             <button
                                 type="button"
@@ -672,7 +848,7 @@ function DailyOperationsPanel({ trips, rateSetting, range, customStart, customEn
     );
 }
 
-function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, setViewSlipsModal }) {
+function AccountantAuthTab({ trips, outsourceVehicles = [], rentACarBookings = [], rateSetting, eurRates, setUploadSlipModal, setViewSlipsModal }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [authRange, setAuthRange] = useState('today');
     const [authFrom, setAuthFrom] = useState('');
@@ -708,16 +884,102 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
         return true;
     };
 
-    const approvedTrips = trips.filter(t =>
-        t.trip_finance?.accountant_approved && filterByDate(t.trip_assigned_at)
+    const tripCustomerIdSet = new Set(trips.map(t => t.customer_id).filter(Boolean));
+    const outsourceCustomerIdSet = new Set(outsourceVehicles.map(ov => ov.customer_id).filter(Boolean));
+
+    const approvedTripRecords = trips
+        .filter(t => t.trip_finance?.accountant_approved && filterByDate(t.trip_assigned_at))
+        .map(trip => {
+            const tf = trip.trip_finance;
+            const customer = trip.customer;
+            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+            const originalAmount = Number(customer?.paid_amount ?? 0);
+            const amountInLkr = tf?.total_amount
+                ? Number(tf.total_amount)
+                : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+            return {
+                id: `trip-${trip.id}`,
+                rawId: trip.id,
+                displayId: `#${trip.id}`,
+                type: 'trip',
+                typeBadge: 'Trip',
+                customerName: customer?.name ?? '-',
+                customer: customer,
+                agentName: customer?.agent?.user?.name ?? '-',
+                vehicleDisplay: trip.driver?.vehicle?.registration_number ?? '-',
+                amountInLkr,
+                date: trip.trip_assigned_at,
+                trip,
+                tf,
+                slips: tf?.payment_slips || [],
+            };
+        });
+
+    const approvedOutsourceRecords = outsourceVehicles
+        .filter(ov => ov.accountant_approved && filterByDate(ov.assigned_at || ov.created_at))
+        .map(ov => {
+            const customer = ov.customer;
+            const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
+            const originalAmount = Number(customer?.paid_amount ?? 0);
+            const amountInLkr = ov.total_amount
+                ? Number(ov.total_amount)
+                : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+            return {
+                id: `ov-${ov.id}`,
+                rawId: ov.id,
+                displayId: `OV-${ov.id}`,
+                type: 'outside_vehicle',
+                typeBadge: 'Outside Vehicle',
+                customerName: customer?.name ?? '-',
+                customer: customer,
+                agentName: customer?.agent?.user?.name ?? '-',
+                vehicleDisplay: `${ov.vehicle_number || ov.supplier_name || 'Outside Vehicle'}${ov.vehicle_model ? ` (${ov.vehicle_model})` : ''}`,
+                amountInLkr,
+                date: ov.assigned_at || ov.created_at,
+                ov,
+                slips: ov.payment_slips || [],
+            };
+        });
+
+    const approvedRentACarRecords = rentACarBookings
+        .filter(c => !tripCustomerIdSet.has(c.id) && !outsourceCustomerIdSet.has(c.id))
+        .filter(c => c.accountant_approved && filterByDate(c.created_at))
+        .map(c => {
+            const originalCurrency = c.agent?.new_currency ?? c.agent?.currency ?? 'LKR';
+            const originalAmount = Number(c.paid_amount ?? 0);
+            const amountInLkr = Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
+
+            return {
+                id: `rc-${c.id}`,
+                rawId: c.id,
+                displayId: `RC-${c.id}`,
+                type: 'rent_a_car',
+                typeBadge: 'Rent a Car',
+                customerName: c.name ?? '-',
+                customer: c,
+                agentName: c.agent?.user?.name ?? '-',
+                vehicleDisplay: c.rent_a_car_rate?.vehicle_type || 'Rent a Car',
+                amountInLkr,
+                date: c.created_at,
+                customer: c,
+                slips: c.payment_slips || [],
+            };
+        });
+
+    const allApproved = [...approvedTripRecords, ...approvedOutsourceRecords, ...approvedRentACarRecords].sort(
+        (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
     );
 
-    const filtered = approvedTrips.filter(trip => {
+    const filtered = allApproved.filter(item => {
         const q = searchTerm.toLowerCase();
         return (
-            String(trip.id).includes(q) ||
-            (trip.customer?.name ?? '').toLowerCase().includes(q) ||
-            (trip.customer?.agent?.user?.name ?? '').toLowerCase().includes(q)
+            item.displayId.toLowerCase().includes(q) ||
+            item.customerName.toLowerCase().includes(q) ||
+            item.agentName.toLowerCase().includes(q) ||
+            item.vehicleDisplay.toLowerCase().includes(q) ||
+            item.typeBadge.toLowerCase().includes(q)
         );
     });
 
@@ -736,7 +998,7 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-semibold text-black">Accountant Authorization</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">Trips approved by the accountant and their slip upload status</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Transactions approved by the accountant and their slip upload status</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {rangeOptions.map(opt => (
@@ -756,21 +1018,21 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                         </>
                     )}
                     <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 text-sm border border-emerald-200">
-                        {approvedTrips.length} Approved
+                        {allApproved.length} Approved
                     </span>
                 </div>
             </div>
 
-            {approvedTrips.length === 0 ? (
+            {allApproved.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-400">
-                    No accountant-approved trips found for this period.
+                    No accountant-approved transactions found for this period.
                 </div>
             ) : (
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                     <div className="flex items-center justify-between border-b border-gray-200 p-3 gap-3">
                         <input
                             type="text"
-                            placeholder="Search trips..."
+                            placeholder="Search transactions..."
                             className="w-full max-w-xs rounded border border-gray-300 px-3 py-2 text-sm"
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
@@ -781,7 +1043,8 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                         <table className="min-w-full text-sm">
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th className="px-3 py-2 text-left font-semibold text-black">Trip</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Ref / Type</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-black">Customer</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Vehicle</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Amount</th>
@@ -791,34 +1054,42 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 bg-white">
-                                {paged.map(trip => {
-                                    const tf = trip.trip_finance;
-                                    const customer = trip.customer;
-                                    const originalCurrency = customer?.agent?.new_currency ?? customer?.agent?.currency ?? 'LKR';
-                                    const originalAmount = Number(customer?.paid_amount ?? 0);
-                                    const amountInLkr = tf?.total_amount
-                                        ? Number(tf.total_amount)
-                                        : Math.round(getAmountInLkr(originalAmount, originalCurrency, eurRates));
-
-                                    const slips = tf?.payment_slips || [];
+                                {paged.map(item => {
+                                    const slips = item.slips || [];
                                     const pendingSlips = slips.filter(s => s.status === 'pending');
                                     const completedSlips = slips.filter(s => s.status === 'completed');
                                     const incompleteSlips = slips.filter(s => s.status === 'incomplete');
 
                                     return (
-                                        <tr key={trip.id} className="hover:bg-emerald-50/40">
+                                        <tr key={item.id} className="hover:bg-emerald-50/40">
                                             <td className="px-3 py-2 border-l-2 border-emerald-500">
-                                                <div className="font-semibold text-black">#{trip.id}</div>
-                                                <div className="text-xs text-gray-500">{customer?.name ?? '-'}</div>
+                                                <div className="font-semibold text-black flex items-center gap-1.5">
+                                                    {item.displayId}
+                                                    <span className={`inline-block px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                                        item.type === 'trip'
+                                                            ? 'bg-blue-100 text-blue-800'
+                                                            : item.type === 'outside_vehicle'
+                                                            ? 'bg-purple-100 text-purple-800'
+                                                            : 'bg-emerald-100 text-emerald-800'
+                                                    }`}>
+                                                        {item.typeBadge}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-gray-400">
+                                                    {item.date ? new Date(item.date).toLocaleDateString() : '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-xs font-semibold text-gray-800">
+                                                {item.customerName}
                                             </td>
                                             <td className="px-3 py-2 text-xs text-black">
-                                                {customer?.agent?.user?.name ?? '-'}
+                                                {item.agentName}
                                             </td>
                                             <td className="px-3 py-2 text-xs font-medium text-black">
-                                                {trip.driver?.vehicle?.registration_number ?? '-'}
+                                                {item.vehicleDisplay}
                                             </td>
                                             <td className="px-3 py-2 font-medium text-black">
-                                                LKR {amountInLkr.toLocaleString()}
+                                                LKR {item.amountInLkr.toLocaleString()}
                                             </td>
                                             <td className="px-3 py-2">
                                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200 whitespace-nowrap">
@@ -832,7 +1103,7 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                         <button
                                                             type="button"
-                                                            onClick={() => setViewSlipsModal({ ...tf, trip_id: trip.id })}
+                                                            onClick={() => setViewSlipsModal({ payment_slips: slips, display_id: item.displayId, ...item })}
                                                             className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 px-2.5 py-1 text-xs font-bold transition active:scale-95 whitespace-nowrap shadow-sm"
                                                         >
                                                             👁 View Slips ({slips.length})
@@ -859,7 +1130,15 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                                                 {slips.length === 0 ? (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        onClick={() => setUploadSlipModal({
+                                                            id: item.type === 'trip' ? (item.tf?.id || item.rawId) : item.rawId,
+                                                            type: item.type,
+                                                            displayId: item.displayId,
+                                                            customer: item.customer,
+                                                            trip: item.trip,
+                                                            amountInLkr: item.amountInLkr,
+                                                            received_amount: item.amountInLkr,
+                                                        })}
                                                         className="rounded-lg bg-[#0f1d45] hover:bg-black text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
                                                     >
                                                         Upload Slips
@@ -867,7 +1146,15 @@ function AccountantAuthTab({ trips, rateSetting, eurRates, setUploadSlipModal, s
                                                 ) : incompleteSlips.length > 0 ? (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setUploadSlipModal({ ...tf, trip })}
+                                                        onClick={() => setUploadSlipModal({
+                                                            id: item.type === 'trip' ? (item.tf?.id || item.rawId) : item.rawId,
+                                                            type: item.type,
+                                                            displayId: item.displayId,
+                                                            customer: item.customer,
+                                                            trip: item.trip,
+                                                            amountInLkr: item.amountInLkr,
+                                                            received_amount: item.amountInLkr,
+                                                        })}
                                                         className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap"
                                                     >
                                                         ⚠️ Re-upload
