@@ -422,9 +422,7 @@ export default function AccountantIndex({
                                                 LKR {fmt(tf.received_amount)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                {tf.type && tf.type !== 'trip' ? (
-                                                    <span className="text-gray-400 text-xs italic">N/A</span>
-                                                ) : (() => {
+                                                {(() => {
                                                     if (slips.length === 0) {
                                                         return <span className="text-gray-400 text-xs italic">No Slips</span>;
                                                     }

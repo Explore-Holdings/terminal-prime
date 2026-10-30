@@ -849,6 +849,7 @@ function DailyOperationsPanel({
 }
 
 function AccountantAuthTab({ trips, outsourceVehicles = [], rentACarBookings = [], rateSetting, eurRates, setUploadSlipModal, setViewSlipsModal }) {
+    const [selectedIds, setSelectedIds] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [authRange, setAuthRange] = useState('today');
     const [authFrom, setAuthFrom] = useState('');
@@ -985,6 +986,15 @@ function AccountantAuthTab({ trips, outsourceVehicles = [], rentACarBookings = [
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+    const canUpload = (item) => item.slips.length === 0 || item.slips.some(slip => slip.status === 'incomplete');
+    const selectedItems = filtered.filter(item => selectedIds.includes(item.id) && canUpload(item));
+    const selectablePage = paged.filter(canUpload);
+    const allPageSelected = selectablePage.length > 0 && selectablePage.every(item => selectedIds.includes(item.id));
+    const toggleSelected = (id) => setSelectedIds(previous => previous.includes(id) ? previous.filter(value => value !== id) : [...previous, id]);
+
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [searchTerm, authRange, authFrom, authTo]);
 
     const rangeOptions = [
         { key: 'today', label: 'Today' },
@@ -1037,12 +1047,38 @@ function AccountantAuthTab({ trips, outsourceVehicles = [], rentACarBookings = [
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                         />
-                        <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} record(s)</span>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <span className="text-sm text-gray-500 whitespace-nowrap">{filtered.length} record(s)</span>
+                            {selectedItems.length > 0 && (
+                                <>
+                                    <button type="button" onClick={() => setSelectedIds([])} className="text-xs font-semibold text-gray-600 hover:text-black">Clear selection</button>
+                                    <button type="button" disabled={selectedItems.length > 100} onClick={() => setUploadSlipModal({
+                                        transactions: selectedItems.map(item => ({
+                                            id: item.type === 'trip' ? item.tf.id : item.rawId,
+                                            type: item.type,
+                                            displayId: item.displayId,
+                                            typeBadge: item.typeBadge,
+                                            customerName: item.customerName,
+                                            amountInLkr: item.amountInLkr,
+                                        })),
+                                        onUploaded: () => setSelectedIds([]),
+                                    })} className="rounded-lg bg-[#0f1d45] px-3 py-2 text-xs font-bold text-white hover:bg-black disabled:opacity-50">
+                                        Upload for selected ({selectedItems.length})
+                                    </button>
+                                    {selectedItems.length > 100 && <span className="text-xs text-red-600">Select up to 100 transactions.</span>}
+                                </>
+                            )}
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm">
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
+                                    <th className="px-3 py-2 text-center">
+                                        <input type="checkbox" aria-label="Select all eligible transactions on this page" checked={allPageSelected} disabled={selectablePage.length === 0} onChange={() => setSelectedIds(previous => allPageSelected
+                                            ? previous.filter(id => !selectablePage.some(item => item.id === id))
+                                            : [...new Set([...previous, ...selectablePage.map(item => item.id)])])} className="rounded border-gray-300 text-blue-700" />
+                                    </th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Ref / Type</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Customer</th>
                                     <th className="px-3 py-2 text-left font-semibold text-black">Agent</th>
@@ -1062,6 +1098,9 @@ function AccountantAuthTab({ trips, outsourceVehicles = [], rentACarBookings = [
 
                                     return (
                                         <tr key={item.id} className="hover:bg-emerald-50/40">
+                                            <td className="px-3 py-2 text-center">
+                                                <input type="checkbox" aria-label={`Select ${item.typeBadge} ${item.displayId}`} disabled={!canUpload(item)} checked={canUpload(item) && selectedIds.includes(item.id)} onChange={() => toggleSelected(item.id)} className="rounded border-gray-300 text-blue-700 disabled:opacity-40" />
+                                            </td>
                                             <td className="px-3 py-2 border-l-2 border-emerald-500">
                                                 <div className="font-semibold text-black flex items-center gap-1.5">
                                                     {item.displayId}

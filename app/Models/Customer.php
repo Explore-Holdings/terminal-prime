@@ -18,6 +18,8 @@ class Customer extends Model
         'mobile_number',
         'whatsapp_number',
         'country',
+        'arrival_date',
+        'departure_date',
         'passport_image',
         'dropoff_location',
         'passenger_count',
@@ -44,6 +46,8 @@ class Customer extends Model
     ];
 
     protected $casts = [
+        'arrival_date' => 'date:Y-m-d',
+        'departure_date' => 'date:Y-m-d',
         'paid_at' => 'datetime',
         'payment_notes' => 'array',
         'finance_received' => 'boolean',

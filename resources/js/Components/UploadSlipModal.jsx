@@ -4,13 +4,16 @@ import toast from 'react-hot-toast';
 export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal }) {
     if (!uploadSlipModal) return null;
 
+    const transactions = uploadSlipModal.transactions || [];
+    const isBulk = transactions.length > 0;
+
     const trip = uploadSlipModal.trip || {};
     const customer = uploadSlipModal.customer || trip.customer || {};
     const agent = customer.agent || uploadSlipModal.agent || {};
     const originalCurrency = agent.new_currency ?? agent.currency ?? 'LKR';
     const originalAmount = Number(customer.paid_amount ?? uploadSlipModal.paid_amount ?? 0);
-    const amountInLkr = Number(uploadSlipModal.amountInLkr ?? uploadSlipModal.received_amount ?? 0);
-    const displayTitle = uploadSlipModal.displayId || (uploadSlipModal.trip_id ? `Trip #${uploadSlipModal.trip_id}` : `Ref #${uploadSlipModal.id}`);
+    const amountInLkr = isBulk ? transactions.reduce((sum, item) => sum + Number(item.amountInLkr || 0), 0) : Number(uploadSlipModal.amountInLkr ?? uploadSlipModal.received_amount ?? 0);
+    const displayTitle = isBulk ? `${transactions.length} selected transactions` : uploadSlipModal.displayId || (uploadSlipModal.trip_id ? `Trip #${uploadSlipModal.trip_id}` : `Ref #${uploadSlipModal.id}`);
 
     let paymentNotes = [];
     try {
@@ -24,7 +27,10 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
     }
 
     // Upload form state supporting multiple slips
-    const uploadForm = useForm({ uploads: [{ file: null, description: '' }] });
+    const uploadForm = useForm({
+        uploads: [{ file: null, description: '' }],
+        ...(isBulk ? { transactions: transactions.map(({ id, type }) => ({ id, type })) } : {}),
+    });
 
     const handleAddSlip = () => {
         uploadForm.setData('uploads', [...uploadForm.data.uploads, { file: null, description: '' }]);
@@ -48,7 +54,9 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
         }
 
         let uploadRoute;
-        if (uploadSlipModal.type === 'outside_vehicle') {
+        if (isBulk) {
+            uploadRoute = route('finance.upload-slips.bulk');
+        } else if (uploadSlipModal.type === 'outside_vehicle') {
             uploadRoute = route('finance.outsource-vehicles.upload-slips', uploadSlipModal.id);
         } else if (uploadSlipModal.type === 'rent_a_car') {
             uploadRoute = route('finance.customers.upload-slips', uploadSlipModal.id);
@@ -59,10 +67,12 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
         uploadForm.post(uploadRoute, {
             onSuccess: () => {
                 toast.success('Payment slips uploaded successfully');
+                uploadSlipModal.onUploaded?.();
                 setUploadSlipModal(null);
             },
-            onError: () => {
-                toast.error('Failed to upload slips. Please try again.');
+            preserveScroll: true,
+            onError: (errors) => {
+                toast.error(Object.values(errors)[0] || 'Failed to upload slips. Please try again.');
             }
         });
     };
@@ -82,13 +92,29 @@ export default function UploadSlipModal({ uploadSlipModal, setUploadSlipModal })
                 <div className="p-6 overflow-y-auto flex-1">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                         <div className="md:col-span-4">
-                            <p className="text-sm font-semibold text-gray-500 mb-1">Received Amount</p>
+                            <p className="text-sm font-semibold text-gray-500 mb-1">{isBulk ? 'Selected Total' : 'Received Amount'}</p>
                             <p className="text-3xl font-black text-emerald-600">
-                                {originalCurrency} {originalAmount.toLocaleString()}
+                                {isBulk ? `LKR ${amountInLkr.toLocaleString()}` : `${originalCurrency} ${originalAmount.toLocaleString()}`}
                             </p>
+                            {!isBulk && (
                             <p className="text-sm font-semibold text-gray-400 mt-1">
                                 LKR {amountInLkr.toLocaleString()}
                             </p>
+                            )}
+                            {isBulk && (
+                                <div className="mt-4">
+                                    <p className="mb-3 text-xs text-gray-600">These files and descriptions will be saved separately against every selected transaction.</p>
+                                    <ul className="max-h-64 space-y-2 overflow-y-auto text-xs">
+                                        {transactions.map(item => (
+                                            <li key={`${item.type}-${item.id}`} className="rounded-lg border border-gray-200 p-2">
+                                                <strong>{item.typeBadge} {item.displayId}</strong>
+                                                <div className="text-gray-600">{item.customerName}</div>
+                                                <div>LKR {Number(item.amountInLkr || 0).toLocaleString()}</div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
                             {/* Payment Breakdown */}
                             {paymentNotes.length > 0 && (

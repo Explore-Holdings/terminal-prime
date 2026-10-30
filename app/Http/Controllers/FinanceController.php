@@ -287,6 +287,74 @@ class FinanceController extends Controller
         return back();
     }
 
+    public function uploadBulkSlips(Request $request)
+    {
+        $data = $request->validate([
+            'transactions' => 'required|array|min:1|max:100',
+            'transactions.*.type' => 'required|in:trip,outside_vehicle,rent_a_car',
+            'transactions.*.id' => 'required|integer|min:1',
+            'uploads' => 'required|array|min:1',
+            'uploads.*.file' => 'required|file|max:10240',
+            'uploads.*.description' => 'nullable|string',
+        ]);
+
+        $keys = collect($data['transactions'])->map(fn ($item) => $item['type'].':'.$item['id']);
+        if ($keys->unique()->count() !== $keys->count()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['transactions' => 'Select each transaction only once.']);
+        }
+
+        $storedPaths = [];
+        try {
+            DB::transaction(function () use ($data, &$storedPaths) {
+                // Check every target before saving any files or slip records.
+                $targets = collect($data['transactions'])->map(function ($item) {
+                    [$model, $foreignKey] = match ($item['type']) {
+                        'trip' => [TripFinance::class, 'trip_finance_id'],
+                        'outside_vehicle' => [OutsourceVehicle::class, 'outsource_vehicle_id'],
+                        'rent_a_car' => [Customer::class, 'customer_id'],
+                    };
+                    $record = $model::lockForUpdate()->find($item['id']);
+                    if (!$record) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['transactions' => 'A selected transaction no longer exists. Refresh and try again.']);
+                    }
+                    $slips = $record->paymentSlips;
+                    if ($slips->isNotEmpty() && $slips->every(fn ($slip) => $slip->status === 'completed')) {
+                        throw \Illuminate\Validation\ValidationException::withMessages(['transactions' => 'A selected transaction already has approved slips. Remove it from the selection and try again.']);
+                    }
+                    $directory = match ($item['type']) {
+                        'trip' => "payment_slips/trip_{$record->trip_id}",
+                        'outside_vehicle' => "payment_slips/outsource_{$record->id}",
+                        'rent_a_car' => "payment_slips/customer_{$record->id}",
+                    };
+
+                    return [$record, $foreignKey, $directory];
+                });
+
+                foreach ($targets as [$record, $foreignKey, $directory]) {
+                    foreach ($data['uploads'] as $upload) {
+                        $path = $upload['file']->store($directory, 'public');
+                        if (!$path) {
+                            throw new \RuntimeException('Could not store the uploaded slip.');
+                        }
+                        $storedPaths[] = $path;
+                        \App\Models\PaymentSlip::create([
+                            $foreignKey => $record->id,
+                            'slip_des' => $upload['description'] ?? null,
+                            'slip_path' => $path,
+                            'uploaded_by' => Auth::id(),
+                            'status' => 'pending',
+                        ]);
+                    }
+                }
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($storedPaths);
+            throw $exception;
+        }
+
+        return back()->with('success', 'Payment slips uploaded for all selected transactions.');
+    }
+
     public function uploadSlips(Request $request, TripFinance $tripFinance)
     {
         // Prevent upload if slips have already been approved by accountant

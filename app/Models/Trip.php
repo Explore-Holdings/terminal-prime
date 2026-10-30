@@ -63,7 +63,7 @@ class Trip extends Model
 
     public function tripFinance()
     {
-        return $this->hasOne(TripFinance::class);
+        return $this->hasOne(TripFinance::class)->latestOfMany();
     }
 
     public function assignedBy()
