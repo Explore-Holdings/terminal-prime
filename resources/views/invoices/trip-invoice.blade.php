@@ -295,6 +295,13 @@
         @endif
 
         <tr>
+            <td class="info-label">Arrival Date</td>
+            <td class="info-value">{{ $arrivalDate?->format('d.m.Y') ?? '-' }}</td>
+            <td class="info-label">Departure Date</td>
+            <td class="info-value">{{ $departureDate?->format('d.m.Y') ?? '-' }}</td>
+        </tr>
+
+        <tr>
             <td class="info-label">Vehicle Number</td>
             <td class="info-value">
                 <strong style="font-size: 11px;">{{ strtoupper($vehicleReg ?: '-') }}</strong>

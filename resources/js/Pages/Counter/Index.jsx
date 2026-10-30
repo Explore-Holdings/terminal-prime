@@ -522,6 +522,8 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
         mobile_number: '',
         whatsapp_number: '',
         country: '',
+        arrival_date: '',
+        departure_date: '',
         dropoff_location: '',
         passenger_count: 1,
         luggage_count: 0,
@@ -568,6 +570,8 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
             mobile_number: existingCust?.mobile_number || '',
             whatsapp_number: existingCust?.whatsapp_number || '',
             country: existingCust?.country || '',
+            arrival_date: existingCust?.arrival_date || '',
+            departure_date: existingCust?.departure_date || '',
             dropoff_location: existingCust?.dropoff_location || formatTourDestinations(agent.tour_destinations) || agent.dropoff_location || (agent.booking_type === 'Rent a Car' ? 'BIA Airport' : ''),
             passenger_count: existingCust?.passenger_count ?? agent.passenger_count ?? 1,
             luggage_count: existingCust?.luggage_count ?? agent.luggage_count ?? 0,
@@ -1797,6 +1801,35 @@ function Modal({
                 </div>
             </div>
         </div>
+    );
+}
+
+function TravelDateFields({ form }) {
+    const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+
+    return (
+        <>
+            {['arrival_date', 'departure_date'].map((field) => (
+                <div key={field}>
+                    <label htmlFor={field} className="block text-xs font-bold text-black mb-1">
+                        {field === 'arrival_date' ? 'Arrival Date' : 'Departure Date'}
+                    </label>
+                    <input
+                        id={field}
+                        name={field}
+                        type="date"
+                        value={form.data[field] || ''}
+                        min={field === 'departure_date' && form.data.arrival_date > today ? form.data.arrival_date : today}
+                        max={field === 'arrival_date' ? (form.data.departure_date || undefined) : undefined}
+                        onChange={(e) => form.setData(field, e.target.value)}
+                        className="w-full text-xs font-bold text-black rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 py-2 px-3 bg-white"
+                    />
+                    {form.errors[field] && <p className="mt-1 text-xs text-red-600">{form.errors[field]}</p>}
+                </div>
+            ))}
+        </>
     );
 }
 
@@ -3037,8 +3070,8 @@ function CustomerTab({
                         </select>
                     </div>
 
-                    {/* Row 2: Customer Name & Country */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Row 2: Customer Name, Country & Travel Dates */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Customer Name <span className="text-red-600">*</span>
@@ -3058,6 +3091,7 @@ function CustomerTab({
                             onChange={(val) => form.setData('country', val)}
                             countries={countries}
                         />
+                        <TravelDateFields form={form} />
                     </div>
 
                     {/* Row 3: Email, Phone/WhatsApp & Language */}
@@ -3337,8 +3371,8 @@ function CustomerTab({
                         </select>
                     </div>
 
-                    {/* Row 2: Customer Name, Country */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Row 2: Customer Name, Country & Travel Dates */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-black mb-1">
                                 Customer Name <span className="text-red-600">*</span>
@@ -3358,6 +3392,7 @@ function CustomerTab({
                             onChange={(val) => form.setData('country', val)}
                             countries={countries}
                         />
+                        <TravelDateFields form={form} />
                     </div>
 
                     {/* Row 3: Email, Phone/WhatsApp, Dropoff (default BIA Airport) */}
@@ -3788,6 +3823,8 @@ function PaymentTab({
                 mobile_number: customerForm?.data?.mobile_number?.trim() || null,
                 whatsapp_number: customerForm?.data?.whatsapp_number?.trim() || null,
                 country: customerForm?.data?.country?.trim() || null,
+                arrival_date: customerForm?.data?.arrival_date || null,
+                departure_date: customerForm?.data?.departure_date || null,
                 dropoff_location: customerForm?.data?.dropoff_location?.trim() || formatTourDestinations(agent?.tour_destinations) || agent?.dropoff_location || (customerForm?.data?.booking_type === 'Rent a Car' ? 'BIA Airport' : 'Colombo'),
                 passenger_count: Number(customerForm?.data?.passenger_count || agent?.passenger_count || 1),
                 luggage_count: Number(customerForm?.data?.luggage_count ?? agent?.luggage_count ?? 0),

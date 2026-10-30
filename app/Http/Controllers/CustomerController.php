@@ -41,6 +41,7 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
+        $today = now('Asia/Colombo')->toDateString();
         $data = $request->validate([
             'agent_id' => 'nullable|exists:agents,id',
             'agent_user_id' => 'nullable|exists:users,id',
@@ -50,6 +51,8 @@ class CustomerController extends Controller
             'mobile_number' => 'nullable|string|max:30',
             'whatsapp_number' => 'nullable|string|max:30',
             'country' => 'nullable|string|max:100',
+            'arrival_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.$today],
+            'departure_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:'.$today, ...($request->filled('arrival_date') ? ['after_or_equal:arrival_date'] : [])],
             'dropoff_location' => 'nullable|string|max:255',
             'passenger_count' => 'nullable|integer|min:1',
             'luggage_count' => 'nullable|integer|min:0',
@@ -124,6 +127,11 @@ class CustomerController extends Controller
         ];
 
         $existing = Customer::where('agent_id', $data['agent_id'])->latest('id')->first();
+        foreach (['arrival_date', 'departure_date'] as $dateField) {
+            if (array_key_exists($dateField, $data)) {
+                $customerData[$dateField] = $data[$dateField];
+            }
+        }
         if ($existing) {
             $existing->update($customerData);
             $customer = $existing;
