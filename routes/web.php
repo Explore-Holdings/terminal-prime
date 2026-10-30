@@ -201,6 +201,7 @@ Route::post('/finance/customers/{customer}/mark-received', [FinanceController::c
 Route::post('/finance/trip-finances/{tripFinance}/upload-slips', [FinanceController::class, 'uploadSlips'])->name('finance.trip-finances.upload-slips');
 Route::post('/finance/outsource-vehicles/{outsourceVehicle}/upload-slips', [FinanceController::class, 'uploadOutsourceSlips'])->name('finance.outsource-vehicles.upload-slips');
 Route::post('/finance/customers/{customer}/upload-slips', [FinanceController::class, 'uploadCustomerSlips'])->name('finance.customers.upload-slips');
+Route::post('/finance/upload-slips/bulk', [FinanceController::class, 'uploadBulkSlips'])->name('finance.upload-slips.bulk');
 Route::post('/finance/expenses', [FinanceController::class, 'storeExpense'])->name('finance.expenses.store');
 Route::put('/finance/expenses/{expense}', [FinanceController::class, 'updateExpense'])->name('finance.expenses.update');
 Route::delete('/finance/expenses/{expense}', [FinanceController::class, 'destroyExpense'])->name('finance.expenses.destroy');

@@ -305,6 +305,14 @@
     {{-- ── YOUR RENTAL / TOUR ── --}}
     <div class="section-heading">{{ $isTour ? 'Your Tour Booking' : ($isRentACar ? 'Your Car Rental' : 'Your Rental') }}</div>
     <table class="info-table">
+        @if(($isTour || $isRentACar) && ($customer->arrival_date || $customer->departure_date))
+            <tr>
+                <td class="info-label">Arrival Date</td>
+                <td class="info-value">{{ $customer->arrival_date?->format('d.m.Y') ?? '-' }}</td>
+                <td class="info-label">Departure Date</td>
+                <td class="info-value">{{ $customer->departure_date?->format('d.m.Y') ?? '-' }}</td>
+            </tr>
+        @endif
         @if($isTour)
             <tr>
                 <td class="info-label">Counter Station</td>
