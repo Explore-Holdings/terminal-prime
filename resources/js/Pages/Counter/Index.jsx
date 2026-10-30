@@ -4238,6 +4238,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
     const [selectedCityId, setSelectedCityId] = useState('');
+    const [assignmentExtras, setAssignmentExtras] = useState({ km: 0, price: 0 });
+    const [extraChargeDraft, setExtraChargeDraft] = useState(null);
     const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
@@ -4353,13 +4355,15 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
     const tourDays = Math.max(1, Number(agent?.days || 1));
 
-    const driverShare = isTourRate
+    const baseDriverShare = isTourRate
         ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
         : isPerKmRate
             ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
             : useCustomRate
                 ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
                 : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+
+    const driverShare = Math.round((baseDriverShare + (useCustomRate ? assignmentExtras.price : 0)) * 100) / 100;
 
     const agentShare = (isPerKmRate || isTourRate)
         ? 0
@@ -4426,6 +4430,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         setCustomDriverShare('');
         setCustomAgentShare('');
         setSelectedCityId('');
+        setAssignmentExtras({ km: 0, price: 0 });
+        setExtraChargeDraft(null);
         setCitySearch('');
         setIsShortTrip(false);
         setConfirmModal({ vehicle });
@@ -4459,19 +4465,13 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
         // Snapshot shares
         const tourDays = Math.max(1, Number(agent?.days || 1));
-        const finalDriverShare = isTourRate
-            ? Math.round(Number(agent?.driver_rate || 0) * tourDays)
-            : isPerKmRate
-                ? Math.round(Number(agent?.distance_km || 0) * vehicleRateValue * 1.5)
-                : useCustomRate
-                    ? (selectedCity && selectedCity.price !== null ? Math.round(Number(selectedCity.price)) : 0)
-                    : Math.round((totalAmountInLkr * defaultDriverRate) / 100);
+        const finalDriverShare = driverShare;
         const finalAgentShare = (isPerKmRate || isTourRate)
             ? 0
             : useCustomRate
                 ? 0
                 : Math.round((totalAmountInLkr * defaultAgentRate) / 100);
-        const finalBalance = Math.round(totalAmountInLkr - finalDriverShare - finalAgentShare);
+        const finalBalance = Math.round((totalAmountInLkr - finalDriverShare - finalAgentShare) * 100) / 100;
 
         const finalDriverRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultDriverRate;
         const finalAgentRate = (useCustomRate || isPerKmRate || isTourRate) ? 0 : defaultAgentRate;
@@ -4503,6 +4503,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                 is_custom_rate: useCustomRate || isTourRate,
                 total_amount: totalAmountInLkr,
                 driver_share: finalDriverShare,
+                location_vehicle_price_id: useCustomRate ? selectedCityId : null,
+                base_driver_share: useCustomRate ? baseDriverShare : null,
+                extra_km: useCustomRate ? assignmentExtras.km : 0,
+                extra_price: useCustomRate ? assignmentExtras.price : 0,
                 agent_share: finalAgentShare,
                 balance: finalBalance,
             },
@@ -5208,14 +5212,17 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                             ) : (
                                 <div>
                                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Rate Type</p>
-                                    <div className="mb-2">
-                                        <div className="flex items-center gap-2 rounded-lg border-2 border-orange-500 bg-orange-50 p-2">
+                                    <div className="mb-2 flex items-stretch gap-2">
+                                        <div className="flex flex-1 items-center gap-2 rounded-lg border-2 border-orange-500 bg-orange-50 p-2">
                                             <span className="text-lg text-orange-600">🏙️</span>
                                             <div>
                                                 <span className="text-[11px] font-semibold text-orange-600 block">Custom Rate</span>
                                                 <span className="text-[9px] text-gray-400">City-based pricing</span>
                                             </div>
                                         </div>
+                                        <button type="button" disabled={!selectedCity || selectedCity.price === null} onClick={() => setExtraChargeDraft({ ...assignmentExtras })} title={!selectedCity || selectedCity.price === null ? 'Select a city with a rate first' : 'Add extra KM and price'} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-800 bg-white px-2.5 py-2 text-[13px] font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">
+                                            <Plus size={12} /> Extra KM / Price
+                                        </button>
                                     </div>
 
                                     {/* Panel: Custom Rate — city picker */}
@@ -5262,7 +5269,10 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                             <button
                                                                 key={row.id}
                                                                 type="button"
-                                                                onClick={() => setSelectedCityId(String(row.id))}
+                                                                onClick={() => {
+                                                                    if (String(selectedCityId) !== String(row.id)) setAssignmentExtras({ km: 0, price: 0 });
+                                                                    setSelectedCityId(String(row.id));
+                                                                }}
                                                                 className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
                                                             >
                                                                 <div>
@@ -5291,11 +5301,14 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
                                         {selectedCity && selectedCity.price !== null && (
                                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
-                                                <span className="font-semibold text-orange-700">Selected: {selectedCity.city}</span>
+                                                <div>
+                                                    <span className="font-semibold text-orange-700 block">Selected: {selectedCity.city}</span>
+                                                </div>
                                                 <div className="text-right">
                                                     <span className="font-bold text-orange-700 block">
-                                                        LKR {Number(selectedCity.price).toLocaleString()}
+                                                        LKR {driverShare.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                                     </span>
+                                                    {(assignmentExtras.km > 0 || assignmentExtras.price > 0) && <span className="text-[10px] text-orange-800">{assignmentExtras.km} extra km + LKR {assignmentExtras.price.toLocaleString()}</span>}
                                                 </div>
                                             </div>
                                         )}
@@ -5337,6 +5350,33 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
             )}
 
             {/* ── Final Confirmation Modal ── */}
+            {extraChargeDraft && confirmModal && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+                    <form role="dialog" aria-modal="true" aria-labelledby="assignment-extra-title" onSubmit={(event) => {
+                        event.preventDefault();
+                        setAssignmentExtras({ km: Number(extraChargeDraft.km || 0), price: Number(extraChargeDraft.price || 0) });
+                        setExtraChargeDraft(null);
+                    }} className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onKeyDown={(event) => { if (event.key === 'Escape') setExtraChargeDraft(null); }}>
+                        <h3 id="assignment-extra-title" className="text-base font-bold text-gray-900">Extra KM / Price</h3>
+                        <p className="mt-1 text-xs text-gray-500">{selectedCity?.city} · {confirmModal.vehicle.driver?.full_name ?? 'Selected driver'}</p>
+                        <label className="mt-4 block text-xs font-bold text-gray-700">
+                            Extra KM
+                            <input autoFocus type="number" min="0" max="99999999.99" step="0.01" value={extraChargeDraft.km} onChange={(event) => setExtraChargeDraft(previous => ({ ...previous, km: event.target.value }))} className="mt-1 w-full rounded-lg border-gray-300 text-sm" />
+                        </label>
+                        <label className="mt-3 block text-xs font-bold text-gray-700">
+                            Extra Price (LKR)
+                            <input type="number" min="0" max="9999999999.99" step="0.01" value={extraChargeDraft.price} onChange={(event) => setExtraChargeDraft(previous => ({ ...previous, price: event.target.value }))} className="mt-1 w-full rounded-lg border-gray-300 text-sm" />
+                        </label>
+                        <p className="mt-4 text-xs text-gray-600">City rate: LKR {baseDriverShare.toLocaleString()}</p>
+                        <p className="mt-1 text-sm font-bold text-orange-700">Driver total: LKR {(baseDriverShare + Number(extraChargeDraft.price || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button type="button" onClick={() => setExtraChargeDraft(null)} className="rounded-lg border px-3 py-2 text-xs font-semibold">Cancel</button>
+                            <button type="submit" className="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white">Save</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {showFinalConfirm && (
                 <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden p-6 text-center">

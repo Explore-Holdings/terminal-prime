@@ -414,6 +414,10 @@ class CustomerController extends Controller
             'is_custom_rate' => 'nullable|boolean',
             'total_amount'   => 'nullable|numeric|min:0',
             'driver_share'   => 'nullable|numeric|min:0',
+            'location_vehicle_price_id' => 'nullable|required_with:base_driver_share|exists:location_vehicle_prices,id',
+            'base_driver_share' => 'nullable|required_with:location_vehicle_price_id|numeric|min:0',
+            'extra_km' => 'nullable|numeric|min:0|max:99999999.99',
+            'extra_price' => 'nullable|numeric|min:0|max:9999999999.99',
             'agent_share'    => 'nullable|numeric|min:0',
             'balance'        => 'nullable|numeric',
             'selection_reason' => 'nullable|string',
@@ -618,6 +622,21 @@ class CustomerController extends Controller
                 ? round((float) $data['balance'])
                 : round($totalAmount - $driverShare - $agentShare);
 
+            $city = !empty($data['location_vehicle_price_id'])
+                ? \App\Models\LocationVehiclePrice::findOrFail($data['location_vehicle_price_id'])
+                : null;
+            $extraKm = (float) ($data['extra_km'] ?? 0);
+            $extraPrice = (float) ($data['extra_price'] ?? 0);
+            if (($extraKm > 0 || $extraPrice > 0) && !$city) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'location_vehicle_price_id' => 'Select a city before adding driver extra charges.',
+                ]);
+            }
+            if ($city) {
+                $driverShare = round((float) $data['base_driver_share'] + $extraPrice, 2);
+                $balance = round($totalAmount - $driverShare - $agentShare, 2);
+            }
+
             TripFinance::create([
                 'trip_id'        => $trip->id,
                 'driver_id'      => $data['driver_id'],
@@ -628,6 +647,11 @@ class CustomerController extends Controller
                 'is_custom_rate' => (bool) ($data['is_custom_rate'] ?? false),
                 'total_amount'   => $totalAmount,
                 'driver_share'   => $driverShare,
+                'location_vehicle_price_id' => $city?->id,
+                'city_name' => $city?->city,
+                'base_driver_share' => $city ? $data['base_driver_share'] : null,
+                'extra_km' => $extraKm,
+                'extra_price' => $extraPrice,
                 'agent_share'    => $agentShare,
                 'balance'        => $balance,
                 'received'       => false,

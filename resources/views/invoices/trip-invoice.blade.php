@@ -294,12 +294,14 @@
             </tr>
         @endif
 
+        @if($isTour && !in_array(strtolower(trim($bookingType)), ['transfer', 'transfers']))
         <tr>
             <td class="info-label">Arrival Date</td>
             <td class="info-value">{{ $arrivalDate?->format('d.m.Y') ?? '-' }}</td>
             <td class="info-label">Departure Date</td>
             <td class="info-value">{{ $departureDate?->format('d.m.Y') ?? '-' }}</td>
         </tr>
+        @endif
 
         <tr>
             <td class="info-label">Vehicle Number</td>
@@ -337,6 +339,14 @@
 
     {{-- ── COSTS & DRIVER PAYOUT ── --}}
     <div class="section-heading">Driver Payout & Trip Costs</div>
+    @if(($extraKm ?? 0) > 0 || ($extraPrice ?? 0) > 0)
+        <div style="border: 1px solid #d1d5db; padding: 6px 8px; margin-bottom: 6px; font-size: 10px;">
+            <strong>Driver Extra KM / Price:</strong>
+            @if(!empty($driverCity)) {{ $driverCity }} &mdash; @endif
+            {{ number_format($extraKm ?? 0, 2) }} extra km;
+            LKR {{ number_format($extraPrice ?? 0, 2) }} extra (included in driver payout).
+        </div>
+    @endif
     <table class="charges-table">
         <thead>
             <tr>
