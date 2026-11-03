@@ -4237,10 +4237,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
     const [selectedServiceCategoryFilter, setSelectedServiceCategoryFilter] = useState(null);
     const [customDriverShare, setCustomDriverShare] = useState('');
     const [customAgentShare, setCustomAgentShare] = useState('');
-    const [selectedCityId, setSelectedCityId] = useState('');
     const [assignmentExtras, setAssignmentExtras] = useState({ km: 0, price: 0 });
     const [extraChargeDraft, setExtraChargeDraft] = useState(null);
-    const [citySearch, setCitySearch] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [selectedLanguageFilter, setSelectedLanguageFilter] = useState(null);
     const [selectedVehicleTypeFilter, setSelectedVehicleTypeFilter] = useState(null);
@@ -4340,8 +4338,12 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         return locationVehiclePrices.map(r => ({ ...r, price: r[col] ?? null }));
     })();
 
-    // Selected city price row
-    const selectedCity = cityPrices.find(r => String(r.id) === String(selectedCityId)) ?? null;
+    // Use the booking destination; assignment must not select a different city.
+    const bookingCity = (customerForm?.data?.dropoff_location ?? agent?.dropoff_location ?? '').trim();
+    const selectedCity = bookingCity
+        ? cityPrices.find(row => (row.city ?? '').trim().toLowerCase() === bookingCity.toLowerCase()) ?? null
+        : null;
+    const selectedCityId = selectedCity?.id ?? null;
 
     // Share calculations
     const isTourRate = isTour || rateMode === 'tour_rate';
@@ -4429,10 +4431,8 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
         setRateMode(isTour ? 'tour_rate' : 'custom');
         setCustomDriverShare('');
         setCustomAgentShare('');
-        setSelectedCityId('');
         setAssignmentExtras({ km: 0, price: 0 });
         setExtraChargeDraft(null);
-        setCitySearch('');
         setIsShortTrip(false);
         setConfirmModal({ vehicle });
     };
@@ -4445,7 +4445,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
 
         if (!customerId) { alert('Customer not found.'); return; }
         if (!driverId) { alert('Driver not found for this vehicle.'); return; }
-        if (!isRateAssigned) { alert('Please select a destination rate before assigning.'); return; }
+        if (!isRateAssigned) { alert(isTour ? 'Tour driver rate is required.' : 'The booking city needs a valid rate for this vehicle type before assigning.'); return; }
 
         // Snapshot shares
         const tourDays = Math.max(1, Number(agent?.days || 1));
@@ -5204,89 +5204,23 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                                 <span className="text-[9px] text-gray-400">City-based pricing</span>
                                             </div>
                                         </div>
-                                        <button type="button" disabled={!selectedCity || selectedCity.price === null} onClick={() => setExtraChargeDraft({ ...assignmentExtras })} title={!selectedCity || selectedCity.price === null ? 'Select a city with a rate first' : 'Add extra KM and price'} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-800 bg-white px-2.5 py-2 text-[13px] font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">
+                                        <button type="button" disabled={!selectedCity || selectedCity.price === null} onClick={() => setExtraChargeDraft({ ...assignmentExtras })} title={!selectedCity || selectedCity.price === null ? 'The booking city needs a valid vehicle rate first' : 'Add extra KM and price'} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-800 bg-white px-2.5 py-2 text-[13px] font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40">
                                             <Plus size={12} /> Extra KM / Price
                                         </button>
                                     </div>
 
-                                    {/* Panel: Custom Rate — city picker */}
+                                    {/* Destination and driver rate come from the booking city. */}
                                     <div className="space-y-2">
-                                        <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-2.5 py-1.5 font-medium">
-                                            Select the destination city to load the price for this vehicle type ({confirmModal.vehicle.vehicle_type ?? 'Unknown'}).
-                                        </p>
-
-                                        {cityPrices.length === 0 ? (
-                                            <p className="text-xs text-gray-500 text-center py-3">No city prices available.</p>
-                                        ) : (
-                                            <>
-                                                {/* Search bar */}
-                                                <div className="relative">
-                                                    <span className="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none text-xs">🔍</span>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search city, district or province…"
-                                                        value={citySearch}
-                                                        onChange={e => setCitySearch(e.target.value)}
-                                                        className="w-full pl-8 pr-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                                                    />
-                                                    {citySearch && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setCitySearch('')}
-                                                            className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 text-xs"
-                                                        >✕</button>
-                                                    )}
-                                                </div>
-
-                                                <div className="max-h-[102px] overflow-y-auto rounded-lg border divide-y">
-                                                    {cityPrices
-                                                        .filter(row => {
-                                                            const q = citySearch.trim().toLowerCase();
-                                                            if (!q) return true;
-                                                            return (
-                                                                (row.city ?? '').toLowerCase().includes(q) ||
-                                                                (row.district ?? '').toLowerCase().includes(q) ||
-                                                                (row.province ?? '').toLowerCase().includes(q)
-                                                            );
-                                                        })
-                                                        .map((row) => (
-                                                            <button
-                                                                key={row.id}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (String(selectedCityId) !== String(row.id)) setAssignmentExtras({ km: 0, price: 0 });
-                                                                    setSelectedCityId(String(row.id));
-                                                                }}
-                                                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition ${String(selectedCityId) === String(row.id) ? 'bg-orange-50 border-l-4 border-l-orange-500' : 'hover:bg-gray-50'}`}
-                                                            >
-                                                                <div>
-                                                                    <p className="text-xs font-semibold text-gray-800">{row.city}</p>
-                                                                    <p className="text-[10px] text-gray-400">{row.district}{row.province ? ` · ${row.province}` : ''}{row.zone ? ` · Zone ${row.zone}` : ''}</p>
-                                                                </div>
-                                                                <span className={`text-xs font-bold ${row.price !== null ? 'text-orange-600' : 'text-gray-400'}`}>
-                                                                    {row.price !== null ? `LKR ${Number(row.price).toLocaleString()}` : 'N/A'}
-                                                                </span>
-                                                            </button>
-                                                        ))}
-                                                    {cityPrices.filter(row => {
-                                                        const q = citySearch.trim().toLowerCase();
-                                                        if (!q) return false;
-                                                        return !(
-                                                            (row.city ?? '').toLowerCase().includes(q) ||
-                                                            (row.district ?? '').toLowerCase().includes(q) ||
-                                                            (row.province ?? '').toLowerCase().includes(q)
-                                                        );
-                                                    }).length === cityPrices.length && (
-                                                            <p className="text-xs text-gray-400 text-center py-3">No results for "{citySearch}"</p>
-                                                        )}
-                                                </div>
-                                            </>
-                                        )}
+                                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Booking City</p>
+                                            <p className="text-sm font-bold text-gray-900">{bookingCity || 'No city selected in booking'}</p>
+                                            <p className="mt-1 text-xs text-gray-500">{confirmModal.vehicle.vehicle_type ?? 'Unknown'} driver rate</p>
+                                        </div>
 
                                         {selectedCity && selectedCity.price !== null && (
                                             <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5 flex justify-between items-center text-xs">
                                                 <div>
-                                                    <span className="font-semibold text-orange-700 block">Selected: {selectedCity.city}</span>
+                                                    <span className="font-semibold text-orange-700 block">Driver Rate</span>
                                                 </div>
                                                 <div className="text-right">
                                                     <span className="font-bold text-orange-700 block">
@@ -5305,7 +5239,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                         {!isRateAssigned && (
                             <div className="px-4 pb-2">
                                 <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 text-center font-medium">
-                                    ⚠️ {isTour ? 'Tour driver rate is required to assign this tour.' : 'Please select a destination city with a valid rate to enable assignment.'}
+                                    ⚠️ {isTour ? 'Tour driver rate is required to assign this tour.' : 'The booking city has no valid rate for this vehicle type. Update the booking or city rates before assigning.'}
                                 </p>
                             </div>
                         )}
@@ -5324,7 +5258,7 @@ function VehicleTab({ vehicles, ongoingTrips = [], customerId, agent, onClose, r
                                 disabled={submitting || !isRateAssigned}
                                 onClick={() => setShowFinalConfirm(true)}
                                 className="flex-1 py-2 rounded-lg bg-blue-700 text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                title={!isRateAssigned ? "Please select a destination city with a valid rate" : ""}
+                                title={!isRateAssigned ? "The booking city needs a valid rate for this vehicle type" : ""}
                             >
                                 {submitting ? 'Assigning...' : 'Confirm & Assign'}
                             </button>
