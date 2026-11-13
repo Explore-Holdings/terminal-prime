@@ -35,6 +35,10 @@ return [
         ],
     ],
 
+    'attendance' => [
+        'api_token' => env('ATTENDANCE_API_TOKEN'),
+    ],
+
     'fms' => [
         'url' => env('FMS_API_URL'),
         'secret' => env('FMS_SYNC_SECRET'),
