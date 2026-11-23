@@ -484,8 +484,16 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
 
     const [searchMyTrips, setSearchMyTrips] = useState('');
 
+    const visibleMyTrips = useMemo(() => {
+        return myTrips.filter((trip) => String(trip.status ?? '').toLowerCase() !== 'cancelled');
+    }, [myTrips]);
+
+    const visibleOngoingTrips = useMemo(() => {
+        return ongoingTrips.filter((trip) => String(trip.status ?? '').toLowerCase() !== 'cancelled');
+    }, [ongoingTrips]);
+
     const filteredMyTrips = useMemo(() => {
-        return myTrips.filter((trip) => {
+        return visibleMyTrips.filter((trip) => {
             const text = [
                 trip.id,
                 trip.customer?.name,
@@ -498,7 +506,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
 
             return text.includes(searchMyTrips.toLowerCase());
         });
-    }, [myTrips, searchMyTrips]);
+    }, [visibleMyTrips, searchMyTrips]);
 
     useEffect(() => {
         fetch('https://latest.currency-api.pages.dev/v1/currencies/eur.json')
@@ -1204,9 +1212,9 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
                         </Link>
                     }
                 >
-                    {ongoingTrips.length ? (
+                    {visibleOngoingTrips.length ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                            {ongoingTrips.map((trip) => (
+                            {visibleOngoingTrips.map((trip) => (
                                 <TripCard key={trip.id} trip={trip} />
                             ))}
                         </div>
@@ -1221,13 +1229,13 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
                         <div className="flex items-center gap-3">
                             <span>My Tours</span>
                             <span className="bg-slate-700 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                                {myTrips.length}
+                                {visibleMyTrips.length}
                             </span>
                         </div>
                     }
                     icon={<ClipboardList className="text-slate-700" size={22} />}
                     actions={
-                        myTrips.length > 0 && (
+                        visibleMyTrips.length > 0 && (
                             <input
                                 type="text"
                                 placeholder="Search my tours..."
@@ -1238,7 +1246,7 @@ export default function Index({ pendingAgents = [], ongoingTrips: initialOngoing
                         )
                     }
                 >
-                    {myTrips.length ? (
+                    {visibleMyTrips.length ? (
                         <div className="border border-slate-200 rounded-lg overflow-hidden shadow-xs">
                             <DataTable
                                 columns={[

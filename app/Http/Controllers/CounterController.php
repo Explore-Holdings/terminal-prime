@@ -211,6 +211,7 @@ class CounterController extends Controller
                     'tripFinance'
                 ])
                 ->where('trip_assigned_by', Auth::id())
+                ->where('status', '!=', 'Cancelled')
                 ->latest('trip_assigned_at')
                 ->take(50)
                 ->get(),
